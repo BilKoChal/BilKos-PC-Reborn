@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { PokemonStats } from '../../../types';
+import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { LineChart, BarChart3, Hexagon } from 'lucide-react';
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
+import { useSaveContextSafe } from '../../../context/SaveContext';
+import { IGenerationAdapter } from '../../../lib/interfaces';
 
 interface PokemonStatsPanelProps {
     mon: PokemonStats;
-    generation: number;
+    generation?: number;
+    adapter?: IGenerationAdapter;
     updateIV: (stat: keyof PokemonStats['iv'], value: number) => void;
     updateEV: (stat: keyof PokemonStats['ev'], value: number) => void;
 }
@@ -112,7 +115,10 @@ function dShort(label: string): string {
     return label.substring(0, 3).toUpperCase();
 }
 
-export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, generation, updateIV, updateEV }) => {
+export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, generation: generationProp, adapter: adapterProp, updateIV, updateEV }) => {
+    const ctx = useSaveContextSafe();
+    const generation = (generationProp ?? ctx?.generation ?? 1) as Generation;
+    const adapter = adapterProp ?? ctx?.adapter;
     const [chartMode, setChartMode] = useState<'bar' | 'radar'>('bar');
 
     // Dynamically choose stats array based on generation

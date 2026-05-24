@@ -6,11 +6,21 @@ import { X, Save, Download, Book } from 'lucide-react';
 import { deriveBaseStats, recalculateStats } from '../../../lib/utils/statCalculator';
 import { getGrowthRate, getLevelFromExp as calculateLevel, getExpAtLevel as calculateMinExp } from '../../../lib/utils/experience';
 import { getPokemonTypes } from '../../../lib/generations/gen1/data/pokemonTypes';
+// NOTE: Generation-specific name lists are imported directly for autocomplete dropdown population.
+// The adapter's getPokemonName(id) provides single-name lookups but no full list enumeration API.
+// See PokemonInfoPanel.tsx for the full rationale — these are acceptable gaps, not architecture leaks.
 import { POKEMON_NAMES } from '../../../lib/generations/gen1/data/pokemonNames';
 import { GEN2_POKEMON_NAMES } from '../../../lib/generations/gen2/data/constants';
+// NOTE: MOVES_LIST and MOVES_PP are Gen1-specific data used for move autocomplete and PP lookup.
+// The adapter's getMoveName(id) provides single lookups; full enumeration and base PP are not yet
+// in the adapter interface. See PokemonMovesPanel.tsx for rationale.
 import { MOVES_LIST, MOVES_PP } from '../../../lib/generations/gen1/data/moves';
+// NOTE: createPk1Binary is Gen1-specific and intentionally used only for the .pk1 export button.
+// Gen2 .pk2 export is not yet supported. When added, this should be replaced with an adapter call
+// to createStandalonePokemon() from IGenerationBinaryOps.
 import { createPk1Binary } from '../../../lib/generations/gen1/writer';
 import { sanitizePokemonText } from '../../../lib/utils/textValidator';
+import { useSaveContextSafe } from '../../../context/SaveContext';
 
 // Import sub-components
 import { PokemonInfoPanel } from '../panels/PokemonInfoPanel';
@@ -29,6 +39,8 @@ interface PokemonEditorModalProps {
 export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon: initialData, generation, isJapanese, onClose, onSave }) => {
     const { getGameTheme } = useTheme();
     const theme = getGameTheme();
+    const saveCtx = useSaveContextSafe();
+    const adapter = saveCtx?.adapter;
     const [mon, setMon] = useState<PokemonStats>(initialData);
     const [isDirty, setIsDirty] = useState(false);
     
@@ -68,6 +80,26 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     };
 
     const handleSpeciesChange = (name: string) => {
+        // Use adapter for species lookup when available
+        if (adapter) {
+            // Search through species IDs to find matching name
+            const maxDex = generation === 2 ? 251 : 151;
+            for (let id = 1; id <= maxDex; id++) {
+                if (adapter.getPokemonName(id) === name) {
+                    const speciesTypes = getPokemonTypes(id, generation);
+                    setMon(prev => ({ 
+                        ...prev, 
+                        speciesName: name, 
+                        dexId: id,
+                        type1Name: speciesTypes[0] || 'Normal',
+                        type2Name: speciesTypes[1] || speciesTypes[0] || 'Normal'
+                    }));
+                    setIsDirty(true);
+                    return;
+                }
+            }
+        }
+        // Fallback to direct name list lookup when adapter is unavailable
         const id = generation === 2 
             ? GEN2_POKEMON_NAMES.indexOf(name) 
             : POKEMON_NAMES.indexOf(name);

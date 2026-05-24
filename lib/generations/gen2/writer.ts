@@ -5,32 +5,7 @@ import {
   setBCD 
 } from '../../utils/byteHelpers';
 import { calculateGen2Checksum } from './parser';
-
-export function encodeGen2Text(text: string, length: number, terminator: number = 0x50): Uint8Array {
-  const buffer = new Uint8Array(length);
-  const CHAR_MAP_REV: Record<string, number> = {
-    'A': 0x80, 'B': 0x81, 'C': 0x82, 'D': 0x83, 'E': 0x84, 'F': 0x85, 'G': 0x86, 'H': 0x87,
-    'I': 0x88, 'J': 0x89, 'K': 0x8A, 'L': 0x8B, 'M': 0x8C, 'N': 0x8D, 'O': 0x8E, 'P': 0x8F,
-    'Q': 0x90, 'R': 0x91, 'S': 0x92, 'T': 0x93, 'U': 0x94, 'V': 0x95, 'W': 0x96, 'X': 0x97,
-    'Y': 0x98, 'Z': 0x99, '(': 0x9A, ')': 0x9B, ':': 0x9C, ';': 0x9D, '[': 0x9E, ']': 0x9F,
-    'a': 0xA0, 'b': 0xA1, 'c': 0xA2, 'd': 0xA3, 'e': 0xA4, 'f': 0xA5, 'g': 0xA6, 'h': 0xA7,
-    'i': 0xA8, 'j': 0xA9, 'k': 0xAA, 'l': 0xAB, 'm': 0xAC, 'n': 0xAD, 'o': 0xAE, 'p': 0xAF,
-    'q': 0xB0, 'r': 0xB1, 's': 0xB2, 't': 0xB3, 'u': 0xB4, 'v': 0xB5, 'w': 0xB6, 'x': 0xB7,
-    'y': 0xB8, 'z': 0xB9, ' ': 0x7F, '?': 0xE6, '!': 0xE7, '.': 0xE8, '-': 0xE3, 
-    '👤': 0x5D,
-    '0': 0xF6, '1': 0xF7, '2': 0xF8, '3': 0xF9, '4': 0xFA, '5': 0xFB, '6': 0xFC, '7': 0xFD, '8': 0xFE, '9': 0xFF
-  };
-
-  for (let i = 0; i < length; i++) {
-    if (i < text.length) {
-      const char = text[i];
-      buffer[i] = CHAR_MAP_REV[char] !== undefined ? CHAR_MAP_REV[char] : 0xE6; // Fallback to '?'
-    } else {
-      buffer[i] = terminator;
-    }
-  }
-  return buffer;
-}
+import { encodeGameBoyText } from '../../utils/textCodec';
 
 export function writeGen2PokemonStruct(
   data: Uint8Array, 
@@ -154,8 +129,8 @@ export function writePCBoxGen2(data: Uint8Array, offset: number, pokemonList: Po
     writeGen2PokemonStruct(data, structOffset, mon, false);
 
     // Encode text strings and write
-    const nicknameBuffer = encodeGen2Text(mon.nickname || "", 11, 0x50);
-    const otNameBuffer = encodeGen2Text(mon.originalTrainerName || "", 11, 0x50);
+    const nicknameBuffer = encodeGameBoyText(mon.nickname || "", 11, 0x50);
+    const otNameBuffer = encodeGameBoyText(mon.originalTrainerName || "", 11, 0x50);
 
     data.set(nicknameBuffer, nicknamesOffset);
     data.set(otNameBuffer, otNamesOffset);
@@ -206,7 +181,7 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   const tidNum = parseInt(save.trainer.id, 10) || 0;
   setUInt16BigEndian(view, 0x2009, tidNum);
 
-  const trainerNameBuf = encodeGen2Text(save.trainer.name || "", 8, 0x50);
+  const trainerNameBuf = encodeGameBoyText(save.trainer.name || "", 8, 0x50);
   data.set(trainerNameBuf, 0x200B);
 
   setBCD(view, 0x23DB, save.trainer.money, 3);
@@ -261,8 +236,8 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
      const mon = save.party[i];
      writeGen2PokemonStruct(data, structOffset, mon, true);
 
-     const nicknameBuffer = encodeGen2Text(mon.nickname, 11, 0x50);
-     const otNameBuffer = encodeGen2Text(mon.originalTrainerName, 11, 0x50);
+     const nicknameBuffer = encodeGameBoyText(mon.nickname, 11, 0x50);
+     const otNameBuffer = encodeGameBoyText(mon.originalTrainerName, 11, 0x50);
 
      data.set(nicknameBuffer, nicknamesOffset);
      data.set(otNameBuffer, otNamesOffset);
@@ -304,19 +279,19 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
 
   if (isCrystal) {
     const sum = calculateGen2Checksum(data, 0x2009, 0x2B82);
-    data[0x2B83] = (sum >> 8) & 0xFF;
-    data[0x2B84] = sum & 0xFF;
+    data[0x2D0D] = sum & 0xFF;
+    data[0x2D0E] = (sum >> 8) & 0xFF;
 
-    // Crypt duplicate to backup BANK area
-    const crystalBlock = data.slice(0x2009, 0x2B85);
+    // Crystal duplicate to backup BANK area (copy data through checksum bytes)
+    const crystalBlock = data.slice(0x2009, 0x2D0F);
     data.set(crystalBlock, 0x3009);
   } else {
-    const sum = calculateGen2Checksum(data, 0x2009, 0x2D02);
-    data[0x2D0D] = (sum >> 8) & 0xFF;
-    data[0x2D0E] = sum & 0xFF;
+    const sum = calculateGen2Checksum(data, 0x2009, 0x2D68);
+    data[0x2D69] = sum & 0xFF;
+    data[0x2D6A] = (sum >> 8) & 0xFF;
 
-    // GS copy to backup bank area
-    const gsBlock = data.slice(0x2009, 0x2D0F);
+    // GS copy to backup bank area (copy data through checksum bytes)
+    const gsBlock = data.slice(0x2009, 0x2D6B);
     data.set(gsBlock, 0x3009);
   }
 

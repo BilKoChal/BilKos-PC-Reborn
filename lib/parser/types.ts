@@ -1,3 +1,4 @@
+import type { IGenExtension } from '../canonicalModel';
 
 export type Generation = 1 | 2;
 
@@ -83,7 +84,7 @@ export interface PokemonStats {
   pokerus: number;
   heldItemId?: number;
   heldItemName?: string;
-  genExtension?: Record<string, unknown> | null;
+  genExtension?: IGenExtension | null;
   
   // Raw Data Preservation
   raw: Uint8Array;

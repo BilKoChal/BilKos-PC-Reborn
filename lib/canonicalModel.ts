@@ -8,6 +8,27 @@ export interface IGenExtension {
 }
 
 /**
+ * Type guard for Generation 1 extension.
+ */
+export function isGen1Extension(ext: IGenExtension | null): ext is Gen1Extension {
+  return ext !== null && ext.generation === 1;
+}
+
+/**
+ * Type guard for Generation 2 extension.
+ */
+export function isGen2Extension(ext: IGenExtension | null): ext is Gen2Extension {
+  return ext !== null && ext.generation === 2;
+}
+
+/**
+ * Type guard for Generation 3 extension.
+ */
+export function isGen3Extension(ext: IGenExtension | null): ext is Gen3Extension {
+  return ext !== null && ext.generation === 3;
+}
+
+/**
  * Generation 1 Specific extension fields.
  */
 export class Gen1Extension implements IGenExtension {
@@ -52,6 +73,33 @@ export class Gen3Extension implements IGenExtension {
   secretId = 0;
   pokeblockFlavorPrefs: string[] = [];
 }
+
+/**
+ * DESIGN RATIONALE: Universal Fields vs genExtension
+ * 
+ * Some fields like `isShiny`, `gender`, `isEgg`, and `special`/`spAtk`/`spDef`
+ * appear both as universal first-class fields AND inside generation-specific
+ * extensions. This is an intentional design tradeoff:
+ * 
+ * - Universal fields provide O(1) access for UI rendering without type guards
+ *   or unsafe casts. Every panel, card, and slot component can read these
+ *   directly without knowing which generation it's rendering.
+ * 
+ * - Extension fields preserve generation-specific raw/metadata for binary
+ *   serialization round-tripping. For example, Gen2Extension.isShiny stores
+ *   the DV-based shiny status as parsed from the raw binary, while the
+ *   universal isShiny is the current (possibly user-modified) value.
+ * 
+ * - If we removed the universal fields and forced all access through
+ *   genExtension, every UI component would need type guards, increasing
+ *   code complexity and the chance of runtime type errors significantly.
+ * 
+ * This tradeoff is documented here so future maintainers understand that
+ * the duplication is deliberate and serves the Open-Closed Principle:
+ * new generations can add their own extensions without modifying universal
+ * UI rendering code, while universal fields provide ergonomic access for
+ * the 90% use case.
+ */
 
 /**
  * Canonical Pokemon data structure used at runtime.

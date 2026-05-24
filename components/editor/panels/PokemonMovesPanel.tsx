@@ -1,22 +1,34 @@
 import React from 'react';
-import { PokemonStats } from '../../../types';
+import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { Sparkles } from 'lucide-react';
 import { Autocomplete } from '../../ui/Autocomplete';
 import { TypeBadge } from '../../ui/PokemonBadges';
+// NOTE: We import generation-specific move data directly for autocomplete dropdown population,
+// base PP lookup, and move type display. The adapter's getMoveName(id) method provides single
+// name lookups but doesn't offer full list enumeration or PP/type APIs. These are acceptable
+// gaps in the adapter interface rather than architecture leaks — if future generations need
+// different move data sources, adapter methods like getAllMoveNames() / getMoveBasePP(id) /
+// getMoveType(id) could be added to IGenerationDataAccess.
 import { MOVES_LIST, MOVES_PP, MOVES_TYPE } from '../../../lib/generations/gen1/data/moves';
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
+import { useSaveContextSafe } from '../../../context/SaveContext';
+import { IGenerationAdapter } from '../../../lib/interfaces';
 
 interface PokemonMovesPanelProps {
     mon: PokemonStats;
-    generation: number;
+    generation?: number;
+    adapter?: IGenerationAdapter;
     updateMove: (index: number, moveName: string) => void;
     updatePpUp: (index: number, count: number) => void;
     updateField: (field: keyof PokemonStats, value: unknown) => void;
 }
 
 export const PokemonMovesPanel: React.FC<PokemonMovesPanelProps> = ({ 
-    mon, generation, updateMove, updatePpUp, updateField 
+    mon, generation: generationProp, adapter: adapterProp, updateMove, updatePpUp, updateField 
 }) => {
+    const ctx = useSaveContextSafe();
+    const generation = (generationProp ?? ctx?.generation ?? 1) as Generation;
+    const adapter = adapterProp ?? ctx?.adapter;
     // Helper to clamp values
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
 

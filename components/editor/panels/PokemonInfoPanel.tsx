@@ -1,16 +1,24 @@
 import React from 'react';
-import { PokemonStats } from '../../../types';
+import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { User, Fingerprint } from 'lucide-react';
 import { Autocomplete } from '../../ui/Autocomplete';
 import { TypeBadge } from '../../ui/PokemonBadges';
+// NOTE: We import generation-specific name lists directly for autocomplete dropdown population.
+// The adapter's getPokemonName(id) method provides single-name lookups but doesn't offer
+// a full list enumeration API. This is an acceptable leak since autocomplete requires the
+// full list anyway. If future adapters need different list sources, an adapter method like
+// getAllSpeciesNames() could be added to IGenerationDataAccess.
 import { POKEMON_NAMES } from '../../../lib/generations/gen1/data/pokemonNames';
 import { GEN2_POKEMON_NAMES } from '../../../lib/generations/gen2/data/constants';
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { sanitizePokemonText } from '../../../lib/utils/textValidator';
+import { useSaveContextSafe } from '../../../context/SaveContext';
+import { IGenerationAdapter } from '../../../lib/interfaces';
 
 interface PokemonInfoPanelProps {
     mon: PokemonStats;
-    generation: number;
+    generation?: number;
+    adapter?: IGenerationAdapter;
     types: string[];
     isJapanese?: boolean;
     updateField: (field: keyof PokemonStats, value: unknown) => void;
@@ -19,8 +27,11 @@ interface PokemonInfoPanelProps {
 }
 
 export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({ 
-    mon, generation, types, isJapanese, updateField, handleSpeciesChange, handleExpChange 
+    mon, generation: generationProp, adapter: adapterProp, types, isJapanese, updateField, handleSpeciesChange, handleExpChange 
 }) => {
+    const ctx = useSaveContextSafe();
+    const generation = (generationProp ?? ctx?.generation ?? 1) as Generation;
+    const adapter = adapterProp ?? ctx?.adapter;
     
     // Safety clamp
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);

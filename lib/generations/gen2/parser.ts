@@ -16,7 +16,7 @@ import {
 } from './data/constants';
 import { calculateGen2Stat } from './statCalculator';
 
-// Checksum formula for Generation 2: 16-bit big endian additive sum
+// Checksum formula for Generation 2: 16-bit additive sum (stored little-endian)
 export function calculateGen2Checksum(data: Uint8Array, start: number, end: number): number {
   let sum = 0;
   for (let i = start; i <= end; i++) {
@@ -308,11 +308,11 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   }
 
   // Detect GSC format version using primary checksums
-  const gsSumComputed = calculateGen2Checksum(data, 0x2009, 0x2D02);
-  const gsSumStored = (data[0x2D0D] << 8) | data[0x2D0E];
+  const gsSumComputed = calculateGen2Checksum(data, 0x2009, 0x2D68);
+  const gsSumStored = data[0x2D69] | (data[0x2D6A] << 8);
 
   const crySumComputed = calculateGen2Checksum(data, 0x2009, 0x2B82);
-  const crySumStored = (data[0x2B83] << 8) | data[0x2B84];
+  const crySumStored = data[0x2D0D] | (data[0x2D0E] << 8);
 
   let gameVersion: 'Gold' | 'Silver' | 'Crystal' = 'Gold';
   let isChecksumValid = false;

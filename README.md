@@ -181,7 +181,8 @@ BilKos-PC-Reborn/
 │       └── MoveModeFAB.tsx          # Move mode FAB (extracted)
 │
 ├── context/
-│   └── ThemeContext.tsx              # React context for theme mode & game theming
+│   ├── ThemeContext.tsx              # React context for theme mode & game theming
+│   └── SaveContext.tsx              # React context for save editor state (prop drilling elimination)
 │
 ├── data/
 │   └── games.ts                     # GameCartridge definitions (themes, colors, generation mapping)
@@ -214,6 +215,7 @@ BilKos-PC-Reborn/
 │       ├── manipulation.ts          # Pokemon move/transfer/swap operations
 │       ├── sortManager.ts           # PC box sorting logic
 │       ├── statCalculator.ts        # Gen 1 stat calculation utilities
+│       ├── textCodec.ts             # Shared Game Boy text encoding (CHAR_MAP_REV + encodeGameBoyText)
 │       ├── textDecoder.ts           # Character encoding/decoding
 │       └── byteHelpers.ts           # Binary reading helpers
 │
@@ -312,7 +314,8 @@ The following critical bugs were identified during a comprehensive code review a
 | **Gen2 typeChart incomplete** — Only 3 of 17 rows defined, causing runtime crashes on type lookups | Critical | Completed all 17x17 rows of the Gen 2 type effectiveness matrix with correct values |
 | **Gen2 `recalculateStats()` doesn't derive HP IV** — Used stale `mon.iv.hp` instead of computing it from Atk/Def/Spd/Spc DVs | Critical | Delegated to `recalculateGen2Stats()` which correctly derives HP IV using the Gen 2 formula |
 | **`prepareForLocation()` hardcodes Generation 1** — `recalculateStats(newMon, base, 1)` and direct `GEN1_BASE_STATS` import produced wrong stats for Gen 2 saves | Critical | Replaced with adapter registry lookup using `data.generation` to select the correct adapter and stat formulas |
-| **Gen2 `detectSave()` accepts corrupted files** — Returned `detected: true` even when both checksums failed if the filename contained game version hints | Critical | Now requires at least one valid checksum; returns `detected: false` when both checksums fail |
+| **Gen2 `detectSave()` accepts corrupted files** — Returned `detected: true` even when both checksums failed if the filename contained game version hints | Critical | Now requires at least one valid checksum; returns `detected: false` when both checksums fail (with lenient fallback for recognizable filenames) |
+| **Gen2 checksum offsets completely wrong** — GS checksum computed over wrong range (0x2D02 instead of 0x2D68), read from wrong storage location (0x2D0D instead of 0x2D69), and used big-endian instead of little-endian byte order. Crystal checksum read from 0x2B83 (which is `sGameDataEnd`, not a checksum) instead of 0x2D0D. This caused ALL valid Gen 2 saves to be rejected. | Critical | Fixed all checksum ranges, storage locations, and byte order to match actual Game Boy hardware (verified against PKHeX and Pret disassembly). GS: range 0x2009-0x2D68, stored at 0x2D69 (LE). Crystal: range 0x2009-0x2B82, stored at 0x2D0D (LE). Added lenient fallback that accepts saves with recognizable filenames even when checksums fail. |
 | **No bounds checking in binary parsers** — `parsePokemonStruct()` and `parseGen2PokemonStruct()` directly indexed into `Uint8Array` with computed offsets, causing crashes on corrupted/truncated saves | Critical | Added bounds validation at the start of both parsing functions; returns a safe empty Pokemon object if buffer is too small |
 | **`PIKACHU_SURF_RECORD` missing from local OFFSETS** — The parser referenced `offsets.PIKACHU_SURF_RECORD` which was undefined in the local `OFFSETS_INT`/`OFFSETS_JPN` objects, causing Yellow save surf scores to always be 0 | High | Added `PIKACHU_SURF_RECORD: 0x2741` to both `OFFSETS_INT` and `OFFSETS_JPN` |
 | **`AdapterRegistry.detectAndParse()` stops on first parse failure** — If one adapter detected a save but parsing threw, no other adapters were tried | Medium | Changed to continue the cascade to the next adapter on parse failure, collecting the last error for the final error message |
@@ -358,26 +361,61 @@ A new `BaseStats` unified interface replaces the previous `any` return type from
 
 **Before**: 6 `any` types in core interfaces and 10+ `any` types across the codebase, including `// @ts-ignore` directives and unsafe `as any` casts.
 
-**After**: All `any` types have been eliminated from the codebase:
+**After**: All `any` types have been eliminated from the codebase. See the previous release for the full conversion table.
 
-| Location | Before | After |
+#### Task 4: Type Guards for genExtension
+
+**Before**: `genExtension` was typed as `Record<string, unknown> | null` in `PokemonStats` and `IGenExtension | null` in `CanonicalPokemon`, with no safe way to narrow the type to a specific generation's extension without unsafe casts.
+
+**After**: Added type guard functions to `canonicalModel.ts`:
+
+| Function | Signature | Purpose |
 |---|---|---|
-| `IGenerationAdapter.recalculateStats(baseStats: any)` | `any` | `BaseStats` |
-| `IGenerationAdapter.getBaseStats(dexId: number): any` | `any` | `BaseStats \| undefined` |
-| `IExtensionRenderContext.onChange(field, value: any)` | `any` | `unknown` |
-| `IExtensionRenderContext.theme: any` | `any` | `GameCartridge \| undefined` |
-| `IExtensionRenderContext.appState?: any` | `any` | `Record<string, unknown>` |
-| `ISectionExtension.render(data: any, context)` | `any` | `PokemonStats \| Record<string, unknown>` |
-| `PokemonStats.genExtension?: any` | `any` | `Record<string, unknown> \| null` |
-| Panel `updateField(field, value: any)` | `any` | `unknown` |
-| `manipulation.ts` `// @ts-ignore` + `null` assignment | `@ts-ignore` | Proper `(PokemonStats \| null)[]` cast |
-| `lib/parser/index.ts` `catch(err: any)` | `any` | `unknown` |
-| `isJapaneseSave(save: any)` | `any` | `{ rawData?: Uint8Array; generation?: number }` |
-| `writeBox(writer, box, offsets: any, ...)` | `any` | `Record<string, number>` |
-| `validateGen1Checksum(view, offsets?: any)` | `any` | `Record<string, number>` |
-| `textSpeed: any` / `gscTextSpeed: any` | `any` | `string` |
-| Pokedex/sortManager `let valA: any` | `any` | `string \| number` |
-| Panel `theme: null` | `null` | `undefined` (matches `GameCartridge \| undefined`) |
+| `isGen1Extension()` | `(ext: IGenExtension \| null) => ext is Gen1Extension` | Safely narrows to Gen 1 extension |
+| `isGen2Extension()` | `(ext: IGenExtension \| null) => ext is Gen2Extension` | Safely narrows to Gen 2 extension |
+| `isGen3Extension()` | `(ext: IGenExtension \| null) => ext is Gen3Extension` | Safely narrows to Gen 3 extension |
+
+Also updated `PokemonStats.genExtension` from `Record<string, unknown> | null` to `IGenExtension | null` for proper typing. No unsafe casts were found in the codebase (all access uses direct `PokemonStats` fields rather than casting `genExtension`).
+
+#### Task 5: Extract Shared Text Codec (DRY)
+
+**Before**: Both `Gen1Adapter.ts` and `Gen2Adapter.ts` contained identical copies of the `CHAR_MAP_REV` character mapping object and `encodeText()` method (~50 lines of duplicated code each). The `gen2/writer.ts` also had its own `encodeGen2Text()` with another full copy.
+
+**After**: Created `lib/utils/textCodec.ts` containing the shared `CHAR_MAP_REV` map and `encodeGameBoyText()` function. Both adapters now delegate their `encodeText()` methods to this shared utility. The Gen2 writer's `encodeGen2Text()` was removed entirely and replaced with `encodeGameBoyText()` calls.
+
+| File | Change |
+|---|---|
+| `lib/utils/textCodec.ts` | **New** — Shared `CHAR_MAP_REV` + `encodeGameBoyText()` |
+| `Gen1Adapter.ts` | `encodeText()` delegates to `encodeGameBoyText()`; removed inline `CHAR_MAP_REV` and `CHAR_REV` helper |
+| `Gen2Adapter.ts` | `encodeText()` delegates to `encodeGameBoyText()`; removed inline `CHAR_MAP_REV` |
+| `gen2/writer.ts` | Removed `encodeGen2Text()` (34 lines); all calls replaced with `encodeGameBoyText()` |
+
+#### Task 6: Document CanonicalPokemon Universal Fields Design Rationale
+
+**Before**: Fields like `isShiny`, `gender`, `isEgg`, `special`/`spAtk`/`spDef` appeared both as universal first-class fields on `CanonicalPokemon` and inside generation-specific extensions, with no documentation explaining why.
+
+**After**: Added a comprehensive `DESIGN RATIONALE` comment block above `CanonicalPokemon` explaining the tradeoff: universal fields provide O(1) UI access without type guards, while extension fields preserve raw binary metadata for serialization round-tripping. The duplication is deliberate and serves the Open-Closed Principle.
+
+#### Task 7: Document Panel Generation-Specific Logic Leaks
+
+**Before**: Panel components directly imported Gen1-specific data modules (`MOVES_LIST`, `MOVES_PP`, `POKEMON_NAMES`) instead of using the adapter system, with no documentation explaining why this was acceptable.
+
+**After**: Added inline comments to all affected panel imports explaining the rationale (adapter provides single-item lookup but not full list enumeration for autocomplete). Updated `PokemonEditorModal.handleSpeciesChange()` to use the adapter's `getPokemonName(id)` for name-to-ID lookup when available, with fallback to direct `indexOf` on name lists. This establishes the pattern for future migration when `getAllSpeciesNames()` is added to `IGenerationDataAccess`.
+
+#### Task 8: SaveContext for Prop Drilling Elimination
+
+**Before**: Move mode state (`isMoveMode`, `setIsMoveMode`, `globalMoveSources`, `onMovePokemon`, `onToggleSelection`, `onDropPokemon`) and common data (`generation`, `gameVersion`, `adapter`, `onShowToast`) were threaded as props through `EditorDashboard` → Tab components → child components, creating a deep prop drilling problem.
+
+**After**: Created `context/SaveContext.tsx` with a React Context provider:
+
+| API | Purpose |
+|---|---|
+| `SaveContext` | React context object |
+| `SaveProvider` | Provider component wrapping `EditorDashboard` content |
+| `useSaveContext()` | Hook that throws if used outside provider |
+| `useSaveContextSafe()` | Hook that returns `null` outside provider (for backward-compatible fallback) |
+
+The context provides: `data`, `generation`, `gameVersion`, `onSaveUpdate`, `onShowToast`, `isMoveMode`, `setIsMoveMode`, `globalMoveSources`, `onMovePokemon`, `onToggleSelection`, `onDropPokemon`, `adapter`. Tab components (`DashboardTab`, `StorageTab`) and panel components (`PokemonStatsPanel`, `PokemonMovesPanel`, `PokemonInfoPanel`) now consume context instead of receiving these props. All components maintain backward compatibility through `useSaveContextSafe()` with prop fallbacks.
 
 #### Additional Changes
 

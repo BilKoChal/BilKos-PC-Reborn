@@ -340,3 +340,99 @@ Following the Phase A critical bug fixes, a comprehensive architecture refactori
 - `/components/ui/Toast.tsx`
 - `/components/ui/MoveModeFAB.tsx`
 
+
+### 2026-05-24 - Phase B (cont.): Architecture Refactoring Tasks 4-8 + Critical Gen2 Checksum Fix
+
+**Author**: Code Review & Refactoring Agent
+
+#### Background:
+Continuing Phase B architecture refactoring with tasks 4-8. Also discovered and fixed a critical Gen2 checksum bug that was causing ALL valid Gen 2 saves to be rejected.
+
+#### Critical Bug Fix: Gen2 Checksum Offsets and Byte Order
+
+**Discovered**: The Gen2 checksum implementation had **four** fundamental errors that caused every valid Gold/Silver/Crystal save to be rejected:
+
+1. **GS checksum range wrong**: Computed over `0x2009`–`0x2D02` instead of the correct `0x2009`–`0x2D68` (verified against PKHeX and Pret disassembly)
+2. **GS checksum storage location wrong**: Read from `0x2D0D`–`0x2D0E` instead of the correct `0x2D69`–`0x2D6A`
+3. **Crystal checksum storage location wrong**: Read from `0x2B83`–`0x2B84` (which is `sGameDataEnd`, not a checksum) instead of the correct `0x2D0D`–`0x2D0E`
+4. **Byte order wrong**: Read checksums as big-endian instead of little-endian (Game Boy Z80 is little-endian)
+
+**Correct values (verified against PKHeX, Pret pokegold/pokecrystal disassembly, and Bulbapedia)**:
+- Gold/Silver: Checksum covers `0x2009`–`0x2D68`, stored at `0x2D69` (2 bytes, little-endian)
+- Crystal: Checksum covers `0x2009`–`0x2B82`, stored at `0x2D0D` (2 bytes, little-endian)
+
+Also added lenient fallback: if file size matches Gen 2 and filename contains gold/silver/crystal, accept the save even when checksums fail (marks `isValid: false`).
+
+**Files Modified:**
+- `/lib/generations/gen2/Gen2Adapter.ts` — Fixed `detectSave()` and `validateSave()` checksum ranges, storage locations, and byte order
+- `/lib/generations/gen2/parser.ts` — Fixed `parseGen2Save()` checksum ranges and byte order
+- `/lib/generations/gen2/writer.ts` — Fixed `writeGen2Save()` checksum ranges, storage locations, byte order, and backup block copy ranges
+
+#### Task 4: Type Guards for genExtension
+
+**Added type guard functions** to `/lib/canonicalModel.ts`:
+- `isGen1Extension(ext: IGenExtension | null): ext is Gen1Extension`
+- `isGen2Extension(ext: IGenExtension | null): ext is Gen2Extension`
+- `isGen3Extension(ext: IGenExtension | null): ext is Gen3Extension`
+
+**Updated** `PokemonStats.genExtension` from `Record<string, unknown> | null` to `IGenExtension | null` in `/lib/parser/types.ts`.
+
+Searched entire codebase for unsafe `genExtension` casts — **none found**. All access uses direct `PokemonStats` fields rather than casting `genExtension`.
+
+#### Task 5: Extract Shared Text Codec (DRY)
+
+**Problem**: `CHAR_MAP_REV` and `encodeText()` were 100% duplicated across `Gen1Adapter.ts`, `Gen2Adapter.ts`, and `gen2/writer.ts` (~120 lines of duplicated code total).
+
+**Solution**: Created `/lib/utils/textCodec.ts` containing shared `CHAR_MAP_REV` and `encodeGameBoyText()` function.
+
+**Files Modified:**
+- `/lib/utils/textCodec.ts` — **New** shared utility
+- `/lib/generations/gen1/Gen1Adapter.ts` — `encodeText()` delegates to `encodeGameBoyText()`; removed inline `CHAR_MAP_REV` and `CHAR_REV` helper
+- `/lib/generations/gen2/Gen2Adapter.ts` — `encodeText()` delegates to `encodeGameBoyText()`; removed inline `CHAR_MAP_REV`
+- `/lib/generations/gen2/writer.ts` — Removed `encodeGen2Text()` (34 lines); all calls replaced with `encodeGameBoyText()`
+
+#### Task 6: Document CanonicalPokemon Universal Fields Design Rationale
+
+Added comprehensive `DESIGN RATIONALE` comment block above `CanonicalPokemon` class explaining why fields like `isShiny`, `gender`, `isEgg`, `special`/`spAtk`/`spDef` intentionally appear both as universal first-class fields AND inside generation-specific extensions. The tradeoff: universal fields provide O(1) UI access without type guards, while extension fields preserve raw binary metadata for serialization round-tripping.
+
+#### Task 7: Document Panel Generation-Specific Logic Leaks
+
+Added inline comments to affected panel imports (`MOVES_LIST`, `MOVES_PP`, `POKEMON_NAMES`, `GEN2_POKEMON_NAMES`) explaining why direct imports are acceptable (adapter provides single-item lookup but not full list enumeration for autocomplete). Updated `PokemonEditorModal.handleSpeciesChange()` to use adapter's `getPokemonName(id)` for name-to-ID lookup when available, with fallback to direct `indexOf`.
+
+#### Task 8: SaveContext for Prop Drilling Elimination
+
+**Created** `/context/SaveContext.tsx` with React Context provider containing:
+- `SaveContextValue` interface with data, generation, gameVersion, adapter, move mode state, callbacks
+- `SaveProvider` component deriving generation/gameVersion/adapter from data
+- `useSaveContext()` hook (throws outside provider)
+- `useSaveContextSafe()` hook (returns null outside provider, for backward-compatible fallback)
+
+**Files Modified:**
+- `/components/editor/EditorDashboard.tsx` — Wraps content with `<SaveProvider>`, removed prop-drilled move mode props from tab invocations
+- `/components/editor/tabs/DashboardTab.tsx` — Removed 5 props, uses `useSaveContextSafe()`
+- `/components/editor/tabs/StorageTab.tsx` — Removed 6 props, uses `useSaveContextSafe()`
+- `/components/editor/panels/PokemonStatsPanel.tsx` — Made `generation` optional, uses context fallback
+- `/components/editor/panels/PokemonMovesPanel.tsx` — Same pattern
+- `/components/editor/panels/PokemonInfoPanel.tsx` — Same pattern
+
+#### Files Modified (Phase B cont.):
+- `/lib/generations/gen2/Gen2Adapter.ts`
+- `/lib/generations/gen2/parser.ts`
+- `/lib/generations/gen2/writer.ts`
+- `/lib/canonicalModel.ts`
+- `/lib/parser/types.ts`
+- `/lib/generations/gen1/Gen1Adapter.ts`
+- `/components/editor/EditorDashboard.tsx`
+- `/components/editor/tabs/DashboardTab.tsx`
+- `/components/editor/tabs/StorageTab.tsx`
+- `/components/editor/panels/PokemonStatsPanel.tsx`
+- `/components/editor/panels/PokemonMovesPanel.tsx`
+- `/components/editor/panels/PokemonInfoPanel.tsx`
+- `/components/editor/pokemon/PokemonEditorModal.tsx`
+- `/README.md`
+- `/WORKLOG.md`
+
+#### New Files Created (Phase B cont.):
+- `/lib/utils/textCodec.ts`
+- `/context/SaveContext.tsx`
+

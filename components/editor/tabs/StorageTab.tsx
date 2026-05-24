@@ -3,38 +3,35 @@ import { ParsedSave, PokemonStats, Item } from '../../../lib/parser/types';
 import { PCStorage } from '../PCStorage';
 import { Inventory } from '../Inventory';
 import { MoveLocation } from '../../../lib/utils/manipulation';
+import { useSaveContextSafe } from '../../../context/SaveContext';
 
 interface StorageTabProps {
     data: ParsedSave;
-    isMoveMode: boolean;
-    setIsMoveMode: (val: boolean) => void;
-    globalMoveSources: MoveLocation[];
     handlePokemonClick: (mon: PokemonStats, source: 'party' | 'box', index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
     handleEmptySlotClick: (location: MoveLocation, e: React.MouseEvent) => void;
-    onToggleSelection: (target: MoveLocation) => void;
-    onDropPokemon: (target: MoveLocation, e: React.DragEvent) => void;
     setIsSortModalOpen: (val: boolean) => void;
     handleSetActiveBox: (boxIndex: number) => void;
     handleImportBox: (newBoxData: PokemonStats[], boxIndex: number) => void;
-    onShowToast: (msg: string) => void;
     handleInventoryUpdate: (newItems: Item[], newPcItems: Item[]) => void;
 }
 
 export const StorageTab: React.FC<StorageTabProps> = ({
     data,
-    isMoveMode,
-    setIsMoveMode,
-    globalMoveSources,
     handlePokemonClick,
     handleEmptySlotClick,
-    onToggleSelection,
-    onDropPokemon,
     setIsSortModalOpen,
     handleSetActiveBox,
     handleImportBox,
-    onShowToast,
     handleInventoryUpdate
 }) => {
+    const ctx = useSaveContextSafe();
+    const isMoveMode = ctx?.isMoveMode ?? false;
+    const setIsMoveMode = ctx?.setIsMoveMode;
+    const globalMoveSources = ctx?.globalMoveSources ?? [];
+    const onToggleSelection = ctx?.onToggleSelection;
+    const onDropPokemon = ctx?.onDropPokemon;
+    const onShowToast = ctx?.onShowToast;
+
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* PC Storage (Right on Desktop, Top on Mobile) */}
@@ -43,17 +40,17 @@ export const StorageTab: React.FC<StorageTabProps> = ({
                     boxes={data.pcBoxes}
                     currentBoxIndex={data.currentBoxId}
                     isMoveMode={isMoveMode}
-                    onEnableMoveMode={() => setIsMoveMode(true)} // Enable on drag/long press
-                    onToggleMoveMode={() => setIsMoveMode(!isMoveMode)}
+                    onEnableMoveMode={() => setIsMoveMode?.(true)} // Enable on drag/long press
+                    onToggleMoveMode={() => setIsMoveMode?.(!isMoveMode)}
                     selectedMoveSources={globalMoveSources}
                     onPokemonClick={(mon, idx, boxIdx, e) => handlePokemonClick(mon, 'box', idx, boxIdx, e)}
                     onEmptySlotClick={(idx, boxIdx, e) => handleEmptySlotClick({ type: 'box', boxIndex: boxIdx, index: idx }, e)}
-                    onToggleSelection={(idx, boxIdx) => onToggleSelection({ type: 'box', boxIndex: boxIdx, index: idx })}
-                    onDropPokemon={(idx, boxIdx, e) => onDropPokemon({ type: 'box', boxIndex: boxIdx, index: idx }, e)}
+                    onToggleSelection={onToggleSelection ? (idx, boxIdx) => onToggleSelection({ type: 'box', boxIndex: boxIdx, index: idx }) : undefined}
+                    onDropPokemon={onDropPokemon ? (idx, boxIdx, e) => onDropPokemon({ type: 'box', boxIndex: boxIdx, index: idx }, e) : undefined}
                     onSortClick={() => setIsSortModalOpen(true)}
                     onSetActiveBox={handleSetActiveBox}
                     onImport={handleImportBox}
-                    onToast={onShowToast}
+                    onToast={onShowToast ?? (() => {})}
                 />
             </div>
 
@@ -63,7 +60,7 @@ export const StorageTab: React.FC<StorageTabProps> = ({
                     items={data.items} 
                     pcItems={data.pcItems}
                     isMoveMode={isMoveMode}
-                    onEnableMoveMode={() => setIsMoveMode(true)} // Enable on long press
+                    onEnableMoveMode={() => setIsMoveMode?.(true)} // Enable on long press
                     onUpdate={handleInventoryUpdate}
                 />
             </div>

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
+import { SaveProvider } from '../../context/SaveContext';
 import { EditorTools } from './EditorTools';
 import { PokemonEditorModal } from './pokemon/PokemonEditorModal'; 
 import { LayoutGrid, Book, Trophy, Map, Home, Database, Swords } from 'lucide-react'; // Added Swords Icon
@@ -270,6 +271,17 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     };
 
     return (
+        <SaveProvider
+            data={data}
+            onSaveUpdate={updateData}
+            onShowToast={onShowToast}
+            isMoveMode={isMoveMode}
+            setIsMoveMode={setIsMoveMode}
+            globalMoveSources={globalMoveSources}
+            onMovePokemon={onMovePokemon}
+            onToggleSelection={onToggleSelection}
+            onDropPokemon={onDropPokemon}
+        >
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 font-sans transition-colors duration-300">
             {/* Modals */}
             {selectedPokemon && (
@@ -321,32 +333,21 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                         {activeTab === 'home' && (
                             <DashboardTabComponent
                                 data={data}
-                                isMoveMode={isMoveMode}
-                                setIsMoveMode={setIsMoveMode}
-                                globalMoveSources={globalMoveSources}
                                 handleTrainerUpdate={handleTrainerUpdate}
                                 handleOptionsUpdate={handleOptionsUpdate}
                                 handlePokemonClick={handlePokemonClick}
                                 handleEmptySlotClick={handleEmptySlotClick}
-                                onToggleSelection={onToggleSelection}
-                                onDropPokemon={onDropPokemon}
                             />
                         )}
 
                         {activeTab === 'storage' && (
                             <StorageTab
                                 data={data}
-                                isMoveMode={isMoveMode}
-                                setIsMoveMode={setIsMoveMode}
-                                globalMoveSources={globalMoveSources}
                                 handlePokemonClick={handlePokemonClick}
                                 handleEmptySlotClick={handleEmptySlotClick}
-                                onToggleSelection={onToggleSelection}
-                                onDropPokemon={onDropPokemon}
                                 setIsSortModalOpen={setIsSortModalOpen}
                                 handleSetActiveBox={handleSetActiveBox}
                                 handleImportBox={handleImportBox}
-                                onShowToast={onShowToast}
                                 handleInventoryUpdate={handleInventoryUpdate}
                             />
                         )}
@@ -386,5 +387,6 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                 </AnimatePresence>
             </div>
         </div>
+        </SaveProvider>
     );
 };
