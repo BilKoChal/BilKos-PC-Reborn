@@ -1,0 +1,166 @@
+# BilKo's PC Save Editor: Multi-Generation Architecture Roadmap
+
+This document outlines a **3-Phase Architecture Roadmap** to refactor BilKo's PC Pokemon Save Editor from a Generation 1-only structure into a modular, multi-generation, and highly extensible platform. 
+
+The goal of this architecture is to adhere to the core software construction principle: **The Open-Closed Principle (OCP)**. Adding support for future generations (Gen II - Gen IX) should only require adding new files under a generation-specific namespace and registering them with a central registry, requiring **zero modifications** to the core editor layout, state engines, or dashboard orchestration logic.
+
+---
+
+## Technical Architecture Overview
+
+The multi-generational architecture is built on three pillars:
+1. **Generation Adapter Pattern**: A unified, interface-driven dispatch layer (`IGenerationAdapter`) that hides binary offsets, stat calculation logic, checksum rules, and encoding differences.
+2. **Canonical Data Model (`CDM`)**: A single, runtime-safe representation of saves (`CanonicalSave`) and Pokémon (`CanonicalPokemon`) with **generation-specific extension objects** (`genExtension`) for fields that only exist in certain eras (e.g., held items in Gen 2+, abilities in Gen 3+).
+3. **Modular and Extensible UI (Component Panels)**: Extracting monolithic React views in `EditorDashboard.tsx` and `PokemonEditorModal.tsx` into small, reusable *Component Panels* (e.g. `PokemonInfoPanel`, `PokemonStatsPanel`) that automatically render generation-specific sections by querying the active Pokémon’s `genExtension`.
+
+```
+                    ┌────────────────────────────┐
+                    │      React Client UI       │
+                    │   (Tabs / Modals / Panels) │
+                    └─────────────┬──────────────┘
+                                  │ Operates on CDM
+                                  ▼
+                   ┌──────────────────────────────┐
+                   │    Adapter Registry / Mgr    │
+                   └──────────────┬───────────────┘
+                                  │ Decides Active Generation
+                                  ▼
+                    ┌────────────────────────────┐
+                    │    IGenerationAdapter      │
+                    │  (Common Generation API)   │
+                    └────────┬────────────┬──────┘
+                             │            │
+            ┌────────────────┴┐          ┌┴────────────────┐
+            │   Gen1Adapter   │          │   Gen2Adapter   │
+            │  (Gen I engine) │          │ (Gen II engine) │
+            └─────────────────┘          └─────────────────┘
+```
+
+---
+
+## 3-Phase Implementation Road Map
+
+```
+  PHASE 1: Foundations & Abstractions  ──►  PHASE 2: UI Panel Decomposition  ──►  PHASE 3: Gen 2 Support & Validation
+  (Est: Low-Medium Effort)                  (Est: Medium-High Effort)              (Est: High Effort)
+  • Define core IGenerationAdapter          • Extract sub-panels of components     • Implement Gen 2 binary parsing/writing
+  • Map type-safe CanonicalSave & Pokémon  • Implement Panel Extension Pattern   • Create SpAtk/SpDef stat calculator
+  • Implement Adapter Registry & Solver     • Build clean component tabs           • Register Gen 2 extension hooks
+  ** NO VISUAL BEHAVIOR CHANGES **          ** CLEAN DIRECTORY RESTRUCTURING **    ** FULL END-TO-END VALIDATION **
+```
+
+### Phase 1: Foundations, Core Abstractions & CDM
+Phase 1 focuses on building the type system, base interfaces, and registry. We wrap our existing Generation 1 logic into the new interface structure. Output must work exactly as before, with no visible changes to the end-user, but all operations will route through the adapter instead of hardcoded dependencies.
+
+#### Task 1.1: Define Core Interfaces (`/lib/interfaces.ts`)
+Create a compile-time safe TypeScript interface definition:
+*   `IGenerationAdapter`: Methods for detecting, parsing, and writing saves. Methods for calculating stats, looking up species names, and encoding strings.
+*   `IPanelExtension<T>` and `ISectionExtension<T>`: Hooks allowing UI panels to query and append inputs or badges based on active structures.
+
+#### Task 1.2: Implement the Canonical Data Model (`/lib/canonicalModel.ts`)
+Refactor the save model into an unified architecture:
+*   `CanonicalPokemon`: Contains fields universal to every generation (National Dex ID, nickname, original trainer ID, moves, level, standard IVs, EVs, stats, status, current HP). Appends `genExtension: GenExtension | null` to contain additional attributes.
+*   `CanonicalSave`: Contains unified fields (trainer metadata, party, PC boxes, pokedex counts, event flags, raw data buffer). Appends `genExtension: SaveExtension | null`.
+*   `Gen1Extension`: Implements Gen-specific details: `catchRate`, unified `special` stat, and `pikachuFriendship` (Yellow only).
+
+#### Task 1.3: Create Gen 1 Adapter & Registry
+*   Extract the core Gen 1 parsing and writing routines from `/lib/parser/index.ts` and `/lib/writer/gen1.ts` to form `Gen1Adapter.ts`.
+*   Create `AdapterRegistry.ts` which routes buffer parsing requests to registered adapters, executing a cascading `.detectSave(buffer)` test.
+
+---
+
+### Phase 2: Modular UI/UX Re-architecture
+Phase 2 decomposes the monolithic React rendering sections. Currently, `EditorDashboard.tsx` conducts extensive internal UI bindings and tabs logic. We will extract individual pages into clean, modular files.
+
+```
+/src/components/editor/
+  ├── EditorDashboard.tsx               // Thin Shell orchestrator (renders tabs & overlays)
+  ├── tabs/
+  │   ├── DashboardTab.tsx              // Renders Trainer Card + active party
+  │   ├── StorageTab.tsx                // Renders PC Storage and Inventory panels
+  │   ├── PokedexTab.tsx                // Renders National Dex lists and details
+  │   ├── BattleTab.tsx                 // Renders Battle Guide and Type Charts
+  │   └── EventsTab.tsx                 // Renders Event Flag switches
+  └── panels/
+      ├── TrainerCardPanel.tsx          // Trainer card view & item editing
+      ├── PartyPanel.tsx                // 6-slot draggable list grid
+      ├── PCBoxPanel.tsx                // Render PC box grid (configured by adapter dimensions)
+      ├── InventoryPanel.tsx            // Bags, Pockets, custom Item list autocomplete
+      ├── PokemonInfoPanel.tsx          // ID, forms, gender, shininess (Extensible)
+      ├── PokemonStatsPanel.tsx         // HP/Atk/Def/Spe bar graph indicators (Extensible)
+      └── PokemonMovesPanel.tsx         // 4-Moves list configuration (Extensible)
+```
+
+#### Task 2.1: Extract Extensible panels
+*   Decompose `PokemonEditorModal.tsx` into:
+    1.  `PokemonInfoPanel`: Displays Species, Level, Types, and Gender.
+    2.  `PokemonStatsPanel`: Displays Stat charts, Levels, IVs, and EVs.
+    3.  `PokemonMovesPanel`: Displays Move listings, custom Autocomplete selectors, and PP details.
+*   Implement the **Panel Extension Pattern** for each extensible component. The panels will render native fields, then ask the active generation's registered extensions to append HTML/inputs (e.g. `PokemonInfoPanel` appends the "Held Item" row for Gen 2+ saves).
+
+#### Task 2.2: Establish clean Tab Composers [Completed]
+*   Created `/components/editor/tabs/` directory.
+*   Extracted all editor tabs into isolated tab composers: `DashboardTab.tsx`, `StorageTab.tsx`, `EncountersTab.tsx`, `PokedexTab.tsx`, `BattleTab.tsx`, `EventsTab.tsx`, and `HallOfFameTab.tsx`.
+*   Cleanly bound all operational properties and event handlers from the central `EditorDashboard.tsx` shell dispatcher.
+
+---
+
+### Phase 3: Multi-Generation Integration (Gen 2 Validation)
+Phase 3 validates the flexibility of our architecture. We implement Gen 2 support. If the refactoring is successful, we should be able to integrate full Gold/Silver/Crystal support **without editing any files in `/core`, `/ui`, or `/tabs`**, with the single exception of registering the new adapter during app startup in `App.tsx`.
+
+#### Task 3.1: Build Gen 2 Adapter & Native Data Engine (`/lib/generations/gen2/`)
+Create the core components for processing GSC save data:
+*   `parser.ts`: Implement parsing support for the Gen 2 file structure (32KB save. International offset 0x2009 for TID, Johto badges at 0x23E4, 14 boxes of 20 slots). Parses Held Items and shiny status (calculated from DV configurations: Speed, Defense, Special equal to 10; Attack equal to 2, 3, 6, 7, 10, 11, 14, or 15).
+*   `writer.ts`: Implement writing logic, reproducing dual-bank redundancy copies (Gold/Silver duplicates primary sectors onto backup areas, Crystal manages specific segments) and computing GSC 16-bit additive checksums.
+*   `statCalculator.ts`: Recalculates stats using the Gen 2 system, which splits the unified Special stat into SpAtk and SpDef.
+*   `data/`: Port GSC constants (251 speciesNames, Steel/Dark type chart configurations, Egg Groups, and Held Items).
+
+#### Task 3.2: Create GSC Extension Registry
+*   `HeldItemSection`: Injects held-item Autocomplete selection directly into `PokemonInfoPanel`.
+*   `ShinyFlagSection`: Appends shiny sparks/stars next to the Pokémon's name card and rendering borders.
+*   `GenderSection`: Leverages DV values inside `genExtension` to display the male/female indicator in the details view.
+*   `SpAtkSpDefSection`: Injects Split Sp.Atk / Sp.Def rows into `PokemonStatsPanel` to replace the single "Special" metric.
+
+#### Task 3.3: Register GSC Adapter in App.tsx
+Register the brand-new GSC engine:
+```typescript
+import { AdapterRegistry } from './lib/core/AdapterRegistry';
+import { Gen1Adapter } from './lib/generations/gen1/Gen1Adapter';
+import { Gen2Adapter } from './lib/generations/gen2/Gen2Adapter';
+
+const registry = new AdapterRegistry();
+registry.register(new Gen1Adapter());
+registry.register(new Gen2Adapter()); // All Gen 2 support is live!
+```
+
+---
+
+## Technical Specifications & Constants Reference
+
+For future development reference, key generation characteristics mapped from PKHeX and Save analysis documents should be followed:
+
+### Save File Constants
+| Generation | Game Variants | File Size (Bytes) | Primary Checksum | Core Pokémon Size |
+| :--- | :--- | :--- | :--- | :--- |
+| **Gen I** | Red, Blue, Yellow | 32,768 (0x8000) | 8-bit Inverted Byte Sum | 44 bytes (Party) / 33 bytes (Stored) |
+| **Gen II** | Gold, Silver, Crystal | 32,768 (0x8000) (INT) | 16-bit Additive Sum (Dual Slots) | 48 bytes (Party) / 32 bytes (Stored) |
+| **Gen III** | R, S, E, FR, LG | 131,072 (0x20000) | CheckSum32 per Sector | 100 bytes (Party) / 80 bytes (Stored) |
+| **Gen IV** | DP, Pt, HG, SS | 524,288 (0x80000) | CRC16-CCITT per Block | 236 bytes (Party) / 136 bytes (Stored) |
+| **Gen V** | BW, B2W2 | 524,288 (0x80000) | CRC16-CCITT (70/74 blocks) | 220 bytes (Party) / 136 bytes (Stored) |
+
+### Character Encoding Implementations
+*   **Gen I / II**: Proprietary 8-bit encoding. Uses 0x50 character as string terminator. Supported with Japanese variants (katakana maps). Mail and Box names in Gen 2 use a wider character-set than nicknames.
+*   **Gen III**: Custom single-byte format. 0xFF terminator. Character mappings represented compactly over inline ReadOnlySpans.
+*   **Gen IV**: 16-bit Little-Endian custom index with dual-mapping tables (TableINT for international, TableKOR for Korean Hangul). 0xFFFF terminator.
+*   **Gen V**: Raw 16-bit Unicode codepoints. Simplifies string mapping, terminating on either 0xFFFF or 0x0000.
+*   **Gen VI / VII**: 16-bit Unicode UTF-16 with customized Private Use Area (PUA) remapping for native gender glyph symbols (`\uE08E` male, `\uE08F` female).
+*   **Gen VIII / IX**: Raw UTF-16 Little-Endian natively with zero custom string tables.
+
+---
+
+## Conclusion & Architectural Benefits
+
+By implementing this Roadmap:
+1.  **Strict Isolation**: Binary operations are completely isolated from React UI components. Changes in a game's structure will never introduce regressions into the layout render loop.
+2.  **Unpolluted Codebase**: The React codebase can remain completely unaware of raw byte manipulation, allowing UI designers to construct interfaces using elegant, safe, and descriptive TypeScript models.
+3.  **Future-Safe Platform**: Expanding the save editor to accommodate Gen 3, Gen 4, or beyond follows a clearly documented, trivial path of replicating the modular generation packages.

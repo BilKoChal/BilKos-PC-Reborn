@@ -1,0 +1,5 @@
+{
+  "name": "BilKo\u0027s PC",
+  "description": "A web-based Pokemon save editor interface supporting Gen 1-9 with a modular, themable architecture.",
+  "requestFramePermissions": []
+}
