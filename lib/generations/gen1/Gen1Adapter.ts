@@ -1,4 +1,4 @@
-import { IGenerationAdapter } from '../../interfaces';
+import { IGenerationAdapter, BaseStats } from '../../interfaces';
 import { ParsedSave, PokemonStats } from '../../parser/types';
 import { detectGameVersion, validateGen1Checksum, parseGen1Save, parsePk1 } from './parser';
 import { writeGen1Save, createPk1Binary } from './writer';
@@ -105,12 +105,22 @@ export class Gen1Adapter implements IGenerationAdapter {
     return calculateGen1Stat(base, iv, ev, level, isHp);
   }
 
-  recalculateStats(mon: PokemonStats, baseStats: any): PokemonStats {
+  recalculateStats(mon: PokemonStats, baseStats: BaseStats): PokemonStats {
     return recalculateStats(mon, baseStats, 1);
   }
 
-  getBaseStats(dexId: number): any {
-    return GEN1_BASE_STATS[dexId];
+  getBaseStats(dexId: number): BaseStats | undefined {
+    const raw = GEN1_BASE_STATS[dexId];
+    if (!raw) return undefined;
+    // Map Gen 1 naming convention (atk/def/spe/spc) to unified BaseStats (attack/defense/speed/spAtk/spDef)
+    return {
+      hp: raw.hp,
+      attack: raw.atk,
+      defense: raw.def,
+      speed: raw.spe,
+      spAtk: raw.spc,
+      spDef: raw.spc // Gen 1: SpDef mirrors SpAtk (unified Special)
+    };
   }
 
   getPokemonName(dexId: number): string {

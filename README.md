@@ -1,14 +1,14 @@
-# BilKo's PC — Pokemon Save Editor
+# BilKo's PC Reborn — Pokemon Save Editor
 
 <p align="center">
-  <strong>A web-based Pokemon save editor interface supporting Gen 1–9 with a modular, themable architecture.</strong>
+  <strong>A web-based Pokemon save editor interface supporting Gen 1–2 with a modular, themable architecture. Reborn with cleaner code, proper types, and extensible design.</strong>
 </p>
 
 ---
 
 ## Overview
 
-BilKo's PC is a browser-native Pokemon save file editor built with React, TypeScript, and Vite. It allows players to load, inspect, modify, and export Pokemon save files directly in the browser — no desktop installation or backend server required. The application currently supports **Generation I** (Red / Blue / Yellow) and **Generation II** (Gold / Silver / Crystal) save formats, with an extensible architecture designed to accommodate Generations III through IX in the future.
+BilKo's PC Reborn is a browser-native Pokemon save file editor built with React, TypeScript, and Vite. It allows players to load, inspect, modify, and export Pokemon save files directly in the browser — no desktop installation, backend server, or API keys required. The application currently supports **Generation I** (Red / Blue / Yellow) and **Generation II** (Gold / Silver / Crystal) save formats, with an extensible architecture designed to accommodate Generations III through IX in the future.
 
 The editor provides a rich, game-themed UI that dynamically adapts its color palette to the loaded save's game version. It features multi-tab editing, drag-and-drop file loading, a visual PC box storage viewer, party management, Pokemon stat visualization with radar charts, and a full suite of editing tools — all running entirely client-side.
 
@@ -55,11 +55,11 @@ The editor provides a rich, game-themed UI that dynamically adapts its color pal
 
 ## Architecture
 
-BilKo's PC is built on three architectural pillars that follow the **Open-Closed Principle (OCP)**: adding support for future generations requires only adding new files and registering them — zero modifications to the core editor, state engines, or dashboard orchestration.
+BilKo's PC Reborn is built on three architectural pillars that follow the **Open-Closed Principle (OCP)**: adding support for future generations requires only adding new files and registering them — zero modifications to the core editor, state engines, or dashboard orchestration.
 
-### 1. Generation Adapter Pattern
+### 1. Generation Adapter Pattern (Interface Segregated)
 
-Each Pokemon generation is encapsulated in a concrete adapter implementing the `IGenerationAdapter` interface. The adapter hides all binary offsets, stat formulas, checksum algorithms, and character encoding differences behind a unified API.
+Each Pokemon generation is encapsulated in a concrete adapter implementing the `IGenerationAdapter` interface. The adapter hides all binary offsets, stat formulas, checksum algorithms, and character encoding differences behind a unified API. The interface is split into focused sub-interfaces following the **Interface Segregation Principle (ISP)**:
 
 ```
                     ┌────────────────────────────┐
@@ -75,7 +75,7 @@ Each Pokemon generation is encapsulated in a concrete adapter implementing the `
                                   ▼
                     ┌────────────────────────────┐
                     │    IGenerationAdapter      │
-                    │  (Common Generation API)   │
+                    │  (Composite of 5 sub-IFs)  │
                     └────────┬────────────┬──────┘
                              │            │
             ┌────────────────┴┐          ┌┴────────────────┐
@@ -84,42 +84,51 @@ Each Pokemon generation is encapsulated in a concrete adapter implementing the `
             └─────────────────┘          └─────────────────┘
 ```
 
-The `IGenerationAdapter` interface defines:
+The `IGenerationAdapter` composite interface is composed of five focused sub-interfaces:
 
-| Method | Purpose |
-|--------|---------|
-| `detectSave()` | Identify game version from binary header and checksum |
-| `parseSave()` | Deserialize raw bytes into a `ParsedSave` object |
-| `writeSave()` | Serialize edited data back to binary with valid checksums |
-| `validateSave()` | Verify save integrity |
-| `calculateStat()` | Generation-specific stat formula |
-| `recalculateStats()` | Recompute all stats from base/IV/EV/level |
-| `decodeText()` / `encodeText()` | Generation-specific character encoding |
-| `getPokemonName()` / `getMoveName()` / `getItemName()` | Data lookups |
-| `getTypes()` | Fetch type assignments for a given species |
-| `getBaseStats()` | Retrieve base stats for stat calculation |
+| Sub-Interface | Methods | Purpose |
+|---|---|---|
+| `IGenerationMetadata` | `generation`, `generationName`, `supportedVersions`, `partySize`, `boxSlotCount`, `boxCount`, `typeList`, `typeChart` | Static generation configuration |
+| `IGenerationBinaryOps` | `detectSave()`, `parseSave()`, `writeSave()`, `validateSave()`, `parseStandalonePokemon()`, `createStandalonePokemon()` | Binary serialization/deserialization |
+| `IGenerationStatsOps` | `calculateStat()`, `recalculateStats()`, `getBaseStats()` | Stat calculation and recalculation |
+| `IGenerationDataAccess` | `getPokemonName()`, `getMoveName()`, `getItemName()`, `getTypes()` | Species/move/item/type data lookups |
+| `IGenerationTextCodec` | `decodeText()`, `encodeText()` | Character encoding/decoding |
+
+Consumers should depend on the most specific sub-interface they need rather than the full composite.
 
 ### 2. Canonical Data Model (CDM)
 
-A single, runtime-safe representation of saves (`CanonicalSave`) and Pokemon (`CanonicalPokemon`) with **generation-specific extension objects** (`genExtension`) for fields that only exist in certain eras:
+A single, runtime-safe representation of saves (`ParsedSave`) and Pokemon (`PokemonStats`) with **generation-specific extension objects** (`genExtension`) for fields that only exist in certain eras. All core types are strongly typed with no `any` usage.
 
-- **`CanonicalPokemon`** — Universal fields: National Dex ID, nickname, OT name/ID, moves, level, IVs, EVs, stats, status, current HP
-- **`CanonicalSave`** — Universal fields: trainer metadata, party, PC boxes, Pokedex counts, event flags, raw buffer
+- **`PokemonStats`** — Universal fields: National Dex ID, nickname, OT name/ID, moves, level, IVs, EVs, stats, status, current HP
+- **`ParsedSave`** — Universal fields: trainer metadata, party, PC boxes, Pokedex counts, event flags, raw buffer
 - **`Gen1Extension`** — `catchRate`, unified `special` stat, `pikachuFriendship` (Yellow)
 - **`Gen2Extension`** — Held item, DV-based shininess/gender, Pokerus, split SpAtk/SpDef, friendship, breeding data, egg cycles
-- **`Gen3Extension`** — Abilities, natures, characteristics, ribbons, contest stats
 
-### 3. Modular & Extensible UI (Component Panels)
+### 3. Modular & Extensible UI (Component Panels + Custom Hooks)
 
 The monolithic editor views have been decomposed into small, reusable **Component Panels** that automatically render generation-specific sections by querying the active Pokemon's `genExtension`. The **Extension Registry** allows generation adapters to dynamically inject custom UI fields into core panels at runtime.
+
+**App.tsx** has been refactored from a 741-line god component into a clean orchestrator that delegates to custom hooks and extracted components:
+
+| Extraction | Type | Responsibility |
+|---|---|---|
+| `useToast()` | Custom Hook | Toast notification state management |
+| `useMoveMode()` | Custom Hook | Global move mode state, selection, drag-and-drop, transfer logic |
+| `CloseConfirmationModal` | Component | Save & close / discard changes dialog |
+| `ErrorModal` | Component | Error display dialog |
+| `CloseAllModal` | Component | Close all tabs confirmation dialog |
+| `SaveTabBar` | Component | Multi-tab save file tab bar with version colors |
+| `Toast` | Component | Toast notification display |
+| `MoveModeFAB` | Component | Floating action button for move mode exit |
 
 ---
 
 ## Project Structure
 
 ```
-BilKos-PC/
-├── App.tsx                          # Main application shell (tabs, modals, global state)
+BilKos-PC-Reborn/
+├── App.tsx                          # Main application shell (decomposed, ~200 lines)
 ├── index.tsx                        # React DOM entry point with ThemeProvider
 ├── index.html                       # HTML shell
 ├── types.ts                         # Theme & GameCartridge type definitions
@@ -140,6 +149,7 @@ BilKos-PC/
 │   ├── editor/
 │   │   ├── EditorDashboard.tsx      # Main editor layout & tab routing
 │   │   ├── EditorTools.tsx          # Toolbar & utility actions
+│   │   ├── SaveTabBar.tsx           # Multi-tab save file bar (extracted from App.tsx)
 │   │   ├── PartyList.tsx            # Party Pokemon display & management
 │   │   ├── PCStorage.tsx            # PC box grid viewer & manager
 │   │   ├── TrainerCard.tsx          # Trainer info editor
@@ -152,13 +162,23 @@ BilKos-PC/
 │   │   ├── LoadSaveModal.tsx        # Version-select modal on ambiguous saves
 │   │   ├── ExportModal.tsx          # Save export / download dialog
 │   │   ├── SortSettingsModal.tsx    # PC box sort configuration
+│   │   ├── modals/
+│   │   │   ├── CloseConfirmationModal.tsx  # Close tab confirmation (extracted)
+│   │   │   ├── ErrorModal.tsx              # Error display modal (extracted)
+│   │   │   └── CloseAllModal.tsx           # Close all tabs modal (extracted)
 │   │   ├── panels/
 │   │   │   ├── PokemonInfoPanel.tsx  # Species, EXP, OT identity fields
 │   │   │   ├── PokemonStatsPanel.tsx # Stats, IVs, EVs, visual graphs
 │   │   │   └── PokemonMovesPanel.tsx # Moves, PP, PP Ups
-│   │   ├── pokemon/                  # Pokemon-specific sub-components
+│   │   ├── pokemon/
+│   │   │   └── PokemonEditorModal.tsx # Pokemon editor modal
 │   │   └── tabs/                     # Sub-tab orchestrator components
-│   └── ui/                           # Reusable UI primitives
+│   └── ui/
+│       ├── Autocomplete.tsx         # Autocomplete input component
+│       ├── PokemonBadges.tsx        # Type badge components
+│       ├── PokemonDetailView.tsx    # Pokemon detail view
+│       ├── Toast.tsx                # Toast notification (extracted)
+│       └── MoveModeFAB.tsx          # Move mode FAB (extracted)
 │
 ├── context/
 │   └── ThemeContext.tsx              # React context for theme mode & game theming
@@ -167,7 +187,7 @@ BilKos-PC/
 │   └── games.ts                     # GameCartridge definitions (themes, colors, generation mapping)
 │
 ├── lib/
-│   ├── interfaces.ts                # IGenerationAdapter, IPanelExtension, ISectionExtension
+│   ├── interfaces.ts                # IGenerationAdapter (ISP-split), IPanelExtension, ISectionExtension, BaseStats
 │   ├── canonicalModel.ts            # CanonicalPokemon, CanonicalSave, GenExtension types
 │   ├── core/
 │   │   ├── AdapterRegistry.ts       # Central adapter dispatcher & save detection
@@ -186,7 +206,10 @@ BilKos-PC/
 │   │       ├── extensions.tsx       # Gen 2 UI extension registrations
 │   │       └── data/                # GSC species, moves, items, constants
 │   ├── parser/                      # Binary parsing & writing entry point
-│   ├── hooks/                       # Custom React hooks
+│   ├── hooks/
+│   │   ├── useSlotLogic.ts          # Slot interaction hook
+│   │   ├── useToast.ts              # Toast notification hook (extracted)
+│   │   └── useMoveMode.ts           # Move mode state & operations hook (extracted)
 │   └── utils/
 │       ├── manipulation.ts          # Pokemon move/transfer/swap operations
 │       ├── sortManager.ts           # PC box sorting logic
@@ -236,16 +259,6 @@ npm run build
 npm run preview
 ```
 
-### Environment Variables
-
-If you plan to use AI-powered features (optional), create a `.env.local` file in the project root:
-
-```
-GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-This is **not required** for core save editing functionality — the editor works entirely offline and client-side without any API keys.
-
 ---
 
 ## Supported Games
@@ -268,11 +281,11 @@ This is **not required** for core save editing functionality — the editor work
 
 1. **Load** — Drop a `.sav` file onto the app, or use the file picker. The `AdapterRegistry` inspects the binary buffer (file size, header bytes, checksum validity) to auto-detect the game version.
 
-2. **Parse** — The detected adapter's `parseSave()` method deserializes the raw bytes into a structured `ParsedSave` object, which is then wrapped into a `CanonicalSave` with generation-specific extensions.
+2. **Parse** — The detected adapter's `parseSave()` method deserializes the raw bytes into a structured `ParsedSave` object, with generation-specific extension data available through `genExtension`.
 
-3. **Edit** — All UI panels operate on the canonical data model. Changes to Pokemon stats, moves, trainer info, inventory, etc., are applied in-memory and tracked as "dirty" state.
+3. **Edit** — All UI panels operate on the typed data model. Changes to Pokemon stats, moves, trainer info, inventory, etc., are applied in-memory and tracked as "dirty" state.
 
-4. **Export** — The adapter's `writeSave()` method serializes the modified canonical data back into the generation's binary format, recalculates all checksums, and produces a downloadable `.sav` file that is compatible with emulators and flash carts.
+4. **Export** — The adapter's `writeSave()` method serializes the modified data back into the generation's binary format, recalculates all checksums, and produces a downloadable `.sav` file that is compatible with emulators and flash carts.
 
 ---
 
@@ -281,14 +294,14 @@ This is **not required** for core save editing functionality — the editor work
 | Technology | Purpose |
 |---|---|
 | **React 18** | UI framework with hooks and context |
-| **TypeScript** | Type-safe development with compile-time guarantees |
+| **TypeScript** | Type-safe development with compile-time guarantees (zero `any` in core) |
 | **Vite 6** | Fast build tooling and dev server |
 | **Lucide React** | Icon library |
 | **Motion (Framer Motion)** | Animations and transitions |
 
 ---
 
-## Bug Fix History
+## Refactoring History
 
 ### Phase A — Critical Bug Fixes (2026-05-24)
 
@@ -304,14 +317,80 @@ The following critical bugs were identified during a comprehensive code review a
 | **`PIKACHU_SURF_RECORD` missing from local OFFSETS** — The parser referenced `offsets.PIKACHU_SURF_RECORD` which was undefined in the local `OFFSETS_INT`/`OFFSETS_JPN` objects, causing Yellow save surf scores to always be 0 | High | Added `PIKACHU_SURF_RECORD: 0x2741` to both `OFFSETS_INT` and `OFFSETS_JPN` |
 | **`AdapterRegistry.detectAndParse()` stops on first parse failure** — If one adapter detected a save but parsing threw, no other adapters were tried | Medium | Changed to continue the cascade to the next adapter on parse failure, collecting the last error for the final error message |
 
+### Phase B — Architecture Refactoring (2026-05-24)
+
+The following architectural improvements were implemented to make the codebase more maintainable and extensible:
+
+#### Task 1: Break Down God Component App.tsx
+
+**Before**: App.tsx was a 741-line god component with 14+ `useState` hooks, inline modal components, move mode logic, sort orchestration, and toast management all in one file.
+
+**After**: App.tsx is ~200 lines of clean orchestration code that delegates to extracted custom hooks and components:
+
+| Extraction | File | Responsibility |
+|---|---|---|
+| `useToast()` | `lib/hooks/useToast.ts` | Toast notification state management |
+| `useMoveMode()` | `lib/hooks/useMoveMode.ts` | Global move mode, selection, drag-and-drop, batch transfer logic (~200 lines extracted) |
+| `CloseConfirmationModal` | `components/editor/modals/CloseConfirmationModal.tsx` | Save & close / discard changes dialog |
+| `ErrorModal` | `components/editor/modals/ErrorModal.tsx` | Error display dialog |
+| `CloseAllModal` | `components/editor/modals/CloseAllModal.tsx` | Close all tabs confirmation |
+| `SaveTabBar` | `components/editor/SaveTabBar.tsx` | Multi-tab save file tab bar |
+| `Toast` | `components/ui/Toast.tsx` | Toast notification display |
+| `MoveModeFAB` | `components/ui/MoveModeFAB.tsx` | Move mode floating action button |
+
+#### Task 2: Split IGenerationAdapter Using Interface Segregation Principle (ISP)
+
+**Before**: `IGenerationAdapter` was a monolithic 18-method interface that forced all consumers to depend on every method, even if they only needed stat calculation or data lookup.
+
+**After**: The interface is decomposed into 5 focused sub-interfaces, with `IGenerationAdapter` as a backward-compatible composite:
+
+| Sub-Interface | Methods | Consumers |
+|---|---|---|
+| `IGenerationMetadata` | 8 properties | UI components, tab bar |
+| `IGenerationBinaryOps` | 6 methods | AdapterRegistry, file I/O |
+| `IGenerationStatsOps` | 3 methods | Editor panels, manipulation.ts |
+| `IGenerationDataAccess` | 4 methods | Panel components, autocomplete |
+| `IGenerationTextCodec` | 2 methods | Text rendering, OT name editing |
+
+A new `BaseStats` unified interface replaces the previous `any` return type from `getBaseStats()`, providing consistent field naming across Gen 1 and Gen 2 adapters. Each adapter maps its internal naming convention (Gen 1: `atk/def/spe/spc`, Gen 2: `atk/def/spe/spa/spd`) to the unified `BaseStats` (`attack/defense/speed/spAtk/spDef`).
+
+#### Task 3: Remove `any` Types and Unsafe Casts
+
+**Before**: 6 `any` types in core interfaces and 10+ `any` types across the codebase, including `// @ts-ignore` directives and unsafe `as any` casts.
+
+**After**: All `any` types have been eliminated from the codebase:
+
+| Location | Before | After |
+|---|---|---|
+| `IGenerationAdapter.recalculateStats(baseStats: any)` | `any` | `BaseStats` |
+| `IGenerationAdapter.getBaseStats(dexId: number): any` | `any` | `BaseStats \| undefined` |
+| `IExtensionRenderContext.onChange(field, value: any)` | `any` | `unknown` |
+| `IExtensionRenderContext.theme: any` | `any` | `GameCartridge \| undefined` |
+| `IExtensionRenderContext.appState?: any` | `any` | `Record<string, unknown>` |
+| `ISectionExtension.render(data: any, context)` | `any` | `PokemonStats \| Record<string, unknown>` |
+| `PokemonStats.genExtension?: any` | `any` | `Record<string, unknown> \| null` |
+| Panel `updateField(field, value: any)` | `any` | `unknown` |
+| `manipulation.ts` `// @ts-ignore` + `null` assignment | `@ts-ignore` | Proper `(PokemonStats \| null)[]` cast |
+| `lib/parser/index.ts` `catch(err: any)` | `any` | `unknown` |
+| `isJapaneseSave(save: any)` | `any` | `{ rawData?: Uint8Array; generation?: number }` |
+| `writeBox(writer, box, offsets: any, ...)` | `any` | `Record<string, number>` |
+| `validateGen1Checksum(view, offsets?: any)` | `any` | `Record<string, number>` |
+| `textSpeed: any` / `gscTextSpeed: any` | `any` | `string` |
+| Pokedex/sortManager `let valA: any` | `any` | `string \| number` |
+| Panel `theme: null` | `null` | `undefined` (matches `GameCartridge \| undefined`) |
+
+#### Additional Changes
+
+- **Project renamed** from "BilKo's PC" to **"BilKo's PC Reborn"** across `package.json`, `index.html`, and `vite.config.ts`
+- **AI API references removed** — `GEMINI_API_KEY` and `.env.local` references have been removed from `vite.config.ts` and documentation. No AI code existed in the codebase; only the Vite config exposed unused environment variables.
+- **`vite.config.ts` simplified** — Removed `loadEnv` and `define` blocks for API keys. Updated `base` path to `/BilKos-PC-Reborn/`.
+
 ---
 
 ## Roadmap
 
-The project follows a **3-phase architecture roadmap** to expand from a Generation 1-only editor to a full multi-generation platform:
-
 ### Phase 1: Foundations & Abstractions (Completed)
-- Defined core `IGenerationAdapter` interface
+- Defined core `IGenerationAdapter` interface with ISP sub-interfaces
 - Implemented Canonical Data Model (`CanonicalPokemon`, `CanonicalSave`)
 - Created Gen 1 Adapter and Adapter Registry
 
@@ -319,6 +398,7 @@ The project follows a **3-phase architecture roadmap** to expand from a Generati
 - Extracted extensible panel components (`PokemonInfoPanel`, `PokemonStatsPanel`, `PokemonMovesPanel`)
 - Established Extension Registry for generation-specific UI injection
 - Built clean sub-tab composers under `/components/editor/tabs/`
+- Decomposed App.tsx god component into custom hooks and extracted components
 
 ### Phase 3: Multi-Generation Integration (In Progress)
 - Gen 2 (GSC) binary parsing and writing implemented
@@ -331,27 +411,11 @@ See [ROADMAP.md](./ROADMAP.md) for the full detailed plan and [WORKLOG.md](./WOR
 
 ---
 
-## Known Architectural Issues (For Contributors)
-
-A thorough code review identified the following architectural concerns that should be addressed before adding Gen 3+ support:
-
-- **App.tsx is a god component** (739 lines, 14 useState hooks) — needs decomposition into custom hooks
-- **`IGenerationAdapter` is a fat interface** (18 methods) — should be split using Interface Segregation Principle
-- **6 `any` types in core interfaces** — need proper typed interfaces
-- **`genExtension` pattern lacks discriminated unions** — forces unsafe type casts
-- **~60-70% code duplication** between Gen1 and Gen2 adapters — needs a `BaseGenerationAdapter` abstract class
-- **Redundant fields** on both `CanonicalPokemon` and GenExtension objects (e.g., `isShiny`, `spAtk`, `spDef`)
-- **Panels leak generation-specific logic** via `if (generation === 1)` branches instead of using the Extension Registry
-
-These issues are documented for planning purposes and do not affect current Gen 1/2 functionality.
-
----
-
 ## Contributing
 
 Contributions are welcome! The architecture is designed to make adding new generations straightforward:
 
-1. **Create a generation adapter** — Implement `IGenerationAdapter` in `/lib/generations/genN/`
+1. **Create a generation adapter** — Implement `IGenerationAdapter` (or its sub-interfaces as needed) in `/lib/generations/genN/`
 2. **Define extension types** — Add `GenNExtension` to the canonical model in `/lib/canonicalModel.ts`
 3. **Register UI extensions** — Use the `ExtensionRegistry` to inject generation-specific fields into existing panels
 4. **Add game entries** — Define `GameCartridge` objects in `/data/games.ts` with theme colors

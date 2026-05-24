@@ -1,4 +1,4 @@
-import { IGenerationAdapter } from '../../interfaces';
+import { IGenerationAdapter, BaseStats } from '../../interfaces';
 import { ParsedSave, PokemonStats } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny } from './parser';
 import { writeGen2Save } from './writer';
@@ -205,7 +205,7 @@ export class Gen2Adapter implements IGenerationAdapter {
     return calculateGen2Stat(base, iv, ev, level, isHp);
   }
 
-  recalculateStats(mon: PokemonStats, baseStats: any): PokemonStats {
+  recalculateStats(mon: PokemonStats, baseStats: BaseStats): PokemonStats {
     // Delegate to the correct Gen 2 recalculation which properly derives HP IV
     // from Attack, Defense, Speed, and Special DVs (Gen 2 HP IV formula).
     const result = recalculateGen2Stats(mon, baseStats);
@@ -216,8 +216,18 @@ export class Gen2Adapter implements IGenerationAdapter {
     return result;
   }
 
-  getBaseStats(dexId: number): any {
-    return getGen2BaseStats(dexId);
+  getBaseStats(dexId: number): BaseStats | undefined {
+    const raw = getGen2BaseStats(dexId);
+    if (!raw) return undefined;
+    // Map Gen 2 naming convention (atk/def/spe/spa/spd) to unified BaseStats (attack/defense/speed/spAtk/spDef)
+    return {
+      hp: raw.hp,
+      attack: raw.atk,
+      defense: raw.def,
+      speed: raw.spe,
+      spAtk: raw.spa,
+      spDef: raw.spd
+    };
   }
 
   getPokemonName(dexId: number): string {

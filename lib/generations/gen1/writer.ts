@@ -110,7 +110,7 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
 }
 
 // Helper: Write a full Box
-function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: any, isJapanese: boolean) {
+function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Record<string, number>, isJapanese: boolean) {
     const monCount = offsets.BOX_MON_COUNT;
 
     // 1. Count

@@ -11,7 +11,7 @@ interface PokemonMovesPanelProps {
     generation: number;
     updateMove: (index: number, moveName: string) => void;
     updatePpUp: (index: number, count: number) => void;
-    updateField: (field: keyof PokemonStats, value: any) => void;
+    updateField: (field: keyof PokemonStats, value: unknown) => void;
 }
 
 export const PokemonMovesPanel: React.FC<PokemonMovesPanelProps> = ({ 
@@ -65,8 +65,8 @@ export const PokemonMovesPanel: React.FC<PokemonMovesPanelProps> = ({
                                         <div key={ext.id}>
                                             {ext.render({ index: i, moveName: move, moveId }, {
                                                 generation,
-                                                onChange: (field, val) => updateField(field as any, val),
-                                                theme: null
+                                                onChange: (field, val) => updateField(field as keyof PokemonStats, val),
+                                                theme: undefined
                                             })}
                                         </div>
                                     ))}

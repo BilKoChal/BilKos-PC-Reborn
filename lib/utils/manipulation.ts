@@ -225,13 +225,12 @@ export function transferPokemonBatch(
             }
             
             // Mark Source as Null (to be removed later) to preserve indices for subsequent iterations
-            // @ts-ignore
-            srcList[srcLoc.index] = null; 
+            (srcList as (PokemonStats | null)[])[srcLoc.index] = null; 
         }
     }
 
     // 4. Cleanup Nulls & Reconstruct Save Objects
-    const cleanList = (list: PokemonStats[]) => list.filter(m => m !== null);
+    const cleanList = (list: PokemonStats[]) => (list as (PokemonStats | null)[]).filter((m): m is PokemonStats => m !== null);
 
     const buildNewSave = (original: ParsedSave, newParty: PokemonStats[], newBoxes: PokemonStats[][]) => {
         const cleanedParty = cleanList(newParty);

@@ -221,3 +221,122 @@ A comprehensive deep code review was conducted across the entire codebase, exami
 - `/WORKLOG.md`
 
 
+### 2026-05-24 - Phase B: Architecture Refactoring
+
+**Author**: Code Review & Refactoring Agent
+
+#### Background:
+Following the Phase A critical bug fixes, a comprehensive architecture refactoring was performed to address the god component problem (App.tsx), the god interface problem (IGenerationAdapter), and pervasive `any` types throughout the codebase. The project was also renamed to "BilKo's PC Reborn" and all AI API references were removed.
+
+#### Task 1: Break Down God Component App.tsx
+
+**Before**: App.tsx was a 741-line god component with 14+ `useState` hooks, inline modal components, move mode logic, sort orchestration, and toast management all in one file.
+
+**After**: App.tsx is ~200 lines of clean orchestration code that delegates to extracted custom hooks and components.
+
+**New Files Created:**
+- `/lib/hooks/useToast.ts` — Custom hook for toast notification state management (`showToast`, `hideToast`, `toastMessage`)
+- `/lib/hooks/useMoveMode.ts` — Custom hook encapsulating all global move mode state and operations (~200 lines): `isMoveMode`, `selectedMoveLocations`, `handleGlobalPokemonSelect`, `handleGlobalDrop`, `executeMoveOperation`, shift-click range selection, ctrl-click toggle selection, cross-save transfer logic
+- `/components/editor/modals/CloseConfirmationModal.tsx` — Extracted inline modal for save & close / discard changes
+- `/components/editor/modals/ErrorModal.tsx` — Extracted inline modal for error display
+- `/components/editor/modals/CloseAllModal.tsx` — Extracted inline modal for close-all confirmation
+- `/components/editor/SaveTabBar.tsx` — Extracted tab bar component with version color coding
+- `/components/ui/Toast.tsx` — Extracted toast notification display
+- `/components/ui/MoveModeFAB.tsx` — Extracted move mode floating action button
+
+**Modified:**
+- `/App.tsx` — Reduced from 741 lines to ~200 lines. All inline modal components, move mode logic, and toast logic extracted.
+
+#### Task 2: Split IGenerationAdapter Using Interface Segregation Principle (ISP)
+
+**Before**: `IGenerationAdapter` was a monolithic 18-method interface.
+
+**After**: Decomposed into 5 focused sub-interfaces with `IGenerationAdapter` as a backward-compatible composite:
+
+1. `IGenerationMetadata` — 8 properties: `generation`, `generationName`, `supportedVersions`, `partySize`, `boxSlotCount`, `boxCount`, `typeList`, `typeChart`
+2. `IGenerationBinaryOps` — 6 methods: `detectSave`, `parseSave`, `writeSave`, `validateSave`, `parseStandalonePokemon`, `createStandalonePokemon`
+3. `IGenerationStatsOps` — 3 methods: `calculateStat`, `recalculateStats`, `getBaseStats`
+4. `IGenerationDataAccess` — 4 methods: `getPokemonName`, `getMoveName`, `getItemName`, `getTypes`
+5. `IGenerationTextCodec` — 2 methods: `decodeText`, `encodeText`
+
+**New Type Introduced:**
+- `BaseStats` interface — Unified base stats structure (`hp`, `attack`, `defense`, `speed`, `spAtk`, `spDef`) that replaces the previous `any` return type from `getBaseStats()`. Each adapter maps its internal naming convention to this unified structure.
+
+**Modified:**
+- `/lib/interfaces.ts` — Complete rewrite with ISP sub-interfaces, `BaseStats` type, and proper types for extension system
+- `/lib/generations/gen1/Gen1Adapter.ts` — Updated `getBaseStats()` to map Gen 1 naming (`atk/def/spe/spc`) to unified `BaseStats`; `recalculateStats()` now takes `BaseStats`
+- `/lib/generations/gen2/Gen2Adapter.ts` — Updated `getBaseStats()` to map Gen 2 naming (`atk/def/spe/spa/spd`) to unified `BaseStats`; `recalculateStats()` now takes `BaseStats`
+- `/lib/utils/statCalculator.ts` — Replaced local `BaseStats` interface with import from `interfaces.ts`
+- `/lib/generations/gen2/statCalculator.ts` — Replaced local `Gen2BaseStats` interface with import of `BaseStats` from `interfaces.ts`
+- `/lib/core/AdapterRegistry.ts` — Updated imports to reference ISP sub-interfaces
+
+#### Task 3: Remove `any` Types and Unsafe Casts
+
+**Before**: 6 `any` types in core interfaces and 10+ `any` types across the codebase.
+
+**After**: All `any` types eliminated. Key changes:
+
+- `PokemonStats.genExtension?: any` → `Record<string, unknown> | null`
+- `IExtensionRenderContext.onChange(value: any)` → `unknown`
+- `IExtensionRenderContext.theme: any` → `GameCartridge | undefined`
+- `IExtensionRenderContext.appState?: any` → `Record<string, unknown>`
+- `ISectionExtension.render(data: any)` → `PokemonStats | Record<string, unknown>`
+- Panel `updateField(value: any)` → `unknown` (in PokemonInfoPanel, PokemonMovesPanel, PokemonEditorModal)
+- `manipulation.ts` `// @ts-ignore` + `null` assignment → Proper `(PokemonStats | null)[]` cast with type guard
+- `lib/parser/index.ts` `catch(err: any)` → `catch(err: unknown)`
+- `isJapaneseSave(save: any)` → `{ rawData?: Uint8Array; generation?: number }`
+- `writeBox(writer, box, offsets: any)` → `Record<string, number>`
+- `validateGen1Checksum(view, offsets?: any)` → `Record<string, number>`
+- `textSpeed: any` / `gscTextSpeed: any` → `string`
+- Pokedex/sortManager `let valA: any` → `string | number`
+- Panel `theme: null` → `undefined` (matches `GameCartridge | undefined`)
+
+#### Additional Changes
+
+- **Project renamed** from "BilKo's PC" to "BilKo's PC Reborn":
+  - `package.json` name → `bilkos-pc-reborn`
+  - `index.html` title → "BilKo's PC Reborn"
+  - `vite.config.ts` base → `/BilKos-PC-Reborn/`
+- **AI API references removed**:
+  - `vite.config.ts` — Removed `loadEnv` import, `define` block with `GEMINI_API_KEY`, and `process.env.API_KEY`
+  - No actual AI code existed; only config exposed unused env variables
+- **`vite.config.ts` simplified** — Cleaner config without environment variable handling
+
+#### Files Modified (Phase B):
+- `/App.tsx` (major rewrite)
+- `/lib/interfaces.ts` (major rewrite)
+- `/lib/parser/types.ts`
+- `/lib/utils/statCalculator.ts`
+- `/lib/utils/manipulation.ts`
+- `/lib/utils/textValidator.ts`
+- `/lib/utils/sortManager.ts`
+- `/lib/parser/index.ts`
+- `/lib/generations/gen1/Gen1Adapter.ts`
+- `/lib/generations/gen1/writer.ts`
+- `/lib/generations/gen1/parser.ts`
+- `/lib/generations/gen2/Gen2Adapter.ts`
+- `/lib/generations/gen2/statCalculator.ts`
+- `/lib/generations/gen2/parser.ts`
+- `/lib/generations/gen2/extensions.tsx`
+- `/lib/core/AdapterRegistry.ts`
+- `/components/editor/panels/PokemonInfoPanel.tsx`
+- `/components/editor/panels/PokemonMovesPanel.tsx`
+- `/components/editor/panels/PokemonStatsPanel.tsx`
+- `/components/editor/pokemon/PokemonEditorModal.tsx`
+- `/components/editor/Pokedex.tsx`
+- `/package.json`
+- `/index.html`
+- `/vite.config.ts`
+- `/README.md`
+- `/WORKLOG.md`
+
+#### New Files Created (Phase B):
+- `/lib/hooks/useToast.ts`
+- `/lib/hooks/useMoveMode.ts`
+- `/components/editor/modals/CloseConfirmationModal.tsx`
+- `/components/editor/modals/ErrorModal.tsx`
+- `/components/editor/modals/CloseAllModal.tsx`
+- `/components/editor/SaveTabBar.tsx`
+- `/components/ui/Toast.tsx`
+- `/components/ui/MoveModeFAB.tsx`
+

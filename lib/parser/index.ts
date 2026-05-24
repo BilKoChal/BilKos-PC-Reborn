@@ -23,7 +23,7 @@ export const detectAndParseSave = async (file: File): Promise<ParserResult> => {
       error: result.error || "Unsupported or corrupted save file format."
     };
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("[Parser Error]", err);
     return { success: false, error: "Critical error during file structural analysis." };
   }

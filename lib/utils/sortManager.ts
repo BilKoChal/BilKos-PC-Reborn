@@ -14,8 +14,8 @@ export interface SortResult {
  * Comparator function for Pokemon Stats
  */
 const comparePokemon = (a: PokemonStats, b: PokemonStats, criteria: SortCriteria, direction: SortDirection): number => {
-  let valA: any;
-  let valB: any;
+  let valA: string | number;
+  let valB: string | number;
 
   if (a.speciesId === 0 && b.speciesId === 0) return 0;
   if (a.speciesId === 0) return 1;

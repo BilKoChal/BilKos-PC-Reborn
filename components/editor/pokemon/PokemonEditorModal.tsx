@@ -62,7 +62,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     // Helper to safely clamp values
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
 
-    const updateField = (field: keyof PokemonStats, value: any) => {
+    const updateField = (field: keyof PokemonStats, value: unknown) => {
         setIsDirty(true);
         setMon(prev => ({ ...prev, [field]: value }));
     };

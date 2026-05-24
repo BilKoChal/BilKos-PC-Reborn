@@ -83,7 +83,7 @@ export interface PokemonStats {
   pokerus: number;
   heldItemId?: number;
   heldItemName?: string;
-  genExtension?: any;
+  genExtension?: Record<string, unknown> | null;
   
   // Raw Data Preservation
   raw: Uint8Array;

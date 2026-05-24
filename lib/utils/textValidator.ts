@@ -75,7 +75,7 @@ export function sanitizePokemonText(text: string, isJapanese?: boolean): string 
 /**
  * Checks if a ParsedSave object corresponds to a Japanese save game
  */
-export function isJapaneseSave(save: any): boolean {
+export function isJapaneseSave(save: { rawData?: Uint8Array; generation?: number }): boolean {
   if (!save || !save.rawData || save.generation !== 1) return false;
   const view = save.rawData;
   if (view.byteLength < 0x3524) return false;

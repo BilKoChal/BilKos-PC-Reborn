@@ -215,7 +215,7 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
                                         updateEV(field.substring(3) as any, val);
                                     }
                                 },
-                                theme: null
+                                theme: undefined
                             })}
                         </div>
                     ))}

@@ -1,14 +1,6 @@
 
 import { PokemonStats, Generation } from '../parser/types';
-
-interface BaseStats {
-    hp: number;
-    attack: number;
-    defense: number;
-    speed: number;
-    spAtk: number;
-    spDef: number;
-}
+import { BaseStats } from '../interfaces';
 
 // --- Gen 1 Formula ---
 // HP: floor(( (Base + DV) * 2 + floor( ceil( sqrt(Stat Exp) ) / 4 ) ) * Level / 100) + Level + 10
@@ -16,7 +8,7 @@ interface BaseStats {
 export function calculateGen1Stat(base: number, dv: number, statExp: number, level: number, isHp: boolean): number {
     const evFactor = Math.floor(Math.ceil(Math.sqrt(statExp)) / 4);
     const core = ((base + dv) * 2 + evFactor) * level;
-    
+
     if (isHp) {
         return Math.floor(core / 100) + level + 10;
     } else {
@@ -26,14 +18,9 @@ export function calculateGen1Stat(base: number, dv: number, statExp: number, lev
 
 // --- Reverse Engineer Base Stats ---
 export function deriveBaseStats(mon: PokemonStats, generation: Generation): BaseStats | null {
-    if (mon.maxHp === 0 || mon.level === 0) return null; 
+    if (mon.maxHp === 0 || mon.level === 0) return null;
 
     const derive = (statVal: number, iv: number, ev: number, level: number, isHp: boolean): number => {
-         // Gen 1 Reversal
-         // HP = floor(core/100) + level + 10  => core approx (HP - Level - 10) * 100
-         // Core = (Base + DV)*2 + EVFactor
-         // (Base + DV) * 2 = Core / Level - evFactor
-         // Base = ((Core / Level - evFactor) / 2) - DV
          const evFactor = Math.floor(Math.ceil(Math.sqrt(ev)) / 4);
          const targetCore = isHp ? (statVal - level - 10) * 100 : (statVal - 5) * 100;
          return Math.round(((targetCore / level - evFactor) / 2) - iv);
@@ -56,7 +43,7 @@ export function deriveBaseStats(mon: PokemonStats, generation: Generation): Base
 
 export function recalculateStats(mon: PokemonStats, baseStats: BaseStats, generation: Generation): PokemonStats {
     const newMon = { ...mon };
-    
+
     // Gen 1 Logic Only
     newMon.maxHp = calculateGen1Stat(baseStats.hp, mon.iv.hp, mon.ev.hp, mon.level, true);
     newMon.hp = newMon.maxHp; // Auto heal on edit

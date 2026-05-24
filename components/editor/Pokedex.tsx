@@ -72,8 +72,8 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
 
         // Sort
         list.sort((a, b) => {
-            let valA: any = a;
-            let valB: any = b;
+            let valA: string | number = a;
+            let valB: string | number = b;
             
             if (sortMode === 'name') {
                 valA = pokemonNames[a];

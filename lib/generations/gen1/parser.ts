@@ -387,7 +387,7 @@ function parseOptions(view: Uint8Array, offsets: typeof OFFSETS_INT): GameOption
     const battleAnimation = (byte & 0x80) ? 'Off' : 'On';
     const battleStyle = (byte & 0x40) ? 'Set' : 'Shift';
     const speedBits = byte & 0x7;
-    let textSpeed: any = 'Normal';
+    let textSpeed: string = 'Normal';
     if (speedBits === 1) textSpeed = 'Fast';
     else if (speedBits === 5) textSpeed = 'Slow';
     else if (speedBits === 3) textSpeed = 'Normal';
@@ -467,7 +467,7 @@ export function detectGameVersion(view: Uint8Array, filename?: string): GameVers
   return 'Red';
 }
 
-export function validateGen1Checksum(view: Uint8Array, customOffsets?: any): boolean {
+export function validateGen1Checksum(view: Uint8Array, customOffsets?: Record<string, number>): boolean {
     const isJP = isSaveJapanese(view);
     const offsets = customOffsets || (isJP ? OFFSETS_JPN : OFFSETS_INT);
     let sum = 0;

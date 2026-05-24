@@ -1,4 +1,4 @@
-import { IGenerationAdapter } from '../interfaces';
+import { IGenerationAdapter, IGenerationMetadata, IGenerationBinaryOps } from '../interfaces';
 import { ParsedSave } from '../parser/types';
 import { Gen1Adapter } from '../generations/gen1/Gen1Adapter';
 import { Gen2Adapter } from '../generations/gen2/Gen2Adapter';

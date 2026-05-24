@@ -31,8 +31,8 @@ export const HeldItemSection: ISectionExtension = {
             const heldItemId = matchingIdStr ? Number(matchingIdStr) : 0;
             const heldItemName = heldItemId > 0 ? GEN2_ITEMS[heldItemId] : 'None';
 
-            context.onChange('heldItemId', heldItemId);
-            context.onChange('heldItemName', heldItemName);
+            context.onChange('heldItemId', heldItemId as unknown);
+            context.onChange('heldItemName', heldItemName as unknown);
           }}
           placeholder="No Held Item"
           className="shadow-sm"

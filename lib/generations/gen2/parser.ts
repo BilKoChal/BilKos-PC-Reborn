@@ -451,7 +451,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   const gscBattleAnimation = (optionsByte & 0x80) ? 'Off' : 'On';
   const gscBattleStyle = (optionsByte & 0x40) ? 'Set' : 'Shift';
   const gscSpeedBits = optionsByte & 0x7;
-  let gscTextSpeed: any = 'Normal';
+  let gscTextSpeed: string = 'Normal';
   if (gscSpeedBits === 1) gscTextSpeed = 'Fast';
   else if (gscSpeedBits === 5) gscTextSpeed = 'Slow';
   else if (gscSpeedBits === 3) gscTextSpeed = 'Normal';

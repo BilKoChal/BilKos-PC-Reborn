@@ -13,7 +13,7 @@ interface PokemonInfoPanelProps {
     generation: number;
     types: string[];
     isJapanese?: boolean;
-    updateField: (field: keyof PokemonStats, value: any) => void;
+    updateField: (field: keyof PokemonStats, value: unknown) => void;
     handleSpeciesChange: (name: string) => void;
     handleExpChange: (newExp: number) => void;
 }
@@ -65,7 +65,7 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                     )}
 
                     <img 
-						src={spriteUrl} 
+                                                src={spriteUrl} 
                         className="w-48 h-48 object-contain pixelated drop-shadow-2xl z-10 transition-transform hover:scale-110 duration-500"
                         alt={mon.speciesName}
                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}
@@ -149,8 +149,8 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                         <div key={ext.id} className="extension-container">
                             {ext.render(mon, {
                                 generation,
-                                onChange: (field, val) => updateField(field as any, val),
-                                theme: null
+                                onChange: (field, val) => updateField(field as keyof PokemonStats, val),
+                                theme: undefined
                             })}
                         </div>
                     ))}
