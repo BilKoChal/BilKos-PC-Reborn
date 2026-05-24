@@ -4,8 +4,7 @@ import { Item } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { Backpack, Monitor, Trash2, Plus, ArrowDownAZ, Hash, Disc } from 'lucide-react';
 import { Autocomplete } from '../ui/Autocomplete';
-import { getItemName } from '../../lib/generations/gen1/data/items';
-import { getGen2ItemName } from '../../lib/generations/gen2/data/constants';
+import { useSaveContextSafe } from '../../context/SaveContext';
 
 interface InventoryProps {
     items: Item[]; // Bag (Limit 20)
@@ -15,56 +14,33 @@ interface InventoryProps {
     onUpdate: (newItems: Item[], newPcItems: Item[]) => void;
 }
 
-// Generate all valid item names for Gen 1
-const ALL_ITEMS = Array.from({ length: 256 }, (_, i) => {
-    const name = getItemName(i);
-    return (name !== '-' && !name.startsWith('Item ')) ? name : null;
-}).filter(Boolean) as string[];
-
 export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode, onEnableMoveMode, onUpdate }) => {
     const { getGameTheme } = useTheme();
     const theme = getGameTheme();
-    const generation = theme?.generation || 1;
+    const ctx = useSaveContextSafe();
+    const adapter = ctx?.adapter;
 
+    // Adapter-driven: replaces hardcoded `generation === 2` branching for item lists
     const availableItems = useMemo(() => {
-        if (generation === 2) {
-            const list: string[] = [];
-            // Ordinary items (1-95)
-            for (let i = 1; i <= 95; i++) {
-                const name = getGen2ItemName(i);
-                if (name && !name.startsWith('Item ')) {
-                    list.push(name);
-                }
-            }
-            // GSC HMs (125-131)
-            for (let i = 125; i <= 131; i++) {
-                list.push(getGen2ItemName(i));
-            }
-            // GSC TMs (132-181)
-            for (let i = 132; i <= 181; i++) {
-                list.push(getGen2ItemName(i));
-            }
-            return list;
-        } else {
-            return ALL_ITEMS;
+        if (adapter) {
+            return adapter.getAllItemNames();
         }
-    }, [generation]);
+        // Fallback if no adapter
+        return [];
+    }, [adapter]);
 
     const resolveItemName = (id: number): string => {
-        return generation === 2 ? getGen2ItemName(id) : getItemName(id);
+        if (adapter) {
+            return adapter.getItemName(id);
+        }
+        return `Item ${id}`;
     };
 
     const resolveItemId = (name: string): number => {
-        if (generation === 2) {
-            // Check ordinary items
+        if (adapter) {
+            // Search through item IDs to find matching name
             for (let i = 1; i <= 255; i++) {
-                if (getGen2ItemName(i) === name) {
-                    return i;
-                }
-            }
-        } else {
-            for (let i = 1; i <= 255; i++) {
-                if (getItemName(i) === name) {
+                if (adapter.getItemName(i) === name) {
                     return i;
                 }
             }

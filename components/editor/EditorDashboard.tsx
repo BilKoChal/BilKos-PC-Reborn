@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
-import { SaveProvider } from '../../context/SaveContext';
+import { SaveProvider, useSaveContextSafe } from '../../context/SaveContext';
 import { EditorTools } from './EditorTools';
 import { PokemonEditorModal } from './pokemon/PokemonEditorModal'; 
 import { LayoutGrid, Book, Trophy, Map, Home, Database, Swords } from 'lucide-react'; // Added Swords Icon
@@ -11,6 +11,7 @@ import { SortScope, SortCriteria, SortDirection } from '../../lib/utils/sortMana
 import { SortSettingsModal } from './SortSettingsModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { isJapaneseSave } from '../../lib/utils/textValidator';
+import { registry } from '../../lib/core/AdapterRegistry';
 
 import { DashboardTab as DashboardTabComponent } from './tabs/DashboardTab';
 import { StorageTab } from './tabs/StorageTab';
@@ -235,7 +236,9 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     };
 
     const handlePokedexUpdate = (owned: boolean[], seen: boolean[]) => {
-        const generationLimit = data.generation === 2 ? 251 : 151;
+        // Adapter-driven: replaces hardcoded `data.generation === 2 ? 251 : 151`
+        const adapter = registry.getAdapter(data.generation);
+        const generationLimit = adapter?.nationalDexMax ?? (data.generation === 2 ? 251 : 151);
         const ownedCount = owned.filter((f, i) => i > 0 && i <= generationLimit && f).length;
         const seenCount = seen.filter((f, i) => i > 0 && i <= generationLimit && f).length;
         

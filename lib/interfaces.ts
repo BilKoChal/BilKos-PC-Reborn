@@ -27,6 +27,12 @@ export interface BaseStats {
 /**
  * Generation metadata and configuration properties.
  * Provides static information about a generation's capabilities and structure.
+ *
+ * These fields replace the ~27 hardcoded `generation === 1 / === 2` checks
+ * scattered across UI components. Each adapter declares its own values,
+ * so adding Gen 3+ never requires touching UI code again.
+ *
+ * Example: `const maxDex = adapter.nationalDexMax;` works for every generation.
  */
 export interface IGenerationMetadata {
   generation: number;
@@ -37,6 +43,24 @@ export interface IGenerationMetadata {
   boxCount: number;
   typeList: string[];
   typeChart: number[][];
+
+  // ── Adapter-driven generation facts (replaces hardcoded branching) ──
+
+  /** Highest National Dex ID in this generation.
+   *  Gen1=151, Gen2=251, Gen3=386, Gen4=493, Gen5=649, Gen6=721, Gen7=809, Gen8=905, Gen9=1025 */
+  nationalDexMax: number;
+
+  /** Whether this generation splits the Special stat into SpAtk/SpDef.
+   *  false for Gen1, true for Gen2+ */
+  hasSplitSpecial: boolean;
+
+  /** Whether this generation has the Ability system.
+   *  false for Gen1-2, true for Gen3+ */
+  hasAbilities: boolean;
+
+  /** Whether this generation has the Nature system.
+   *  false for Gen1-2, true for Gen3+ */
+  hasNatures: boolean;
 }
 
 /**
@@ -64,13 +88,38 @@ export interface IGenerationStatsOps {
 
 /**
  * Data access operations for species, moves, items, and types.
- * Provides human-readable names and type assignments.
+ * Provides human-readable names, type assignments, and list enumeration.
+ *
+ * List enumeration methods (getAllSpeciesNames, getAllMoveNames, etc.) are
+ * needed by UI components like Autocomplete dropdowns and Pokédex grids.
+ * Without them, components would import generation-specific data modules
+ * directly, which defeats the adapter pattern.
  */
 export interface IGenerationDataAccess {
+  /** Look up a single Pokémon name by National Dex ID. */
   getPokemonName(dexId: number): string;
+  /** Look up a single move name by move ID. */
   getMoveName(moveId: number): string;
+  /** Look up a single item name by item ID. */
   getItemName(itemId: number): string;
+  /** Get type1/type2 for a species by National Dex ID. */
   getTypes(dexId: number): { type1: number; type2: number; type1Name: string; type2Name: string };
+
+  // ── List enumeration (for Autocomplete, Pokédex grid, etc.) ──
+
+  /** Full ordered array of species names. Index = National Dex ID.
+   *  Index 0 is a placeholder. Length = nationalDexMax + 1. */
+  getAllSpeciesNames(): string[];
+
+  /** Full ordered array of move names. Index = move ID.
+   *  Index 0 is a placeholder ("-"). */
+  getAllMoveNames(): string[];
+
+  /** Base PP for a given move ID. Returns 0 if unknown. */
+  getMoveBasePp(moveId: number): number;
+
+  /** All valid item names for the generation (for autocomplete). */
+  getAllItemNames(): string[];
 }
 
 /**

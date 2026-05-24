@@ -67,6 +67,13 @@ Refactor the save model into an unified architecture:
 *   Extract the core Gen 1 parsing and writing routines from `/lib/parser/index.ts` and `/lib/writer/gen1.ts` to form `Gen1Adapter.ts`.
 *   Create `AdapterRegistry.ts` which routes buffer parsing requests to registered adapters, executing a cascading `.detectSave(buffer)` test.
 
+#### Task 1.4: Adapter-Driven Generation Metadata (Eliminate Hardcoded Branching)
+Replace ~27 hardcoded `generation === 1 / === 2` checks scattered across UI components with adapter-driven metadata:
+*   Add to `IGenerationMetadata`: `nationalDexMax`, `hasSplitSpecial`, `hasAbilities`, `hasNatures`.
+*   Add to `IGenerationDataAccess`: `getAllSpeciesNames()`, `getAllMoveNames()`, `getMoveBasePp()`, `getAllItemNames()`.
+*   Refactor `Pokedex.tsx`, `EditorDashboard.tsx`, `PokemonEditorModal.tsx`, `Inventory.tsx`, `sortManager.ts`, `PokemonStatsPanel.tsx`, `PokemonInfoPanel.tsx`, `PokemonMovesPanel.tsx` to read generation facts from the adapter instead of branching on generation numbers.
+*   Result: Adding Gen 3+ requires zero UI changes — `adapter.nationalDexMax` returns 386, `adapter.hasAbilities` returns true, etc.
+
 ---
 
 ### Phase 2: Modular UI/UX Re-architecture

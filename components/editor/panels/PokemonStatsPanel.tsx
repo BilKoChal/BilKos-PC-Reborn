@@ -121,7 +121,10 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
     const adapter = adapterProp ?? ctx?.adapter;
     const [chartMode, setChartMode] = useState<'bar' | 'radar'>('bar');
 
-    // Dynamically choose stats array based on generation
+    // Adapter-driven: replaces `generation === 1` branching for stat display
+    const hasSplitSpecial = adapter?.hasSplitSpecial ?? (generation !== 1);
+
+    // Dynamically choose stats array based on whether this generation has split Special
     const statData = [
         { label: 'HP', val: mon.hp, iv: mon.iv.hp, ev: mon.ev.hp, ivKey: 'hp', evKey: 'hp', color: 'text-red-500', barColor: 'bg-red-500' },
         { label: 'Attack', val: mon.attack, iv: mon.iv.attack, ev: mon.ev.attack, ivKey: 'attack', evKey: 'attack', color: 'text-orange-500', barColor: 'bg-orange-500' },
@@ -129,7 +132,7 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
         { label: 'Speed', val: mon.speed, iv: mon.iv.speed, ev: mon.ev.speed, ivKey: 'speed', evKey: 'speed', color: 'text-pink-500', barColor: 'bg-pink-500' },
     ];
 
-    if (generation === 1) {
+    if (!hasSplitSpecial) {
         statData.push({
             label: 'Special', val: mon.special, iv: mon.iv.special, ev: mon.ev.special, ivKey: 'special', evKey: 'special', color: 'text-blue-500', barColor: 'bg-blue-500'
         });

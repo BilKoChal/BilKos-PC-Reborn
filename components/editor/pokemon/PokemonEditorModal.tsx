@@ -6,18 +6,11 @@ import { X, Save, Download, Book } from 'lucide-react';
 import { deriveBaseStats, recalculateStats } from '../../../lib/utils/statCalculator';
 import { getGrowthRate, getLevelFromExp as calculateLevel, getExpAtLevel as calculateMinExp } from '../../../lib/utils/experience';
 import { getPokemonTypes } from '../../../lib/generations/gen1/data/pokemonTypes';
-// NOTE: Generation-specific name lists are imported directly for autocomplete dropdown population.
-// The adapter's getPokemonName(id) provides single-name lookups but no full list enumeration API.
-// See PokemonInfoPanel.tsx for the full rationale — these are acceptable gaps, not architecture leaks.
-import { POKEMON_NAMES } from '../../../lib/generations/gen1/data/pokemonNames';
-import { GEN2_POKEMON_NAMES } from '../../../lib/generations/gen2/data/constants';
-// NOTE: MOVES_LIST and MOVES_PP are Gen1-specific data used for move autocomplete and PP lookup.
-// The adapter's getMoveName(id) provides single lookups; full enumeration and base PP are not yet
-// in the adapter interface. See PokemonMovesPanel.tsx for rationale.
-import { MOVES_LIST, MOVES_PP } from '../../../lib/generations/gen1/data/moves';
-// NOTE: createPk1Binary is Gen1-specific and intentionally used only for the .pk1 export button.
-// Gen2 .pk2 export is not yet supported. When added, this should be replaced with an adapter call
-// to createStandalonePokemon() from IGenerationBinaryOps.
+// NOTE: Generation-specific name lists are now accessed via adapter.getAllSpeciesNames() instead of
+// direct imports. The adapter provides both single-name lookups (getPokemonName) and full list
+// enumeration (getAllSpeciesNames), eliminating hardcoded generation branching.
+// NOTE: MOVES_LIST and MOVES_PP are now accessed via adapter.getAllMoveNames() and
+// adapter.getMoveBasePp() respectively, eliminating direct Gen1 data imports.
 import { createPk1Binary } from '../../../lib/generations/gen1/writer';
 import { sanitizePokemonText } from '../../../lib/utils/textValidator';
 import { useSaveContextSafe } from '../../../context/SaveContext';
@@ -82,8 +75,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     const handleSpeciesChange = (name: string) => {
         // Use adapter for species lookup when available
         if (adapter) {
-            // Search through species IDs to find matching name
-            const maxDex = generation === 2 ? 251 : 151;
+            const maxDex = adapter.nationalDexMax;
             for (let id = 1; id <= maxDex; id++) {
                 if (adapter.getPokemonName(id) === name) {
                     const speciesTypes = getPokemonTypes(id, generation);
@@ -98,21 +90,6 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                     return;
                 }
             }
-        }
-        // Fallback to direct name list lookup when adapter is unavailable
-        const id = generation === 2 
-            ? GEN2_POKEMON_NAMES.indexOf(name) 
-            : POKEMON_NAMES.indexOf(name);
-        if (id > 0) {
-            const speciesTypes = getPokemonTypes(id, generation);
-            setMon(prev => ({ 
-                ...prev, 
-                speciesName: name, 
-                dexId: id,
-                type1Name: speciesTypes[0] || 'Normal',
-                type2Name: speciesTypes[1] || speciesTypes[0] || 'Normal'
-            }));
-            setIsDirty(true);
         }
     };
 
@@ -157,14 +134,16 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
         const newMoves = [...mon.moves];
         newMoves[index] = moveName;
         
-        const moveId = MOVES_LIST.indexOf(moveName);
+        // Adapter-driven move lookup replaces direct MOVES_LIST import
+        const allMoves = adapter?.getAllMoveNames() ?? [];
+        const moveId = allMoves.indexOf(moveName);
         const newIds = [...mon.moveIds];
         const newPps = [...mon.movePp];
         
         if (moveId !== -1) {
             newIds[index] = moveId;
-            // Reset PP to Base PP when move changes
-            const basePP = MOVES_PP[moveId] || 0;
+            // Reset PP to Base PP when move changes (via adapter)
+            const basePP = adapter?.getMoveBasePp(moveId) ?? 0;
             newPps[index] = basePP; 
         }
         

@@ -3,13 +3,11 @@ import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { Sparkles } from 'lucide-react';
 import { Autocomplete } from '../../ui/Autocomplete';
 import { TypeBadge } from '../../ui/PokemonBadges';
-// NOTE: We import generation-specific move data directly for autocomplete dropdown population,
-// base PP lookup, and move type display. The adapter's getMoveName(id) method provides single
-// name lookups but doesn't offer full list enumeration or PP/type APIs. These are acceptable
-// gaps in the adapter interface rather than architecture leaks — if future generations need
-// different move data sources, adapter methods like getAllMoveNames() / getMoveBasePP(id) /
-// getMoveType(id) could be added to IGenerationDataAccess.
-import { MOVES_LIST, MOVES_PP, MOVES_TYPE } from '../../../lib/generations/gen1/data/moves';
+// Adapter-driven: move data is now accessed via adapter.getAllMoveNames() and
+// adapter.getMoveBasePp() instead of direct Gen1 data imports.
+// Move type display still uses the Gen1 MOVES_TYPE array as a temporary measure
+// until getMoveType() is added to IGenerationDataAccess.
+import { MOVES_TYPE } from '../../../lib/generations/gen1/data/moves';
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 import { IGenerationAdapter } from '../../../lib/interfaces';
@@ -42,7 +40,7 @@ export const PokemonMovesPanel: React.FC<PokemonMovesPanelProps> = ({
             <div className="space-y-4">
                 {mon.moves.map((move, i) => {
                     const moveId = mon.moveIds[i] || 0;
-                    const basePP = MOVES_PP[moveId] || 0;
+                    const basePP = adapter?.getMoveBasePp(moveId) ?? 0;
                     const ppUps = mon.movePpUps[i] || 0;
                     // Max PP Formula: Base * (1 + 0.2 * Ups)
                     const maxPP = Math.floor(basePP * (1 + 0.2 * ppUps));
@@ -55,7 +53,7 @@ export const PokemonMovesPanel: React.FC<PokemonMovesPanelProps> = ({
                             <div className="flex gap-2 items-center mb-3">
                                 <div className="flex-grow">
                                     <Autocomplete 
-                                        options={MOVES_LIST} 
+                                        options={adapter?.getAllMoveNames() ?? []} 
                                         value={move === '-' ? '' : move} 
                                         onChange={(val) => updateMove(i, val || '-')}
                                         placeholder={`Move ${i + 1}`}

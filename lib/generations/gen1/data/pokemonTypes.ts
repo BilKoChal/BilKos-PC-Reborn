@@ -193,6 +193,11 @@ export const JOHTO_DEX_TYPES: Record<number, string[]> = {
 };
 
 export function getPokemonTypes(dexId: number, generation: number = 1): string[] {
+    // Adapter-driven type lookup: Gen2+ adapters handle type corrections (e.g., Magnemite/Magneton Steel)
+    // via their own getTypes() method. This function remains for backward compatibility and
+    // is used by parsers and utility code that don't have an adapter reference.
+    // UI components should prefer adapter.getTypes() which automatically applies generation-specific
+    // corrections without branching.
     if (generation === 2) {
         if (dexId === 81 || dexId === 82) {
             return ['Electric', 'Steel']; // Magnemite/Magneton got Steel secondary type in Gen 2

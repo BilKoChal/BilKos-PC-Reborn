@@ -3,13 +3,9 @@ import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { User, Fingerprint } from 'lucide-react';
 import { Autocomplete } from '../../ui/Autocomplete';
 import { TypeBadge } from '../../ui/PokemonBadges';
-// NOTE: We import generation-specific name lists directly for autocomplete dropdown population.
-// The adapter's getPokemonName(id) method provides single-name lookups but doesn't offer
-// a full list enumeration API. This is an acceptable leak since autocomplete requires the
-// full list anyway. If future adapters need different list sources, an adapter method like
-// getAllSpeciesNames() could be added to IGenerationDataAccess.
-import { POKEMON_NAMES } from '../../../lib/generations/gen1/data/pokemonNames';
-import { GEN2_POKEMON_NAMES } from '../../../lib/generations/gen2/data/constants';
+// Adapter-driven: species names are now accessed via adapter.getAllSpeciesNames()
+// instead of direct generation-specific imports. This eliminates the hardcoded
+// `generation === 2 ? GEN2_POKEMON_NAMES : POKEMON_NAMES` branching.
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { sanitizePokemonText } from '../../../lib/utils/textValidator';
 import { useSaveContextSafe } from '../../../context/SaveContext';
@@ -41,10 +37,8 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
     // Fetch extensions registered for the Info Panel in the active generation
     const extensions = extensionRegistry.getExtensions('pokemon-info', generation);
 
-    // Dynamic species options based on generation
-    const pokemonOptions = generation === 2 
-        ? GEN2_POKEMON_NAMES.slice(0, 252) 
-        : POKEMON_NAMES.slice(0, 152);
+    // Dynamic species options based on adapter (replaces hardcoded generation branching)
+    const pokemonOptions = adapter?.getAllSpeciesNames().slice(0, (adapter?.nationalDexMax ?? 151) + 1) ?? [];
 
     return (
         <div className="flex flex-col gap-6 bg-white dark:bg-gray-900 h-full">

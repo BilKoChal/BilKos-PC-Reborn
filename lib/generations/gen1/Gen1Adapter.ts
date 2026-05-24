@@ -3,8 +3,8 @@ import { ParsedSave, PokemonStats } from '../../parser/types';
 import { detectGameVersion, validateGen1Checksum, parseGen1Save, parsePk1 } from './parser';
 import { writeGen1Save, createPk1Binary } from './writer';
 import { calculateGen1Stat, recalculateStats } from '../../utils/statCalculator';
-import { getPokemonName } from './data/pokemonNames';
-import { getMoveName } from './data/moves';
+import { getPokemonName, POKEMON_NAMES } from './data/pokemonNames';
+import { getMoveName, MOVES_LIST, MOVES_PP } from './data/moves';
 import { getItemName } from './data/items';
 import { getPokemonTypes } from './data/pokemonTypes';
 import { GEN1_BASE_STATS } from './data/baseStats';
@@ -22,6 +22,10 @@ export class Gen1Adapter implements IGenerationAdapter {
   partySize = 6;
   boxSlotCount = 20;
   boxCount = 12;
+  nationalDexMax = 151;
+  hasSplitSpecial = false;
+  hasAbilities = false;
+  hasNatures = false;
 
   // Gen 1 Types only: 15 types
   typeList = [
@@ -153,6 +157,25 @@ export class Gen1Adapter implements IGenerationAdapter {
       type1Name,
       type2Name
     };
+  }
+
+  getAllSpeciesNames(): string[] {
+    return POKEMON_NAMES;
+  }
+
+  getAllMoveNames(): string[] {
+    return MOVES_LIST;
+  }
+
+  getMoveBasePp(moveId: number): number {
+    return MOVES_PP[moveId] || 0;
+  }
+
+  getAllItemNames(): string[] {
+    return Array.from({ length: 256 }, (_, i) => {
+      const name = getItemName(i);
+      return (name !== '-' && !name.startsWith('Item ')) ? name : null;
+    }).filter(Boolean) as string[];
   }
 
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string {

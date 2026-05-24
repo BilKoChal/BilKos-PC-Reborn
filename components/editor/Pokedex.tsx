@@ -2,25 +2,25 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ParsedSave, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
-import { POKEMON_NAMES } from '../../lib/generations/gen1/data/pokemonNames';
-import { GEN2_POKEMON_NAMES } from '../../lib/generations/gen2/data/constants';
 import { Check, Eye, Ban, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 import { PokemonDetailView } from '../ui/PokemonDetailView';
+import { useSaveContextSafe } from '../../context/SaveContext';
 
 interface PokedexProps {
     data: ParsedSave;
     onUpdate?: (owned: boolean[], seen: boolean[]) => void;
 }
 
-const MAX_DEX = 151;
-
 export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
     const { getGameTheme } = useTheme();
     const theme = getGameTheme();
-    const generation = data.generation || 1;
-    const maxDex = generation === 2 ? 251 : 151;
-    const pokemonNames = generation === 2 ? GEN2_POKEMON_NAMES : POKEMON_NAMES;
-    
+    const ctx = useSaveContextSafe();
+    const adapter = ctx?.adapter;
+
+    // Adapter-driven values replace all hardcoded `generation === 2 ? 251 : 151` checks
+    const maxDex = adapter?.nationalDexMax ?? (data.generation === 2 ? 251 : 151);
+    const pokemonNames = adapter?.getAllSpeciesNames() ?? [];
+
     // State
     const [search, setSearch] = useState('');
     const [sortMode, setSortMode] = useState<'id' | 'name'>('id');

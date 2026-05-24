@@ -12,6 +12,7 @@ import {
 import { decodeText } from '../../utils/textDecoder';
 import { encodeGameBoyText } from '../../utils/textCodec';
 import { getPokemonTypes } from '../gen1/data/pokemonTypes';
+import { MOVES_PP } from '../gen1/data/moves';
 import './extensions';
 
 // Specific GSC typings incorporating Dark (16) and Steel (15/8) types
@@ -91,6 +92,10 @@ export class Gen2Adapter implements IGenerationAdapter {
   partySize = 6;
   boxSlotCount = 20;
   boxCount = 14;
+  nationalDexMax = 251;
+  hasSplitSpecial = true;
+  hasAbilities = false;
+  hasNatures = false;
 
   typeList = [
     'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 'Ground', 
@@ -267,6 +272,45 @@ export class Gen2Adapter implements IGenerationAdapter {
       type1Name,
       type2Name
     };
+  }
+
+  getAllSpeciesNames(): string[] {
+    return GEN2_POKEMON_NAMES;
+  }
+
+  getAllMoveNames(): string[] {
+    return GEN2_MOVES_LIST;
+  }
+
+  getMoveBasePp(moveId: number): number {
+    // Gen 2 shares base PP with Gen 1 for moves 0-165.
+    // For Gen 2-exclusive moves (166+), default to a conservative 10 if unknown.
+    // When a dedicated Gen2 MOVES_PP array is created, this should use it.
+    const pp = MOVES_PP[moveId];
+    if (pp !== undefined && pp > 0) return pp;
+    // Gen 2 move IDs 166-251 don't exist in Gen1's MOVES_PP;
+    // return a safe default. Real PP values should be added to a Gen2 PP table.
+    return 10;
+  }
+
+  getAllItemNames(): string[] {
+    const list: string[] = [];
+    // Ordinary items (1-95)
+    for (let i = 1; i <= 95; i++) {
+      const name = getGen2ItemName(i);
+      if (name && !name.startsWith('Item ')) {
+        list.push(name);
+      }
+    }
+    // GSC HMs (125-131)
+    for (let i = 125; i <= 131; i++) {
+      list.push(getGen2ItemName(i));
+    }
+    // GSC TMs (132-181)
+    for (let i = 132; i <= 181; i++) {
+      list.push(getGen2ItemName(i));
+    }
+    return list;
   }
 
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string {

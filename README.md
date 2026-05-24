@@ -41,6 +41,21 @@ The CDM defines two core types in `lib/canonicalModel.ts`:
 
 **Adding a new generation**: Create a `GenNExtension` class, populate it in the parser, and register UI extensions. The `genExtension` slot is the ONLY place where generation-specific fields should live — never add optional fields directly to `CanonicalPokemon`. This ensures the "zero core modifications per generation" promise.
 
+### Adapter-Driven Generation Metadata
+
+UI components no longer contain hardcoded `generation === 1 / === 2` checks. Instead, each adapter declares generation facts through `IGenerationMetadata`:
+
+| Property | Gen 1 | Gen 2 | Gen 3 | ... |
+|---|:---:|:---:|:---:|:---:|
+| `nationalDexMax` | 151 | 251 | 386 | ... |
+| `hasSplitSpecial` | false | true | true | ... |
+| `hasAbilities` | false | false | true | ... |
+| `hasNatures` | false | false | true | ... |
+
+Data access methods like `getAllSpeciesNames()`, `getAllMoveNames()`, `getMoveBasePp()`, and `getAllItemNames()` provide list enumeration for Autocomplete dropdowns and Pokédex grids, so UI components never import generation-specific data modules directly.
+
+**Example**: `Pokedex.tsx` uses `adapter.nationalDexMax` and `adapter.getAllSpeciesNames()` — adding Gen 3 requires zero UI changes.
+
 ## Quick Start
 
 ```bash

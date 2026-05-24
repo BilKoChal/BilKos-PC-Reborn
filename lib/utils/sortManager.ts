@@ -1,4 +1,6 @@
 import { ParsedSave, PokemonStats } from '../parser/types';
+import { IGenerationAdapter } from '../interfaces';
+import { registry } from '../core/AdapterRegistry';
 
 export type SortCriteria = 'id' | 'species' | 'nickname' | 'level' | 'type';
 export type SortDirection = 'asc' | 'desc';
@@ -61,11 +63,12 @@ function sortLivingDex(
     externalSaves: { id: string, data: ParsedSave }[]
 ): SortResult {
     
-    // Calculate limits dynamically
+    // Adapter-driven: replaces hardcoded generation checks
+    const adapter = registry.getAdapter(targetSave.generation);
     const numBoxes = targetSave.pcBoxes.length;
     const isJapanese = targetSave.generation === 1 && numBoxes === 8;
     const boxCapacity = isJapanese ? 30 : 20;
-    const maxDex = targetSave.generation === 2 ? 251 : 151;
+    const maxDex = adapter?.nationalDexMax ?? (targetSave.generation === 2 ? 251 : 151);
     const livingDexBoxesCount = Math.ceil(maxDex / boxCapacity);
     const overflowStartBox = livingDexBoxesCount;
 
@@ -284,7 +287,9 @@ export function sortPCBoxes(
     allMons = sortList(allMons, criteria, direction);
     
     const numBoxes = targetSave.pcBoxes.length;
+    const adapter = registry.getAdapter(targetSave.generation);
     const boxCapacity = (targetSave.generation === 1 && numBoxes === 8) ? 30 : 20;
+    const maxDex = adapter?.nationalDexMax ?? (targetSave.generation === 2 ? 251 : 151);
 
     newBoxes = Array.from({ length: numBoxes }, () => []);
     for (let i = 0; i < numBoxes; i++) {
