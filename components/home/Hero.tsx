@@ -1,10 +1,12 @@
 
 import React from 'react';
-import { useSpriteMode } from '../../context/SpriteContext';
-import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
+import { getArtworkSpriteUrl } from '../../lib/sprites';
 
 export const Hero: React.FC = () => {
-  const { mode: spriteMode } = useSpriteMode();
+  // Home page always uses static artwork sprites regardless of user's sprite mode setting
+  const pikachuUrl = getArtworkSpriteUrl(25);
+  const charizardUrl = getArtworkSpriteUrl(6);
+  const blastoiseUrl = getArtworkSpriteUrl(9);
 
   return (
     <div className="relative w-full flex flex-col items-center justify-center pt-32 pb-32 md:pb-40 overflow-visible">
@@ -22,9 +24,9 @@ export const Hero: React.FC = () => {
         {/* Pikachu (Central Mascot) */}
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-32 md:w-48 z-20 animate-[bounce_3s_infinite] drop-shadow-2xl">
             <img 
-                src={getPokemonSpriteUrl(25, spriteMode)} 
+                src={pikachuUrl} 
                 alt="Pikachu"
-                className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]')}
+                className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]"
             />
         </div>
 
@@ -54,18 +56,18 @@ export const Hero: React.FC = () => {
         {/* Charizard - Left */}
         <div className="relative w-48 md:w-80 lg:w-96 transform -translate-x-12 md:translate-x-0 rotate-6 hover:scale-110 transition-transform duration-700 ease-in-out">
              <img 
-                src={getPokemonSpriteUrl(6, spriteMode)} 
+                src={charizardUrl} 
                 alt="Charizard"
-                className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(220,38,38,0.3)] animate-[pulse_4s_infinite]')}
+                className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(220,38,38,0.3)] animate-[pulse_4s_infinite]"
              />
         </div>
 
         {/* Blastoise - Right */}
         <div className="relative w-44 md:w-72 lg:w-80 transform translate-x-12 md:translate-x-0 -rotate-6 hover:scale-110 transition-transform duration-700 ease-in-out">
             <img 
-                src={getPokemonSpriteUrl(9, spriteMode)} 
+                src={blastoiseUrl} 
                 alt="Blastoise"
-                className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(37,99,235,0.3)] animate-[pulse_5s_infinite]')}
+                className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(37,99,235,0.3)] animate-[pulse_5s_infinite]"
              />
         </div>
 

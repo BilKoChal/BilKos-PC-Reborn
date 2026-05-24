@@ -35,7 +35,7 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
     // Safety clamp
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
     
-    const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, ctx?.data?.gameVersion);
+    const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, ctx?.data?.gameVersion, mon.isShiny);
 
     // Fetch extensions registered for the Info Panel in the active generation
     const extensions = extensionRegistry.getExtensions('pokemon-info', generation);

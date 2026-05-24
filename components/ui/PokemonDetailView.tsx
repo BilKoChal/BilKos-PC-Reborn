@@ -9,7 +9,7 @@ import { POKEMON_LOCATIONS } from '../../lib/generations/gen1/data/pokemonLocati
 import { Check, Eye, Ban, X, MapPin, AlignLeft } from 'lucide-react';
 import { TypeBadge } from './PokemonBadges';
 import { useSpriteMode } from '../../context/SpriteContext';
-import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
+import { getPokemonSpriteUrl, getSpriteImgClasses, getIntegerScaleStyle } from '../../lib/sprites';
 
 interface PokemonDetailViewProps {
     id: number;
@@ -43,6 +43,9 @@ export const PokemonDetailView: React.FC<PokemonDetailViewProps> = ({ id, owned,
     }
 
     const spriteUrl = getPokemonSpriteUrl(id, spriteMode, version);
+    // Compute integer-scaling style for pixel sprites in the large detail panel
+    // Container is 256px (mobile) or 320px (desktop). Integer scale keeps pixel art sharp.
+    const integerScaleStyle = getIntegerScaleStyle(spriteMode, 320);
 
     return (
         <div className="fixed inset-0 z-[300] bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
@@ -54,12 +57,13 @@ export const PokemonDetailView: React.FC<PokemonDetailViewProps> = ({ id, owned,
                         <X size={20} />
                     </button>
                     
-                    <div className="relative w-64 h-64 md:w-80 md:h-80 mb-6">
+                    <div className="relative w-64 h-64 md:w-80 md:h-80 mb-6 flex items-center justify-center">
                         <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 to-transparent rounded-full blur-3xl"></div>
                         <img 
                             src={spriteUrl} 
                             alt={name}
-                            className={getSpriteImgClasses(spriteMode, `w-full h-full object-contain drop-shadow-2xl transition-all duration-500 ${!seen && !owned ? 'brightness-0 opacity-20' : ''}`)}
+                            style={integerScaleStyle}
+                            className={getSpriteImgClasses(spriteMode, `drop-shadow-2xl transition-all duration-500 ${!seen && !owned ? 'brightness-0 opacity-20' : ''}`)}
                         />
                     </div>
 

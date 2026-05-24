@@ -164,7 +164,7 @@ const BoxSlot = memo<{
             const location = viewedBoxIndex !== undefined
                 ? { type: 'box' as const, boxIndex: viewedBoxIndex, index: slotIndex }
                 : { type: 'party' as const, index: slotIndex };
-            const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion);
+            const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny);
             startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
             if (onBeginDragSession) onBeginDragSession(tabId, location);
         }
@@ -258,7 +258,7 @@ const BoxSlot = memo<{
                     <>
                         <div className="w-24 h-24 flex items-center justify-center shrink-0 -ml-2">
                             <img 
-                                src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion)}
+                                src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny)}
                                 alt={mon.speciesName}
                                 className={getSpriteImgClasses(spriteMode, 'w-20 h-20 object-contain drop-shadow-md transition-transform group-hover:scale-110')}
                                 draggable={false}
@@ -365,7 +365,7 @@ const BoxSlot = memo<{
 
                     {/* Sprite — pointer-events: none prevents dragLeave flicker on child elements */}
                     <img 
-                        src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion)} 
+                        src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny)} 
                         alt={mon.speciesName}
                         className={getSpriteImgClasses(spriteMode, 'w-24 h-24 object-contain transition-transform -my-2' + (!isMoveMode ? ' group-hover:scale-110' : ''))}
                         loading="lazy"

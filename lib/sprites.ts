@@ -6,8 +6,15 @@
  *
  * Three sprite modes are supported:
  * - 'game-specific': Version-specific pixel sprites from PokeAPI's generation folders
+ *   (shiny variants available for Gen 2+ games; Gen 1 has no game-specific shiny)
  * - 'master': Standard PokeAPI "master" pixel sprites (same for all versions)
  * - 'artwork': Official artwork (high-res illustrations)
+ *
+ * Shiny support:
+ * - Artwork shiny: /sprites/pokemon/other/official-artwork/shiny/{id}.png
+ * - Master shiny:  /sprites/pokemon/shiny/{id}.png
+ * - Game-specific shiny (Gen 2+): /sprites/pokemon/versions/generation-ii/{game}/shiny/{id}.png
+ * - Game-specific shiny (Gen 1): NOT available on PokeAPI — falls back to master shiny
  */
 
 import { SpriteMode } from '../context/SpriteContext';
@@ -22,17 +29,23 @@ const TRAINERS_BASE = 'https://play.pokemonshowdown.com/sprites/trainers';
 
 /**
  * Returns the URL for a Pokemon sprite based on the current sprite mode,
- * the game version, and the Pokemon's National Dex ID.
+ * the game version, the Pokemon's National Dex ID, and shiny state.
  *
- * @param dexId    National Dex ID (e.g. 25 for Pikachu)
- * @param mode     Current sprite mode
+ * @param dexId        National Dex ID (e.g. 25 for Pikachu)
+ * @param mode         Current sprite mode
  * @param gameVersion  Active game version string (e.g. 'Red', 'Crystal')
+ * @param isShiny      Whether the Pokemon is shiny (default: false)
  */
 export function getPokemonSpriteUrl(
   dexId: number,
   mode: SpriteMode,
-  gameVersion?: GameVersion
+  gameVersion?: GameVersion,
+  isShiny: boolean = false
 ): string {
+  if (isShiny) {
+    return getShinyPokemonSpriteUrl(dexId, mode, gameVersion);
+  }
+
   switch (mode) {
     case 'game-specific':
       return getGameSpecificPokemonUrl(dexId, gameVersion);
@@ -43,6 +56,32 @@ export function getPokemonSpriteUrl(
     case 'master':
     default:
       return `${POKEAPI_SPRITES_BASE}/pokemon/${dexId}.png`;
+  }
+}
+
+/**
+ * Returns the URL for a shiny Pokemon sprite.
+ *
+ * Artwork shiny: /sprites/pokemon/other/official-artwork/shiny/{id}.png
+ * Master shiny:  /sprites/pokemon/shiny/{id}.png
+ * Game-specific shiny (Gen 2+): /sprites/pokemon/versions/generation-ii/{game}/shiny/{id}.png
+ * Game-specific shiny (Gen 1): Falls back to master shiny (no game-specific shiny sprites exist)
+ */
+function getShinyPokemonSpriteUrl(
+  dexId: number,
+  mode: SpriteMode,
+  gameVersion?: GameVersion
+): string {
+  switch (mode) {
+    case 'game-specific':
+      return getGameSpecificShinyPokemonUrl(dexId, gameVersion);
+
+    case 'artwork':
+      return `${POKEAPI_SPRITES_BASE}/pokemon/other/official-artwork/shiny/${dexId}.png`;
+
+    case 'master':
+    default:
+      return `${POKEAPI_SPRITES_BASE}/pokemon/shiny/${dexId}.png`;
   }
 }
 
@@ -78,6 +117,40 @@ function getGameSpecificPokemonUrl(dexId: number, gameVersion?: GameVersion): st
     default:
       // Unknown version → fall back to master sprite
       return `${POKEAPI_SPRITES_BASE}/pokemon/${dexId}.png`;
+  }
+}
+
+/**
+ * Game-specific shiny Pokemon sprite URLs.
+ *
+ * Gen 2+ games have version-specific shiny sprites in PokeAPI:
+ *   Gold    → generation-ii/gold/shiny/
+ *   Silver  → generation-ii/silver/shiny/
+ *   Crystal → generation-ii/crystal/shiny/
+ *
+ * Gen 1 games do NOT have game-specific shiny sprites on PokeAPI,
+ * so we fall back to the master shiny sprite (/sprites/pokemon/shiny/{id}.png).
+ */
+function getGameSpecificShinyPokemonUrl(dexId: number, gameVersion?: GameVersion): string {
+  switch (gameVersion) {
+    // Gen 1: No game-specific shiny sprites exist → fall back to master shiny
+    case 'Red':
+    case 'Blue':
+    case 'Yellow':
+      return `${POKEAPI_SPRITES_BASE}/pokemon/shiny/${dexId}.png`;
+
+    case 'Gold':
+      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/gold/shiny/${dexId}.png`;
+
+    case 'Silver':
+      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/silver/shiny/${dexId}.png`;
+
+    case 'Crystal':
+      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/crystal/shiny/${dexId}.png`;
+
+    default:
+      // Unknown version → fall back to master shiny sprite
+      return `${POKEAPI_SPRITES_BASE}/pokemon/shiny/${dexId}.png`;
   }
 }
 
@@ -189,7 +262,20 @@ export function getItemSpriteUrl(slug: string): string {
   return `${POKEAPI_SPRITES_BASE}/items/${slug}.png`;
 }
 
-// ─── CSS Helper ──────────────────────────────────────────────────────────────
+// ─── Static Artwork URLs (Home Page) ─────────────────────────────────────────
+
+/**
+ * Returns the static artwork sprite URL for a Pokemon.
+ * Used on the home page where sprites should always be artwork
+ * regardless of the user's sprite mode setting.
+ *
+ * @param dexId National Dex ID
+ */
+export function getArtworkSpriteUrl(dexId: number): string {
+  return `${POKEAPI_SPRITES_BASE}/pokemon/other/official-artwork/${dexId}.png`;
+}
+
+// ─── CSS Helpers ──────────────────────────────────────────────────────────────
 
 /**
  * Returns the CSS class string that ensures sprites fit consistently
@@ -209,4 +295,63 @@ export function getSpriteImgClasses(mode: SpriteMode, baseClasses: string = ''):
     return `${baseClasses} pixelated`.trim();
   }
   return baseClasses;
+}
+
+/**
+ * Computes the integer-scale CSS style for small sprites (master/game-specific)
+ * displayed in a large container (e.g. Pokédex detail panel).
+ *
+ * The source sprite is 96x96px for master/game-specific modes.
+ * Integer scaling (2x, 3x, 4x…) keeps pixels sharp without blurring.
+ * Artwork is already high-res and doesn't need scaling.
+ *
+ * @param mode          Current sprite mode
+ * @param containerSize The container's width/height in px (e.g. 256, 320)
+ * @returns CSS style properties object with width, height, and image-rendering
+ */
+export function getIntegerScaleStyle(
+  mode: SpriteMode,
+  containerSize: number
+): { width: string; height: string; imageRendering: string; objectFit: string } {
+  if (mode === 'artwork') {
+    // Artwork is already high-res — just fit naturally
+    return {
+      width: '100%',
+      height: '100%',
+      objectFit: 'contain',
+      imageRendering: 'auto',
+    };
+  }
+
+  // Source sprite is 96x96px. Find the largest integer scale that fits.
+  const SPRITE_SIZE = 96;
+  const maxScale = Math.floor(containerSize / SPRITE_SIZE);
+  const scale = Math.max(1, maxScale);
+  const displaySize = SPRITE_SIZE * scale;
+
+  return {
+    width: `${displaySize}px`,
+    height: `${displaySize}px`,
+    imageRendering: 'pixelated',
+    objectFit: 'contain',
+  };
+}
+
+/**
+ * Returns the effective sprite mode for a given context.
+ * Some views (like Encounters) should not use game-specific sprites
+ * because they show cross-generation content.
+ *
+ * @param mode       Current sprite mode from context
+ * @param allowGameSpecific Whether game-specific sprites are appropriate for this view
+ * @returns The effective sprite mode to use
+ */
+export function getEffectiveSpriteMode(
+  mode: SpriteMode,
+  allowGameSpecific: boolean = true
+): SpriteMode {
+  if (mode === 'game-specific' && !allowGameSpecific) {
+    return 'master';
+  }
+  return mode;
 }

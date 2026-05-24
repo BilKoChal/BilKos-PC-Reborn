@@ -145,7 +145,7 @@ const PokemonSlot = memo<{
             isTouchDragActiveRef.current = true;
             e.preventDefault();
             const location = { type: 'party' as const, index };
-            const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion);
+            const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny);
             startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
             if (onBeginDragSession) onBeginDragSession(tabId, location);
         }
@@ -186,7 +186,7 @@ const PokemonSlot = memo<{
     if (hpPercent < 50) hpColor = 'bg-yellow-500';
     if (hpPercent < 20) hpColor = 'bg-red-500';
 
-    const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion);
+    const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny);
 
     return (
         <div 

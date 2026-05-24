@@ -77,10 +77,14 @@ Replace ~27 hardcoded `generation === 1 / === 2` checks scattered across UI comp
 
 #### Task 1.5: Centralized Sprite System with Mode Selector
 Replace all hardcoded sprite URLs across 9+ component files with a centralized sprite URL resolver (`lib/sprites.ts`) and React context (`context/SpriteContext.tsx`):
-*   **Three sprite modes**: Game Specific (version-specific pixel sprites from PokeAPI generation folders), Master (standard pixel sprites, default), Artwork (official high-res illustrations).
+*   **Three sprite modes**: Game Specific (default, version-specific pixel sprites from PokeAPI generation folders), Master (standard pixel sprites), Artwork (official high-res illustrations).
+*   **Shiny sprite support**: All three modes support shiny variants. `getPokemonSpriteUrl()` accepts an `isShiny` parameter. Artwork shiny uses `/official-artwork/shiny/`, master shiny uses `/pokemon/shiny/`, game-specific shiny uses version-specific paths for Gen 2+ games (Gen 1 has no game-specific shiny on PokeAPI, so it falls back to master shiny).
 *   **Settings UI**: Gear icon in the header opens a popup panel to switch modes. Selection persists to `localStorage` and propagates instantly to all views.
-*   **Centralized resolver**: `getPokemonSpriteUrl(dexId, mode, gameVersion)` and `getTrainerSpriteUrl(gender, mode, gameVersion)` are the single source of truth for all sprite URLs.
+*   **Centralized resolver**: `getPokemonSpriteUrl(dexId, mode, gameVersion, isShiny)` and `getTrainerSpriteUrl(gender, mode, gameVersion)` are the single source of truth for all sprite URLs.
 *   **Artwork scaling**: `getSpriteImgClasses()` helper removes `pixelated` CSS class and ensures `object-contain` for artwork mode so 475x475px images scale to fit in 96x96px containers alongside pixel sprites.
+*   **Integer scaling**: `getIntegerScaleStyle()` computes integer multiples (2x, 3x…) of 96x96px pixel sprites for large containers (Pokédex detail panel), keeping pixel art sharp and crisp instead of blurry.
+*   **Smart mode resolution**: `getEffectiveSpriteMode()` allows specific views to opt out of game-specific sprites. The Encounter Database uses master/artwork only since it displays cross-generation content.
+*   **Home page**: Hero section always uses static artwork sprites regardless of sprite mode setting.
 *   **Complete coverage**: PC Storage, Party, Pokedex, Hall of Fame, Encounter Database, Pokemon Detail View, Pokemon Info Panel, Trainer Card, and Hero all use the centralized system.
 *   Result: Adding a new sprite source or mode requires changes in only `lib/sprites.ts` — zero component modifications.
 

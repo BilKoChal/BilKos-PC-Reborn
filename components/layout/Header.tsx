@@ -125,7 +125,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
                               <span className={`text-gray-400 ${isActive ? 'text-blue-500' : ''}`}>
                                 {opt.icon}
                               </span>
-                              {opt.value === 'master' && (
+                              {opt.value === 'game-specific' && (
                                 <span className="text-[9px] font-bold uppercase bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded">Default</span>
                               )}
                             </div>

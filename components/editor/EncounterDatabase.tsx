@@ -5,7 +5,7 @@ import { parsePk1 } from '../../lib/generations/gen1/parser';
 import { ParsedSave, PokemonStats } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
-import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
+import { getPokemonSpriteUrl, getSpriteImgClasses, getEffectiveSpriteMode } from '../../lib/sprites';
 import { Search, Gift, Database, Tag, ExternalLink, User, Plus, Box } from 'lucide-react';
 import { TypeBadge } from '../ui/PokemonBadges';
 import { getPokemonTypes } from '../../lib/generations/gen1/data/pokemonTypes';
@@ -18,8 +18,10 @@ interface EncounterDatabaseProps {
 
 export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAddPokemon, onToast }) => {
     const { getGameTheme } = useTheme();
-    const { mode: spriteMode } = useSpriteMode();
+    const { mode: rawSpriteMode } = useSpriteMode();
     const theme = getGameTheme();
+    // Encounters shows cross-gen content — game-specific sprites don't make sense here
+    const spriteMode = getEffectiveSpriteMode(rawSpriteMode, false);
     
     const [search, setSearch] = useState('');
 

@@ -30,7 +30,7 @@ export const SpriteProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         return saved;
       }
     }
-    return 'master'; // Default: master sprites
+    return 'game-specific'; // Default: game-specific sprites
   });
 
   useEffect(() => {
