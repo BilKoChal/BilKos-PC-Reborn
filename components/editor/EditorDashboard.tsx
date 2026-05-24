@@ -47,6 +47,10 @@ interface EditorDashboardProps {
 
     // Tab identity for cross-save drag
     activeTabId?: string;
+
+    // Drag session lifecycle callbacks
+    onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
+    onEndDragSession?: () => void;
 }
 
 export const EditorDashboard: React.FC<EditorDashboardProps> = ({ 
@@ -64,7 +68,9 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     onShowToast,
     activeTab,
     onTabChange,
-    activeTabId
+    activeTabId,
+    onBeginDragSession,
+    onEndDragSession
 }) => {
     const { getGameTheme, mode } = useTheme();
     const theme = getGameTheme();
@@ -286,6 +292,8 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             onToggleSelection={onToggleSelection}
             onDropPokemon={onDropPokemon}
             activeTabId={activeTabId}
+            onBeginDragSession={onBeginDragSession}
+            onEndDragSession={onEndDragSession}
         >
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 font-sans transition-colors duration-300">
             {/* Modals */}

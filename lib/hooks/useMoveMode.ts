@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { MoveLocation, isSameLocation, transferPokemonBatch, movePokemonBatch } from '../utils/manipulation';
 import { ParsedSave } from '../parser/types';
 import { parseDragData, DragPayload, DND_DATA_TYPE } from './dndTypes';
@@ -12,8 +12,29 @@ export interface GlobalMoveSource {
 }
 
 /**
+ * Tracks the active drag session independently from click-select state.
+ * This is stored in a ref (not React state) to avoid stale-closure issues
+ * during the drag lifecycle.
+ */
+export interface ActiveDragSource {
+    tabId: string;
+    location: MoveLocation;
+}
+
+/**
  * Custom hook for managing global move mode state and operations.
- * Handles same-save and cross-save Pokemon moves with secure tabId tracking.
+ *
+ * ARCHITECTURE: Two fully independent interaction systems
+ * ─────────────────────────────────────────────────────
+ * 🖱 Click-select system: Click → select → click target → execute via selectedMoveLocations
+ * 🖐 Drag system: dragStart → set payload → drop → read payload only
+ *
+ * These two systems NEVER share state:
+ * - A drag operation is determined ENTIRELY by the dataTransfer payload
+ * - A click-select operation uses selectedMoveLocations only
+ * - Starting a drag clears selectedMoveLocations and stores source in activeDragSource ref
+ * - Dropping never reads selectedMoveLocations; it reads the payload
+ * - Clicking never reads or modifies activeDragSource
  */
 export function useMoveMode(
     getTab: (tabId: string) => { id: string; data: ParsedSave } | undefined,
@@ -25,9 +46,13 @@ export function useMoveMode(
     const [isMoveMode, setIsMoveMode] = useState(false);
     const [selectedMoveLocations, setSelectedMoveLocations] = useState<GlobalMoveSource[]>([]);
 
+    // Active drag source stored in a ref to avoid stale closure / async state race
+    const activeDragSourceRef = useRef<ActiveDragSource | null>(null);
+
     const handleMoveModeToggle = useCallback((val: boolean) => {
         setIsMoveMode(val);
         setSelectedMoveLocations([]);
+        activeDragSourceRef.current = null;
         if (val) {
             showToast("Move Mode Active! Click to select, then click target to swap/move. Use Ctrl/Shift or checkbox for multi-select.");
         }
@@ -53,7 +78,9 @@ export function useMoveMode(
         }
     }, [getActiveTabId, getActiveTabData, isSelected]);
 
-    // Shared Move Execution Logic
+    // ──────────────────────────────────────────────
+    // Shared Move Execution Logic (used by both paths)
+    // ──────────────────────────────────────────────
     const executeMoveOperation = useCallback((sources: GlobalMoveSource[], targetLocation: MoveLocation) => {
         if (!sources.length) return;
 
@@ -67,6 +94,7 @@ export function useMoveMode(
 
         if (!sourceTab || !targetTab) return;
 
+        // FIX (Phase 3): Use tabId string comparison instead of object reference equality
         const isSameSave = sourceTab.id === targetTab.id;
 
         const validSources = sources
@@ -95,7 +123,7 @@ export function useMoveMode(
                 showToast(result.error || "Move failed.");
             }
         } else {
-            const result = transferPokemonBatch(sourceTab.data, targetTab.data, validSources, targetLocation);
+            const result = transferPokemonBatch(sourceTab.data, targetTab.data, validSources, targetLocation, isSameSave);
 
             if (result.success && result.newSource && result.newTarget) {
                 if (isSameSave) {
@@ -112,9 +140,64 @@ export function useMoveMode(
         }
     }, [getActiveTabId, getActiveTabData, getTab, onUpdateSave, showToast]);
 
+    // ──────────────────────────────────────────────
+    // DRAG PATH: beginDragSession / handleDragDrop / endDragSession
+    // ──────────────────────────────────────────────
+
+    /**
+     * Called when a drag starts. Clears click-selections and stores the drag
+     * source in a ref (not state) to avoid async state races.
+     */
+    const beginDragSession = useCallback((tabId: string, location: MoveLocation) => {
+        // Clear click-selections — drag takes over
+        setSelectedMoveLocations([]);
+        activeDragSourceRef.current = { tabId, location };
+    }, []);
+
+    /**
+     * Handle drop event from HTML5 drag-and-drop.
+     * Reads ENTIRELY from the dataTransfer payload — NEVER from selectedMoveLocations.
+     */
+    const handleDragDrop = useCallback((target: MoveLocation, e?: React.DragEvent) => {
+        const activeTabId = getActiveTabId();
+        if (!activeTabId) return;
+
+        let sourcesToMove: GlobalMoveSource[] = [];
+
+        // DRAG PATH: Always read from payload, ignore selectedMoveLocations
+        if (e) {
+            const payload = parseDragData(e.dataTransfer);
+            if (payload && payload.type === 'POKEMON' && payload.pokemonLocation) {
+                const sourceTabId = payload.sourceTabId || activeTabId;
+                sourcesToMove = [{ tabId: sourceTabId, location: payload.pokemonLocation }];
+            }
+        } else if (activeDragSourceRef.current) {
+            // Fallback: if no event but we have ref data (shouldn't happen normally)
+            sourcesToMove = [{ tabId: activeDragSourceRef.current.tabId, location: activeDragSourceRef.current.location }];
+        }
+
+        if (sourcesToMove.length === 0) return;
+        executeMoveOperation(sourcesToMove, target);
+
+        // Clean up drag session
+        activeDragSourceRef.current = null;
+    }, [getActiveTabId, executeMoveOperation]);
+
+    /**
+     * Called when a drag ends (whether successful or cancelled).
+     * Cleans up activeDragSource and any orphaned visual state.
+     */
+    const endDragSession = useCallback(() => {
+        activeDragSourceRef.current = null;
+    }, []);
+
+    // ──────────────────────────────────────────────
+    // CLICK PATH: handleGlobalPokemonSelect
+    // ──────────────────────────────────────────────
+
     /**
      * Handle Pokemon slot click in move mode.
-     * 
+     *
      * Selection Model:
      * - Click (no modifiers): Select first Pokemon. If already selected, click another to swap/move.
      * - Ctrl/Cmd + Click: Toggle multi-select (like checkbox).
@@ -207,32 +290,6 @@ export function useMoveMode(
         executeMoveOperation(selectedMoveLocations, location);
     }, [getActiveTabId, getActiveTabData, selectedMoveLocations, isSelected, handleSelectionToggle, executeMoveOperation]);
 
-    /**
-     * Handle drop event from HTML5 drag-and-drop.
-     * Parses the DragPayload with sourceTabId for secure cross-save transfers.
-     */
-    const handleGlobalDrop = useCallback((target: MoveLocation, e?: React.DragEvent) => {
-        const activeTabId = getActiveTabId();
-        if (!activeTabId) return;
-
-        let sourcesToMove: GlobalMoveSource[] = [];
-
-        // If we have existing selections, use them
-        if (selectedMoveLocations.length > 0) {
-            sourcesToMove = selectedMoveLocations;
-        } else if (e) {
-            // Parse drag payload with sourceTabId
-            const payload = parseDragData(e.dataTransfer);
-            if (payload && payload.type === 'POKEMON' && payload.pokemonLocation) {
-                const sourceTabId = payload.sourceTabId || activeTabId;
-                sourcesToMove = [{ tabId: sourceTabId, location: payload.pokemonLocation }];
-            }
-        }
-
-        if (sourcesToMove.length === 0) return;
-        executeMoveOperation(sourcesToMove, target);
-    }, [getActiveTabId, selectedMoveLocations, executeMoveOperation]);
-
     /** Get selections filtered for the current tab */
     const getCurrentTabSelections = useCallback((): MoveLocation[] => {
         const activeTabId = getActiveTabId();
@@ -251,6 +308,7 @@ export function useMoveMode(
     const resetMoveMode = useCallback(() => {
         setIsMoveMode(false);
         setSelectedMoveLocations([]);
+        activeDragSourceRef.current = null;
     }, []);
 
     return {
@@ -260,7 +318,12 @@ export function useMoveMode(
         isSelected,
         handleSelectionToggle,
         handleGlobalPokemonSelect,
-        handleGlobalDrop,
+        // NEW: separated drag handlers
+        handleDragDrop,
+        beginDragSession,
+        endDragSession,
+        // Keep legacy handleGlobalDrop as an alias for backward compatibility during migration
+        handleGlobalDrop: handleDragDrop,
         getCurrentTabSelections,
         clearTabSelections,
         resetMoveMode

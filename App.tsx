@@ -413,9 +413,11 @@ const App: React.FC = () => {
                     globalMoveSources={currentTabSelections}
                     onMovePokemon={moveMode.handleGlobalPokemonSelect}
                     onToggleSelection={moveMode.handleSelectionToggle}
-                    onDropPokemon={moveMode.handleGlobalDrop}
+                    onDropPokemon={moveMode.handleDragDrop}
                     onShowToast={showToast}
                     activeTabId={activeTab.id}
+                    onBeginDragSession={moveMode.beginDragSession}
+                    onEndDragSession={moveMode.endDragSession}
                 />
             </div>
         ) : (

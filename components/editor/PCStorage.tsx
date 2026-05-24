@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { PokemonStats, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, CheckSquare, Square, Move, Shuffle, Power, Download, Plus } from 'lucide-react';
@@ -27,6 +26,10 @@ interface PCStorageProps {
     onToast?: (msg: string) => void;
     tabId?: string;
     gameVersion?: GameVersion;
+    /** Called when a drag session begins — stores drag source, clears click-selections */
+    onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
+    /** Called when a drag session ends (cancel or complete) */
+    onEndDragSession?: () => void;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -59,22 +62,59 @@ const BoxSlot = memo<{
     onToggleSelection?: (index: number, boxIndex: number) => void;
     onDropPokemon?: (index: number, boxIndex: number, e: React.DragEvent) => void;
     onEnableMoveMode?: () => void;
+    onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
+    onEndDragSession?: () => void;
 }>(({ 
     mon, slotIndex, viewedBoxIndex, isMoveMode, isSelected, viewMode,
     tabId, gameVersion,
-    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onEnableMoveMode 
+    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onEnableMoveMode,
+    onBeginDragSession, onEndDragSession
 }) => {
     
+    // FIX (Phase 4): Replace boolean isDragOver with a dragEnterCount ref
+    // to prevent flicker when cursor moves between parent and child elements.
     const [isDragOver, setIsDragOver] = useState(false);
+    const dragEnterCountRef = useRef(0);
     const themeColors = getVersionThemeColor(gameVersion);
 
     // Use DRY hook
     const { 
-        handleDragStart, handleDragOver, handleDrop, handlePointerDown, handlePointerUp, handleClick 
+        handleDragStart, handleDragOver, handleDrop, handleDragEnd, handlePointerDown, handlePointerUp, handleClick 
     } = useSlotLogic({
         mon, index: slotIndex, boxIndex: viewedBoxIndex, isMoveMode, isSelected, tabId,
-        onEnableMoveMode, onToggleSelection, onPokemonClick, onEmptySlotClick, onDropPokemon
+        onEnableMoveMode, onToggleSelection, onPokemonClick, onEmptySlotClick, onDropPokemon,
+        onBeginDragSession, onEndDragSession
     });
+
+    // FIX (Phase 4): Proper dragEnter/dragLeave counting to prevent child-element flicker
+    const handleDragEnter = useCallback((e: React.DragEvent) => {
+        if (!e.dataTransfer.types.includes(DND_DATA_TYPE)) return;
+        e.preventDefault();
+        dragEnterCountRef.current++;
+        if (dragEnterCountRef.current === 1) {
+            setIsDragOver(true);
+        }
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        // Belt-and-suspenders: check if relatedTarget is still within the slot
+        const relatedTarget = e.relatedTarget as Node | null;
+        if (relatedTarget && e.currentTarget.contains(relatedTarget)) {
+            return; // Cursor moved to a child element — not actually leaving
+        }
+        
+        dragEnterCountRef.current--;
+        if (dragEnterCountRef.current <= 0) {
+            dragEnterCountRef.current = 0;
+            setIsDragOver(false);
+        }
+    }, []);
+
+    const handleSlotDrop = useCallback((e: React.DragEvent) => {
+        dragEnterCountRef.current = 0;
+        setIsDragOver(false);
+        handleDrop(e);
+    }, [handleDrop]);
 
     if (viewMode === 'list') {
         return (
@@ -87,15 +127,11 @@ const BoxSlot = memo<{
                 onClick={handleClick}
                 draggable={!!mon}
                 onDragStart={handleDragStart}
-                onDragOver={(e) => {
-                    handleDragOver(e);
-                    setIsDragOver(true);
-                }}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={(e) => {
-                    setIsDragOver(false);
-                    handleDrop(e);
-                }}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragEnter}
+                onDragLeave={handleDragLeave}
+                onDrop={handleSlotDrop}
                 className={`
                     flex items-center p-0 rounded-2xl border transition-all cursor-pointer group h-24 overflow-hidden relative select-none
                     ${isDragOver
@@ -132,6 +168,8 @@ const BoxSlot = memo<{
                                 src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`}
                                 alt={mon.speciesName}
                                 className="w-20 h-20 object-contain pixelated drop-shadow-md transition-transform group-hover:scale-110"
+                                draggable={false}
+                                style={{ pointerEvents: 'none' }}
                             />
                         </div>
                         <div className="flex-grow min-w-0 pr-4 flex flex-col justify-center h-full">
@@ -178,15 +216,11 @@ const BoxSlot = memo<{
             onClick={handleClick}
             draggable={!!mon}
             onDragStart={handleDragStart}
-            onDragOver={(e) => {
-                handleDragOver(e);
-                setIsDragOver(true);
-            }}
-            onDragLeave={() => setIsDragOver(false)}
-            onDrop={(e) => {
-                setIsDragOver(false);
-                handleDrop(e);
-            }}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDrop={handleSlotDrop}
             className={`
                 relative aspect-square rounded-xl flex flex-col items-center justify-between p-2
                 transition-all duration-200 border-2 group select-none
@@ -231,13 +265,14 @@ const BoxSlot = memo<{
                         <span className="text-xs font-bold text-gray-400">Lv.{mon.level}</span>
                     </div>
 
-                    {/* Sprite */}
+                    {/* Sprite — pointer-events: none prevents dragLeave flicker on child elements */}
                     <img 
                         src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`} 
                         alt={mon.speciesName}
                         className={`w-24 h-24 object-contain pixelated transition-transform -my-2 ${!isMoveMode && 'group-hover:scale-110'}`}
                         loading="lazy"
                         draggable={false}
+                        style={{ pointerEvents: 'none' }}
                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png' }}
                     />
                     
@@ -273,6 +308,7 @@ const BoxSlot = memo<{
             )}
         </div>
     );
+// FIX (Phase 5): Add tabId and onDropPokemon to memo comparison
 }, (prev, next) => {
     return (
         prev.mon === next.mon &&
@@ -280,19 +316,20 @@ const BoxSlot = memo<{
         prev.viewMode === next.viewMode &&
         prev.isMoveMode === next.isMoveMode &&
         prev.viewedBoxIndex === next.viewedBoxIndex &&
-        prev.gameVersion === next.gameVersion
+        prev.gameVersion === next.gameVersion &&
+        prev.tabId === next.tabId &&
+        prev.onDropPokemon === next.onDropPokemon
     );
 });
 
 export const PCStorage: React.FC<PCStorageProps> = ({ 
     boxes, currentBoxIndex, isMoveMode, onEnableMoveMode, onToggleMoveMode, selectedMoveSources = [], 
     onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onSortClick, onSetActiveBox, onImport, onToast,
-    tabId, gameVersion
+    tabId, gameVersion, onBeginDragSession, onEndDragSession
 }) => {
     const { getGameTheme } = useTheme();
     const theme = getGameTheme();
     const isLightTheme = theme?.id === 'yellow' || theme?.id === 'gold' || theme?.id === 'silver' || theme?.id === 'crystal';
-    const headerTextColor = isLightTheme ? 'text-gray-900 border-black/10' : 'text-white border-white/10';
     const fileInputRef = useRef<HTMLInputElement>(null);
     
     // Viewing State (Default to current active box)
@@ -581,6 +618,8 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 onToggleSelection={onToggleSelection}
                                 onDropPokemon={onDropPokemon}
                                 onEnableMoveMode={onEnableMoveMode}
+                                onBeginDragSession={onBeginDragSession}
+                                onEndDragSession={onEndDragSession}
                             />
                         ))}
                     </div>
@@ -603,6 +642,8 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 onToggleSelection={onToggleSelection}
                                 onDropPokemon={onDropPokemon}
                                 onEnableMoveMode={onEnableMoveMode}
+                                onBeginDragSession={onBeginDragSession}
+                                onEndDragSession={onEndDragSession}
                             />
                         ))}
                     </div>

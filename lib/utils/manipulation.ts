@@ -128,16 +128,58 @@ export function movePokemonBatch(
 /**
  * Cross-Container / Cross-Save Batch Transfer (Swap/Move Logic)
  * Used for Box 1 -> Box 2 (Same Save) OR Save 1 -> Save 2
+ *
+ * FIX (Phase 3): isSameSave is now an explicit parameter instead of using
+ * object reference equality (sourceSave === targetSave). After any prior
+ * state update, React creates new object spreads, so reference equality
+ * would incorrectly identify the same save as different saves.
+ *
+ * FIX (Phase 4): Party safety check is now done as a pre-loop batch
+ * validation instead of per-item checks after null-marking.
  */
 export function transferPokemonBatch(
     sourceSave: ParsedSave,
     targetSave: ParsedSave,
     sources: MoveLocation[],
-    targetStart: MoveLocation
+    targetStart: MoveLocation,
+    isSameSave?: boolean
 ): { success: boolean; newSource?: ParsedSave; newTarget?: ParsedSave; error?: string } {
     
-    // Determine if we are operating on the same save file
-    const isSameSave = sourceSave === targetSave;
+    // FIX (Phase 3): Use explicit isSameSave parameter when provided,
+    // otherwise fall back to reference equality for backward compatibility
+    const sameSave = isSameSave !== undefined ? isSameSave : sourceSave === targetSave;
+
+    // FIX (Phase 4): Pre-loop batch validation for party safety
+    // Calculate how many Pokemon are being moved OUT of the party BEFORE we start null-marking
+    const partyMovingOut = sources.filter(s => s.type === 'party').length;
+    const targetIsParty = targetStart.type === 'party';
+    
+    // Check if moving Pokemon from party would empty it
+    if (partyMovingOut > 0) {
+        // Moving Pokemon from party — check if we'd empty the party
+        const currentPartyCount = sourceSave.party.filter(m => m !== null).length;
+        
+        // If moving to a non-party container, swaps bring Pokemon back to the source (party)
+        // only if target is also party. When target is box, no Pokemon come back to party via swap.
+        // However, if target slots are occupied, those Pokemon swap INTO the party slot,
+        // so they don't reduce the party count.
+        if (!targetIsParty) {
+            // Moving from party to box — calculate effective party drain
+            const targetBoxList = targetSave.pcBoxes[targetStart.boxIndex];
+            let occupiedTargetCount = 0;
+            for (let i = 0; i < partyMovingOut; i++) {
+                const tgtIdx = targetStart.index + i;
+                const tgtLimit = 20; // Box limit
+                if (tgtIdx < tgtLimit && targetBoxList[tgtIdx]) {
+                    occupiedTargetCount++;
+                }
+            }
+            // Swaps bring Pokemon back to the party, so they don't reduce the count
+            if (currentPartyCount - partyMovingOut + occupiedTargetCount < 1) {
+                return { success: false, error: "Cannot move — party must have at least 1 Pokémon." };
+            }
+        }
+    }
 
     // 1. Create Working Copies
     // If same save, source and target structure references must share the same arrays to avoid overwrites.
@@ -147,7 +189,7 @@ export function transferPokemonBatch(
     let targetParty: PokemonStats[];
     let targetBoxes: PokemonStats[][];
 
-    if (isSameSave) {
+    if (sameSave) {
         targetParty = sourceParty;
         targetBoxes = sourceBoxes;
     } else {
@@ -192,14 +234,11 @@ export function transferPokemonBatch(
 
         const tgtMon = tgtList[tgtLoc.index]; // Might be undefined/null
 
-        // Validate Party Safety (Min 1 Pokemon)
-        // If Source is Party, and we are moving (tgtMon is empty), check remaining count
-        if (srcLoc.type === 'party' && !tgtMon) {
-             const nonNullCount = srcList.filter(m => m !== null).length;
-             if (nonNullCount <= 1) {
-                 continue; // Cannot empty party
-             }
-        }
+        // Per-item party safety check is REMOVED here — replaced by the
+        // pre-loop batch validation above. This was the source of the
+        // "party safety check is broken for multi-move" bug, where
+        // null-marking from earlier iterations caused the count to be
+        // incorrect for later iterations.
 
         // Prepare Stats
         const isTgtParty = tgtLoc.type === 'party';
@@ -207,7 +246,7 @@ export function transferPokemonBatch(
         
         // Use source save's generation for source mon, target save's generation for target mon
         const sourceGen = sourceSave.generation;
-        const targetGen = targetSave.generation;
+        const targetGen = sameSave ? sourceSave.generation : targetSave.generation;
         const readySource = prepareForLocation({ ...srcMon }, isTgtParty, isTgtParty ? targetGen : sourceGen);
         
         if (tgtMon) {
@@ -246,7 +285,7 @@ export function transferPokemonBatch(
         };
     };
 
-    if (isSameSave) {
+    if (sameSave) {
         // If same save, sourceBoxes AND targetBoxes point to the same arrays, so cleaning one cleans the "other".
         const resultSave = buildNewSave(sourceSave, sourceParty, sourceBoxes);
         return { success: true, newSource: resultSave, newTarget: resultSave };

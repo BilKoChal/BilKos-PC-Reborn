@@ -16,13 +16,8 @@ interface StorageTabProps {
 }
 
 export const StorageTab: React.FC<StorageTabProps> = ({
-    data,
-    handlePokemonClick,
-    handleEmptySlotClick,
-    setIsSortModalOpen,
-    handleSetActiveBox,
-    handleImportBox,
-    handleInventoryUpdate
+    data, handlePokemonClick, handleEmptySlotClick, setIsSortModalOpen,
+    handleSetActiveBox, handleImportBox, handleInventoryUpdate
 }) => {
     const ctx = useSaveContextSafe();
     const isMoveMode = ctx?.isMoveMode ?? false;
@@ -33,16 +28,17 @@ export const StorageTab: React.FC<StorageTabProps> = ({
     const onShowToast = ctx?.onShowToast;
     const tabId = ctx?.activeTabId;
     const gameVersion = ctx?.gameVersion;
+    const onBeginDragSession = ctx?.onBeginDragSession;
+    const onEndDragSession = ctx?.onEndDragSession;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* PC Storage (Right on Desktop, Top on Mobile) */}
             <div className="lg:col-span-9 h-auto lg:order-2">
                 <PCStorage 
                     boxes={data.pcBoxes}
                     currentBoxIndex={data.currentBoxId}
                     isMoveMode={isMoveMode}
-                    onEnableMoveMode={() => setIsMoveMode?.(true)} // Enable on drag/long press
+                    onEnableMoveMode={() => setIsMoveMode?.(true)}
                     onToggleMoveMode={() => setIsMoveMode?.(!isMoveMode)}
                     selectedMoveSources={globalMoveSources}
                     onPokemonClick={(mon, idx, boxIdx, e) => handlePokemonClick(mon, 'box', idx, boxIdx, e)}
@@ -55,16 +51,16 @@ export const StorageTab: React.FC<StorageTabProps> = ({
                     onToast={onShowToast ?? (() => {})}
                     tabId={tabId}
                     gameVersion={gameVersion}
+                    onBeginDragSession={onBeginDragSession}
+                    onEndDragSession={onEndDragSession}
                 />
             </div>
-
-            {/* Inventory (Left on Desktop, Bottom on Mobile) */}
             <div className="lg:col-span-3 h-[550px] lg:h-[650px] flex flex-col overflow-hidden lg:order-1">
                 <Inventory 
                     items={data.items} 
                     pcItems={data.pcItems}
                     isMoveMode={isMoveMode}
-                    onEnableMoveMode={() => setIsMoveMode?.(true)} // Enable on long press
+                    onEnableMoveMode={() => setIsMoveMode?.(true)}
                     onUpdate={handleInventoryUpdate}
                 />
             </div>

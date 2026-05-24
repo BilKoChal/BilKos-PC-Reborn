@@ -28,6 +28,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const onDropPokemon = ctx?.onDropPokemon;
     const tabId = ctx?.activeTabId;
     const gameVersion = ctx?.gameVersion;
+    const onBeginDragSession = ctx?.onBeginDragSession;
+    const onEndDragSession = ctx?.onEndDragSession;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -55,6 +57,8 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         onToggleSelection={onToggleSelection ? (idx) => onToggleSelection({ type: 'party', index: idx }) : undefined}
                         onDropPokemon={onDropPokemon ? (idx, e) => onDropPokemon({ type: 'party', index: idx }, e) : undefined}
                         tabId={tabId}
+                        onBeginDragSession={onBeginDragSession}
+                        onEndDragSession={onEndDragSession}
                     />
                 </div>
             </div>
