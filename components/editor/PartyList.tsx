@@ -1,6 +1,8 @@
 import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { PokemonStats, Generation, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
+import { useSpriteMode } from '../../context/SpriteContext';
+import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses } from '../../lib/sprites';
 import { Heart, Ban, MousePointer2, CheckSquare, Square, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
@@ -48,6 +50,7 @@ const PokemonSlot = memo<{
     isMoveMode?: boolean;
     tabId?: string;
     gameVersion?: GameVersion;
+    spriteMode: 'game-specific' | 'master' | 'artwork';
     onEnableMoveMode?: () => void;
     onClick: (mon: PokemonStats, index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
     onToggleSelection?: (index: number) => void;
@@ -55,7 +58,7 @@ const PokemonSlot = memo<{
     onTouchDrop?: (index: number) => void;
     onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
     onEndDragSession?: () => void;
-}>(({ mon, index, isSelected, isMoveMode, tabId, gameVersion, onEnableMoveMode, onClick, onToggleSelection, onDropPokemon, onTouchDrop, onBeginDragSession, onEndDragSession }) => {
+}>(({ mon, index, isSelected, isMoveMode, tabId, gameVersion, spriteMode, onEnableMoveMode, onClick, onToggleSelection, onDropPokemon, onTouchDrop, onBeginDragSession, onEndDragSession }) => {
     
     const [isDragOver, setIsDragOver] = useState(false);
     // Track if THIS slot is the drag source — prevent self-highlighting
@@ -99,7 +102,7 @@ const PokemonSlot = memo<{
     }, [handleDragEnd]);
 
     // FIX: Simple enter/leave without counter. Set isDragOver=true on any enter,
-    // only set false on leave when cursor is truly leaving the slot (not just moving to a child).
+    // only set false on leave when cursor is truly leaving the slot (not moving to a child).
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (!e.dataTransfer.types.includes(DND_DATA_TYPE)) return;
         if (isThisDragSourceRef.current) return;
@@ -142,7 +145,7 @@ const PokemonSlot = memo<{
             isTouchDragActiveRef.current = true;
             e.preventDefault();
             const location = { type: 'party' as const, index };
-            const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`;
+            const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion);
             startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
             if (onBeginDragSession) onBeginDragSession(tabId, location);
         }
@@ -151,7 +154,7 @@ const PokemonSlot = memo<{
             e.preventDefault();
             moveTouchDrag(touch.clientX, touch.clientY);
         }
-    }, [mon, tabId, index, onBeginDragSession]);
+    }, [mon, tabId, index, onBeginDragSession, spriteMode, gameVersion]);
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
         if (isTouchDragActiveRef.current) {
@@ -183,7 +186,7 @@ const PokemonSlot = memo<{
     if (hpPercent < 50) hpColor = 'bg-yellow-500';
     if (hpPercent < 20) hpColor = 'bg-red-500';
 
-    const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`;
+    const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion);
 
     return (
         <div 
@@ -252,10 +255,10 @@ const PokemonSlot = memo<{
                     <img 
                         src={spriteUrl} 
                         alt={mon.speciesName}
-                        className="w-full h-full object-contain pixelated"
+                        className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain')}
                         draggable={false}
                         style={{ pointerEvents: 'none' }}
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png' }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = POKEMON_SPRITE_FALLBACK }}
                     />
                  </div>
              </div>
@@ -302,6 +305,7 @@ const PokemonSlot = memo<{
         prev.isMoveMode === next.isMoveMode &&
         prev.gameVersion === next.gameVersion &&
         prev.tabId === next.tabId &&
+        prev.spriteMode === next.spriteMode &&
         prev.onDropPokemon === next.onDropPokemon
     );
 });
@@ -312,6 +316,7 @@ export const PartyList: React.FC<PartyListProps> = ({
     tabId, gameVersion, onBeginDragSession, onEndDragSession
 }) => {
     const { getGameTheme } = useTheme();
+    const { mode: spriteMode } = useSpriteMode();
     const theme = getGameTheme();
     const themeColors = getVersionThemeColor(gameVersion);
 
@@ -352,6 +357,7 @@ export const PartyList: React.FC<PartyListProps> = ({
                             isMoveMode={isMoveMode}
                             tabId={tabId}
                             gameVersion={gameVersion}
+                            spriteMode={spriteMode}
                             onEnableMoveMode={onEnableMoveMode}
                             onClick={(m, i, b, e) => onPokemonClick && onPokemonClick(m, i, e)}
                             onToggleSelection={(i) => onToggleSelection && onToggleSelection(i)}

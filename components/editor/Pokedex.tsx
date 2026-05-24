@@ -2,6 +2,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ParsedSave, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
+import { useSpriteMode } from '../../context/SpriteContext';
+import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
 import { Check, Eye, Ban, Search, ArrowDownAZ, ArrowUpAZ } from 'lucide-react';
 import { PokemonDetailView } from '../ui/PokemonDetailView';
 import { useSaveContextSafe } from '../../context/SaveContext';
@@ -13,6 +15,7 @@ interface PokedexProps {
 
 export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
     const { getGameTheme } = useTheme();
+    const { mode: spriteMode } = useSpriteMode();
     const theme = getGameTheme();
     const ctx = useSaveContextSafe();
     const adapter = ctx?.adapter;
@@ -203,9 +206,9 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
                                     </div>
 
                                     <img 
-                                        src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${id}.png`} 
+                                        src={getPokemonSpriteUrl(id, spriteMode, data.gameVersion)} 
                                         alt={name}
-                                        className={`w-16 h-16 object-contain pixelated transition-all duration-300 ${!isSeen && !isOwned ? 'brightness-0 opacity-10' : isSeen && !isOwned ? 'grayscale opacity-60' : 'group-hover:scale-110'}`}
+                                        className={getSpriteImgClasses(spriteMode, `w-16 h-16 object-contain transition-all duration-300 ${!isSeen && !isOwned ? 'brightness-0 opacity-10' : isSeen && !isOwned ? 'grayscale opacity-60' : 'group-hover:scale-110'}`)}
                                         loading="lazy"
                                     />
                                     

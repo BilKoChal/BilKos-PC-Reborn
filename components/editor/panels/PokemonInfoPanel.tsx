@@ -10,6 +10,8 @@ import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { sanitizePokemonText } from '../../../lib/utils/textValidator';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 import { IGenerationAdapter } from '../../../lib/interfaces';
+import { useSpriteMode } from '../../../context/SpriteContext';
+import { getPokemonSpriteUrl, ITEM_SPRITE_FALLBACK, getSpriteImgClasses } from '../../../lib/sprites';
 
 interface PokemonInfoPanelProps {
     mon: PokemonStats;
@@ -28,11 +30,12 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
     const ctx = useSaveContextSafe();
     const generation = (generationProp ?? ctx?.generation ?? 1) as Generation;
     const adapter = adapterProp ?? ctx?.adapter;
+    const { mode: spriteMode } = useSpriteMode();
     
     // Safety clamp
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
     
-    const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`;
+    const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, ctx?.data?.gameVersion);
 
     // Fetch extensions registered for the Info Panel in the active generation
     const extensions = extensionRegistry.getExtensions('pokemon-info', generation);
@@ -71,9 +74,9 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
 
                     <img 
                                                 src={spriteUrl} 
-                        className="w-48 h-48 object-contain pixelated drop-shadow-2xl z-10 transition-transform hover:scale-110 duration-500"
+                        className={getSpriteImgClasses(spriteMode, 'w-48 h-48 object-contain drop-shadow-2xl z-10 transition-transform hover:scale-110 duration-500')}
                         alt={mon.speciesName}
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = ITEM_SPRITE_FALLBACK }}
                     />
                     {/* Type Badges */}
                     <div className="absolute -bottom-3 flex gap-2">

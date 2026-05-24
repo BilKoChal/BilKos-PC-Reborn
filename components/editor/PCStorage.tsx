@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { PokemonStats, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
+import { useSpriteMode } from '../../context/SpriteContext';
+import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses } from '../../lib/sprites';
 import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, CheckSquare, Square, Move, Shuffle, Power, Download, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
@@ -59,6 +61,7 @@ const BoxSlot = memo<{
     viewMode: ViewMode;
     tabId?: string;
     gameVersion?: GameVersion;
+    spriteMode: 'game-specific' | 'master' | 'artwork';
     onPokemonClick?: (mon: PokemonStats, index: number, boxIndex: number, e: React.MouseEvent) => void;
     onEmptySlotClick?: (index: number, boxIndex: number, e: React.MouseEvent) => void;
     onToggleSelection?: (index: number, boxIndex: number) => void;
@@ -69,7 +72,7 @@ const BoxSlot = memo<{
     onEndDragSession?: () => void;
 }>(({ 
     mon, slotIndex, viewedBoxIndex, isMoveMode, isSelected, viewMode,
-    tabId, gameVersion,
+    tabId, gameVersion, spriteMode,
     onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onTouchDrop, onEnableMoveMode,
     onBeginDragSession, onEndDragSession
 }) => {
@@ -161,7 +164,7 @@ const BoxSlot = memo<{
             const location = viewedBoxIndex !== undefined
                 ? { type: 'box' as const, boxIndex: viewedBoxIndex, index: slotIndex }
                 : { type: 'party' as const, index: slotIndex };
-            const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`;
+            const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion);
             startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
             if (onBeginDragSession) onBeginDragSession(tabId, location);
         }
@@ -170,7 +173,7 @@ const BoxSlot = memo<{
             e.preventDefault();
             moveTouchDrag(touch.clientX, touch.clientY);
         }
-    }, [mon, tabId, slotIndex, viewedBoxIndex, onBeginDragSession]);
+    }, [mon, tabId, slotIndex, viewedBoxIndex, onBeginDragSession, spriteMode, gameVersion]);
 
     const handleTouchEnd = useCallback((e: React.TouchEvent) => {
         if (isTouchDragActiveRef.current) {
@@ -255,9 +258,9 @@ const BoxSlot = memo<{
                     <>
                         <div className="w-24 h-24 flex items-center justify-center shrink-0 -ml-2">
                             <img 
-                                src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`}
+                                src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion)}
                                 alt={mon.speciesName}
-                                className="w-20 h-20 object-contain pixelated drop-shadow-md transition-transform group-hover:scale-110"
+                                className={getSpriteImgClasses(spriteMode, 'w-20 h-20 object-contain drop-shadow-md transition-transform group-hover:scale-110')}
                                 draggable={false}
                                 style={{ pointerEvents: 'none' }}
                             />
@@ -362,13 +365,13 @@ const BoxSlot = memo<{
 
                     {/* Sprite — pointer-events: none prevents dragLeave flicker on child elements */}
                     <img 
-                        src={`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`} 
+                        src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion)} 
                         alt={mon.speciesName}
-                        className={`w-24 h-24 object-contain pixelated transition-transform -my-2 ${!isMoveMode && 'group-hover:scale-110'}`}
+                        className={getSpriteImgClasses(spriteMode, 'w-24 h-24 object-contain transition-transform -my-2' + (!isMoveMode ? ' group-hover:scale-110' : ''))}
                         loading="lazy"
                         draggable={false}
                         style={{ pointerEvents: 'none' }}
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png' }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = POKEMON_SPRITE_FALLBACK }}
                     />
                     
                     <div className="w-full text-center relative z-10">
@@ -413,6 +416,7 @@ const BoxSlot = memo<{
         prev.viewedBoxIndex === next.viewedBoxIndex &&
         prev.gameVersion === next.gameVersion &&
         prev.tabId === next.tabId &&
+        prev.spriteMode === next.spriteMode &&
         prev.onDropPokemon === next.onDropPokemon
     );
 });
@@ -423,6 +427,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
     tabId, gameVersion, onBeginDragSession, onEndDragSession
 }) => {
     const { getGameTheme } = useTheme();
+    const { mode: spriteMode } = useSpriteMode();
     const theme = getGameTheme();
     const isLightTheme = theme?.id === 'yellow' || theme?.id === 'gold' || theme?.id === 'silver' || theme?.id === 'crystal';
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -708,6 +713,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 viewMode="grid"
                                 tabId={tabId}
                                 gameVersion={gameVersion}
+                                spriteMode={spriteMode}
                                 onPokemonClick={onPokemonClick}
                                 onEmptySlotClick={onEmptySlotClick}
                                 onToggleSelection={onToggleSelection}
@@ -733,6 +739,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 viewMode="list"
                                 tabId={tabId}
                                 gameVersion={gameVersion}
+                                spriteMode={spriteMode}
                                 onPokemonClick={onPokemonClick}
                                 onEmptySlotClick={onEmptySlotClick}
                                 onToggleSelection={onToggleSelection}

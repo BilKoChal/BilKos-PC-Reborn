@@ -75,6 +75,15 @@ Replace ~27 hardcoded `generation === 1 / === 2` checks scattered across UI comp
 *   Widen `Generation` from `1 | 2` to `number` and `GameVersion` from a closed string union to `string` — adding Gen 3+ no longer produces compiler error cascades. Each adapter's `supportedVersions` provides runtime validation.
 *   Result: Adding Gen 3+ requires zero UI changes — `adapter.nationalDexMax` returns 386, `adapter.hasAbilities` returns true, etc.
 
+#### Task 1.5: Centralized Sprite System with Mode Selector
+Replace all hardcoded sprite URLs across 9+ component files with a centralized sprite URL resolver (`lib/sprites.ts`) and React context (`context/SpriteContext.tsx`):
+*   **Three sprite modes**: Game Specific (version-specific pixel sprites from PokeAPI generation folders), Master (standard pixel sprites, default), Artwork (official high-res illustrations).
+*   **Settings UI**: Gear icon in the header opens a popup panel to switch modes. Selection persists to `localStorage` and propagates instantly to all views.
+*   **Centralized resolver**: `getPokemonSpriteUrl(dexId, mode, gameVersion)` and `getTrainerSpriteUrl(gender, mode, gameVersion)` are the single source of truth for all sprite URLs.
+*   **Artwork scaling**: `getSpriteImgClasses()` helper removes `pixelated` CSS class and ensures `object-contain` for artwork mode so 475x475px images scale to fit in 96x96px containers alongside pixel sprites.
+*   **Complete coverage**: PC Storage, Party, Pokedex, Hall of Fame, Encounter Database, Pokemon Detail View, Pokemon Info Panel, Trainer Card, and Hero all use the centralized system.
+*   Result: Adding a new sprite source or mode requires changes in only `lib/sprites.ts` — zero component modifications.
+
 ---
 
 ### Phase 2: Modular UI/UX Re-architecture

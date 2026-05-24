@@ -1,7 +1,11 @@
 
 import React from 'react';
+import { useSpriteMode } from '../../context/SpriteContext';
+import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
 
 export const Hero: React.FC = () => {
+  const { mode: spriteMode } = useSpriteMode();
+
   return (
     <div className="relative w-full flex flex-col items-center justify-center pt-32 pb-32 md:pb-40 overflow-visible">
       
@@ -18,9 +22,9 @@ export const Hero: React.FC = () => {
         {/* Pikachu (Central Mascot) */}
         <div className="absolute -top-32 left-1/2 -translate-x-1/2 w-32 md:w-48 z-20 animate-[bounce_3s_infinite] drop-shadow-2xl">
             <img 
-                src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png" 
+                src={getPokemonSpriteUrl(25, spriteMode)} 
                 alt="Pikachu"
-                className="w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]"
+                className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain filter drop-shadow-[0_0_15px_rgba(250,204,21,0.4)]')}
             />
         </div>
 
@@ -50,18 +54,18 @@ export const Hero: React.FC = () => {
         {/* Charizard - Left */}
         <div className="relative w-48 md:w-80 lg:w-96 transform -translate-x-12 md:translate-x-0 rotate-6 hover:scale-110 transition-transform duration-700 ease-in-out">
              <img 
-                src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png" 
+                src={getPokemonSpriteUrl(6, spriteMode)} 
                 alt="Charizard"
-                className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(220,38,38,0.3)] animate-[pulse_4s_infinite]"
+                className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(220,38,38,0.3)] animate-[pulse_4s_infinite]')}
              />
         </div>
 
         {/* Blastoise - Right */}
         <div className="relative w-44 md:w-72 lg:w-80 transform translate-x-12 md:translate-x-0 -rotate-6 hover:scale-110 transition-transform duration-700 ease-in-out">
             <img 
-                src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/9.png" 
+                src={getPokemonSpriteUrl(9, spriteMode)} 
                 alt="Blastoise"
-                className="w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(37,99,235,0.3)] animate-[pulse_5s_infinite]"
+                className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain filter drop-shadow-[0_10px_20px_rgba(37,99,235,0.3)] animate-[pulse_5s_infinite]')}
              />
         </div>
 

@@ -3,6 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { ParsedSave, TrainerInfo, GameOptions } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSaveContextSafe } from '../../context/SaveContext';
+import { useSpriteMode } from '../../context/SpriteContext';
+import { getTrainerSpriteUrl, TRAINER_SPRITE_FALLBACK, getBadgeSpriteUrl } from '../../lib/sprites';
 import { Clock, Book, User, Heart, Coins, Trophy, Save, X, Swords } from 'lucide-react';
 import { REGION_BADGES } from '../../lib/data/gameData';
 import { sanitizePokemonText, isJapaneseSave } from '../../lib/utils/textValidator';
@@ -56,6 +58,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
 
     const ctx = useSaveContextSafe();
     const adapter = ctx?.adapter;
+    const { mode: spriteMode } = useSpriteMode();
 
     const isJP = useMemo(() => isJapaneseSave(data), [data]);
     const currentGen = data.generation || 1;
@@ -114,34 +117,11 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
 
     const trainerSpriteUrl = useMemo(() => {
         const gender = isEditing ? editForm.gender : (t.gender || 'Male');
-        if (adapter) {
-            return adapter.getTrainerSpriteUrl(gender, data.gameVersion);
-        }
-        // Fallback without adapter
-        if (currentGen >= 2) {
-            if (gender === 'Female') {
-                return 'https://play.pokemonshowdown.com/sprites/trainers/kris-gen2.png';
-            }
-            return 'https://play.pokemonshowdown.com/sprites/trainers/ethan-gen2.png';
-        }
-        if (data.gameVersion === 'Yellow') {
-            return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1.png';
-        }
-        return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1rb.png';
-    }, [adapter, currentGen, isEditing, editForm.gender, t.gender, data.gameVersion]);
+        return getTrainerSpriteUrl(gender, spriteMode, data.gameVersion);
+    }, [spriteMode, isEditing, editForm.gender, t.gender, data.gameVersion]);
 
-    const getBadgeSpriteUrl = (gen: number, index: number): string => {
-        if (gen === 2) {
-            if (index < 8) {
-                // Johto Badges: IDs 9 to 16 in PokeAPI
-                return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/${index + 9}.png`;
-            } else {
-                // Kanto Badges: IDs 1 to 8 in PokeAPI
-                return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/${(index - 8) + 1}.png`;
-            }
-        }
-        // Gen 1: Kanto Badges: IDs 1 to 8 in PokeAPI
-        return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/badges/${index + 1}.png`;
+    const getBadgeSpriteUrlLocal = (gen: number, index: number): string => {
+        return getBadgeSpriteUrl(gen, index);
     };
 
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val || 0, min), max);
@@ -267,7 +247,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                         alt="Trainer" 
                         className="w-full h-full object-contain p-2 pixelated scale-125 relative z-10" 
                         draggable={false}
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1rb.png' }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = TRAINER_SPRITE_FALLBACK }}
                     />
                 </div>
             </div>
@@ -696,7 +676,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                                                     title={badge.name}
                                                 >
                                                     <img 
-                                                        src={getBadgeSpriteUrl(2, i)}
+                                                        src={getBadgeSpriteUrlLocal(2, i)}
                                                         alt={badge.name}
                                                         className="w-full h-full object-contain pixelated"
                                                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}
@@ -736,7 +716,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                                                     title={badge.name}
                                                 >
                                                     <img 
-                                                        src={getBadgeSpriteUrl(2, actualIndex)}
+                                                        src={getBadgeSpriteUrlLocal(2, actualIndex)}
                                                         alt={badge.name}
                                                         className="w-full h-full object-contain pixelated"
                                                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}
@@ -780,7 +760,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                                             title={badge.name}
                                         >
                                             <img 
-                                                src={getBadgeSpriteUrl(currentGen, i)}
+                                                src={getBadgeSpriteUrlLocal(currentGen, i)}
                                                 alt={badge.name}
                                                 className="w-full h-full object-contain pixelated"
                                                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}

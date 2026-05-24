@@ -12,6 +12,7 @@ A web-based Pokemon save file editor supporting **Gen I** (R/B/Y) and **Gen II**
 - **Full Pokemon editing** — Stats, moves, IVs, EVs, species, generation-aware panels
 - **Game-themed UI** — Dynamic color palette matches loaded game version
 - **Party & PC management** — Batch operations, sorting, visual box grid
+- **Sprite mode selector** — Choose between Game Specific, Master (default), or Artwork sprites via the settings icon in the header. Changes apply instantly across all views (PC, Party, Pokedex, Encounters, etc.)
 
 ## Architecture
 
@@ -61,6 +62,18 @@ Data access methods like `getAllSpeciesNames()`, `getAllMoveNames()`, `getMoveBa
 **Open types**: `Generation` is `number` and `GameVersion` is `string` — widened from closed unions (`1 | 2` / `'Red' | 'Blue' | ...`) so that adding Gen 3+ does not produce compiler error cascades. Each adapter's `supportedVersions: string[]` provides runtime validation instead.
 
 **Example**: `Pokedex.tsx` uses `adapter.nationalDexMax` and `adapter.getAllSpeciesNames()` — adding Gen 3 requires zero UI changes.
+
+### Sprite System
+
+All Pokemon and trainer sprite URLs are resolved centrally through `lib/sprites.ts` and the `SpriteContext`. Three sprite modes are available via the settings gear icon in the header:
+
+| Mode | Pokemon Sprites | Trainer Sprites | Rendering |
+|---|---|---|---|
+| **Game Specific** | Version-specific pixel sprites (e.g. R/B Charizard, Yellow Pikachu) | Generation-suffixed trainer sprites (e.g. `red-gen1rb.png`, `ethan-gen2.png`) | `pixelated` |
+| **Master** (default) | Standard `sprites/pokemon/${id}.png` | Non-suffixed trainer sprites (e.g. `red.png`, `ethan.png`) | `pixelated` |
+| **Artwork** | `sprites/pokemon/other/official-artwork/${id}.png` | Same as Master (no artwork trainers exist) | Smooth (no `pixelated`) |
+
+**Implementation**: Every component calls `getPokemonSpriteUrl(dexId, spriteMode, gameVersion)` instead of constructing URLs inline. The `getSpriteImgClasses()` helper ensures artwork sprites (475x475+ px) scale down to fit the same containers as pixel sprites (96x96 px) using `object-contain` and removing the `pixelated` CSS class. The `SpriteContext` persists the user's choice to `localStorage` and changes propagate instantly to all views.
 
 ## Quick Start
 

@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { Menu, Moon, Sun, X, Github, Bug, BookOpen, Monitor, Home, LayoutGrid, Book, Trophy, Map, Database } from 'lucide-react';
+import { useSpriteMode, SpriteMode } from '../../context/SpriteContext';
+import { Menu, Moon, Sun, X, Github, Bug, BookOpen, Monitor, Home, LayoutGrid, Book, Trophy, Map, Database, Settings, Check, Image, Gamepad2, Sparkles } from 'lucide-react';
 import { DashboardTab } from '../editor/EditorDashboard';
 
 interface HeaderProps {
@@ -9,14 +10,51 @@ interface HeaderProps {
     hasActiveSave?: boolean;
 }
 
+const SPRITE_MODE_OPTIONS: { value: SpriteMode; label: string; description: string; icon: React.ReactNode }[] = [
+  {
+    value: 'game-specific',
+    label: 'Game Specific',
+    description: 'Version-specific pixel sprites (R/B, Yellow, Gold, Silver, Crystal)',
+    icon: <Gamepad2 size={18} />,
+  },
+  {
+    value: 'master',
+    label: 'Master',
+    description: 'Standard pixel sprites (same across all versions)',
+    icon: <Sparkles size={18} />,
+  },
+  {
+    value: 'artwork',
+    label: 'Artwork',
+    description: 'Official artwork illustrations (high-res)',
+    icon: <Image size={18} />,
+  },
+];
+
 export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => {
   const { mode, toggleMode, getGameTheme } = useTheme();
+  const { mode: spriteMode, setMode: setSpriteMode } = useSpriteMode();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsRef = useRef<HTMLDivElement>(null);
   
   const theme = getGameTheme();
   const isLightTheme = theme?.id === 'yellow' || theme?.id === 'gold' || theme?.id === 'silver' || theme?.id === 'crystal';
   
   const iconColor = isLightTheme ? 'text-yellow-500' : 'text-red-500';
+
+  // Close settings panel when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    };
+    if (isSettingsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isSettingsOpen]);
 
   const handleNavClick = (tab: DashboardTab) => {
       if (onNavigate) {
@@ -31,8 +69,83 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
         className="sticky top-0 z-50 w-full shadow-md transition-colors duration-300 bg-theme-primary text-theme-text-on-primary"
       >
         <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo Area */}
+          {/* Logo Area + Settings Icon */}
           <div className="flex items-center space-x-3 select-none">
+            {/* Settings Icon — top left */}
+            <div className="relative" ref={settingsRef}>
+              <button 
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                className={`p-2 rounded-full hover:bg-current/10 active:scale-95 transition-all ${isSettingsOpen ? 'bg-current/15' : ''}`}
+                aria-label="Settings"
+              >
+                <Settings size={22} className={`transition-transform duration-300 ${isSettingsOpen ? 'rotate-90' : ''}`} />
+              </button>
+
+              {/* Settings Popup Panel */}
+              {isSettingsOpen && (
+                <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[2000] animate-in slide-in-from-top-2 duration-200">
+                  {/* Panel Header */}
+                  <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                    <div className="flex items-center gap-2">
+                      <Settings size={16} className="text-gray-400" />
+                      <h3 className="font-black text-sm text-gray-800 dark:text-white uppercase tracking-wider">Sprite Settings</h3>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Choose how Pokemon sprites appear throughout the app</p>
+                  </div>
+
+                  {/* Mode Options */}
+                  <div className="p-3 space-y-2">
+                    {SPRITE_MODE_OPTIONS.map((opt) => {
+                      const isActive = spriteMode === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => { setSpriteMode(opt.value); }}
+                          className={`
+                            w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-3 transition-all border-2
+                            ${isActive
+                              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 shadow-sm'
+                              : 'bg-gray-50 dark:bg-gray-800/50 border-transparent hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-700'
+                            }
+                          `}
+                        >
+                          {/* Radio Indicator */}
+                          <div className={`
+                            mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors
+                            ${isActive ? 'border-blue-500 bg-blue-500' : 'border-gray-300 dark:border-gray-600'}
+                          `}>
+                            {isActive && <Check size={12} className="text-white" />}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold text-sm ${isActive ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-200'}`}>
+                                {opt.label}
+                              </span>
+                              <span className={`text-gray-400 ${isActive ? 'text-blue-500' : ''}`}>
+                                {opt.icon}
+                              </span>
+                              {opt.value === 'master' && (
+                                <span className="text-[9px] font-bold uppercase bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded">Default</span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-0.5 leading-relaxed">{opt.description}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Preview Hint */}
+                  <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-900/30 border-t border-gray-100 dark:border-gray-800">
+                    <p className="text-[10px] text-gray-400 text-center font-medium">
+                      Sprites update instantly across all views
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="bg-white rounded-full p-1 border-4 border-theme-secondary">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={iconColor}>
                  <circle cx="12" cy="12" r="10" fill="#F0F0F0" stroke="black" strokeWidth="2"/>
@@ -49,6 +162,12 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
             
             <div className="hidden sm:flex items-center px-3 py-1 rounded text-xs font-mono opacity-80 bg-current/15">
               v1.1.0-alpha
+            </div>
+
+            {/* Active Sprite Mode Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-current/10 border border-current/10">
+              {spriteMode === 'game-specific' ? <Gamepad2 size={12} /> : spriteMode === 'artwork' ? <Image size={12} /> : <Sparkles size={12} />}
+              <span className="hidden md:inline">{spriteMode === 'game-specific' ? 'Game' : spriteMode === 'artwork' ? 'Art' : 'Master'}</span>
             </div>
 
             {/* Dark Mode Toggle */}

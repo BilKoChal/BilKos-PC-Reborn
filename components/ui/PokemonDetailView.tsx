@@ -8,6 +8,8 @@ import { POKEDEX_ENTRIES } from '../../lib/generations/gen1/data/pokedexEntries'
 import { POKEMON_LOCATIONS } from '../../lib/generations/gen1/data/pokemonLocations';
 import { Check, Eye, Ban, X, MapPin, AlignLeft } from 'lucide-react';
 import { TypeBadge } from './PokemonBadges';
+import { useSpriteMode } from '../../context/SpriteContext';
+import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
 
 interface PokemonDetailViewProps {
     id: number;
@@ -19,6 +21,7 @@ interface PokemonDetailViewProps {
 }
 
 export const PokemonDetailView: React.FC<PokemonDetailViewProps> = ({ id, owned, seen, version, onClose, onToggleStatus }) => {
+    const { mode: spriteMode } = useSpriteMode();
     const isGen2 = ['Gold', 'Silver', 'Crystal'].includes(version);
     const name = isGen2 ? (GEN2_POKEMON_NAMES[id] || `Species ${id}`) : POKEMON_NAMES[id];
     const types = getPokemonTypes(id, isGen2 ? 2 : 1);
@@ -39,7 +42,7 @@ export const PokemonDetailView: React.FC<PokemonDetailViewProps> = ({ id, owned,
         else locationText = locationData.red;
     }
 
-    const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${id}.png`;
+    const spriteUrl = getPokemonSpriteUrl(id, spriteMode, version);
 
     return (
         <div className="fixed inset-0 z-[300] bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>
@@ -56,7 +59,7 @@ export const PokemonDetailView: React.FC<PokemonDetailViewProps> = ({ id, owned,
                         <img 
                             src={spriteUrl} 
                             alt={name}
-                            className={`w-full h-full object-contain drop-shadow-2xl transition-all duration-500 ${!seen && !owned ? 'brightness-0 opacity-20' : ''}`}
+                            className={getSpriteImgClasses(spriteMode, `w-full h-full object-contain drop-shadow-2xl transition-all duration-500 ${!seen && !owned ? 'brightness-0 opacity-20' : ''}`)}
                         />
                     </div>
 

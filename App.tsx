@@ -10,6 +10,7 @@ import { EditorDashboard, DashboardTab } from './components/editor/EditorDashboa
 import { LoadSaveModal } from './components/editor/LoadSaveModal';
 import { ParsedSave, GameVersion } from './lib/parser/types';
 import { useTheme } from './context/ThemeContext';
+import { SpriteProvider } from './context/SpriteContext';
 import { pokemonGames } from './data/games';
 import { registry } from './lib/core/AdapterRegistry';
 import { detectAndParseSave } from './lib/parser';
@@ -315,6 +316,7 @@ const App: React.FC = () => {
   const currentTabSelections = moveMode.getCurrentTabSelections();
 
   return (
+    <SpriteProvider>
     <div className="flex flex-col min-h-screen relative bg-gray-50 dark:bg-gray-950 transition-colors duration-300 overflow-hidden font-sans">
 
       <Toast message={toastMessage} />
@@ -431,6 +433,7 @@ const App: React.FC = () => {
         <Footer />
       </main>
     </div>
+    </SpriteProvider>
   );
 };
 
