@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <rect x="146" y="400" width="220" height="24" rx="12" fill="#475569" />
+  
+  <rect x="226" y="330" width="60" height="80" fill="#64748b" />
+  
+  <rect x="40" y="50" width="432" height="290" rx="28" fill="#475569" />
+  
+  <rect x="64" y="74" width="384" height="242" rx="14" fill="#0f172a" />
+  
+  <g transform="translate(256, 195)">
+    <circle cx="0" cy="0" r="84" fill="#111827" />
+    
+    <circle cx="0" cy="0" r="74" fill="#f8fafc" />
+    
+    <path d="M -74,0 A 74,74 0 0,1 74,0 Z" fill="#ef4444" />
+    
+    <rect x="-74" y="-6" width="148" height="12" fill="#111827" />
+    
+    <circle cx="0" cy="0" r="26" fill="#111827" />
+    
+    <circle cx="0" cy="0" r="14" fill="#ffffff" />
+  </g>
+</svg>
