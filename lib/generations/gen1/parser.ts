@@ -1,5 +1,5 @@
 
-import { ParsedSave, ParserResult, PokemonStats, Item, HallOfFameTeam, HallOfFamePokemon, GameVersion, GameOptions } from '../../parser/types';
+import { ParsedSave, ParserResult, PokemonStats, Item, HallOfFameTeam, HallOfFamePokemon, GameVersion, GameOptions, Gen1Extension, Gen1SaveExtension } from '../../parser/types';
 import { decodeText } from '../../utils/textDecoder';
 import { 
     getUInt16BigEndian, 
@@ -193,7 +193,7 @@ function parsePokemonStruct(
       type1: 0, type2: 0, type1Name: 'Normal', type2Name: 'Normal',
       status: 'OK', catchRate: 0, moves: ['-', '-', '-', '-'], moveIds: [0, 0, 0, 0],
       movePp: [0, 0, 0, 0], movePpUps: [0, 0, 0, 0], isParty, isEgg: false, isShiny: false,
-      gender: 'Genderless', pokerus: 0,
+      gender: 'Genderless', pokerus: 0, genExtension: null,
       iv: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       raw: new Uint8Array(0), startOffset: offset, nicknameRaw: nicknameRaw || new Uint8Array(0),
@@ -283,6 +283,14 @@ function parsePokemonStruct(
 
   const structSize = isParty ? 44 : 33;
 
+  // Create Gen1 extension with generation-specific data
+  const gen1Ext = new Gen1Extension();
+  gen1Ext.catchRate = catchRate;
+  gen1Ext.special = special;
+  gen1Ext.pikachuFriendship = 0; // Set at save level for Yellow
+  gen1Ext.isParty = isParty;
+  gen1Ext.raw = view.slice(offset, offset + structSize);
+
   return {
     pid: 0,
     speciesId,
@@ -321,6 +329,7 @@ function parsePokemonStruct(
     isShiny: false,
     gender: 'Genderless',
     pokerus: 0,
+    genExtension: gen1Ext,
     
     iv: { hp: hpIv, attack: atkIv, defense: defIv, speed: spdIv, special: spcIv, spAtk: spcIv, spDef: spcIv },
     ev: { hp: hpEv, attack: atkEv, defense: defEv, speed: spdEv, special: spcEv, spAtk: spcEv, spDef: spcEv },
@@ -407,7 +416,7 @@ function parseOptions(view: Uint8Array, offsets: typeof OFFSETS_INT): GameOption
 
 function parseHallOfFame(view: Uint8Array, offsets: typeof OFFSETS_INT, isJapanese: boolean): HallOfFameTeam[] {
     const teams: HallOfFameTeam[] = [];
-    const hofStart = offsets.HOF_DATA || 0x0598; 
+    const hofStart = 0x0598;  // Hall of Fame data offset (SRAM bank 0)
     const structSize = 16;
     const monsPerTeam = 6;
     const maxTeams = 50;
@@ -573,6 +582,10 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
   const pcItems = parseItems(view, offsets.PC_ITEMS, 50);
   const hallOfFame = parseHallOfFame(view, offsets, isJapanese);
 
+  // Create Gen1 save extension with generation-specific save data
+  const gen1SaveExt = new Gen1SaveExtension();
+  gen1SaveExt.daycare = daycare ? [daycare] : [];
+
   return {
     generation: 1,
     gameVersion: gameVersion,
@@ -582,7 +595,6 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
     trainer: { name, id, money, coins, playTime, badges, rivalName, pikachuFriendship, pikachuSurfScore, gender: 'Male' },
     options,
     map: mapData,
-    daycare: daycare ? [daycare] : [],
     playerStarterId,
     rivalStarterId,
     pokedexOwned, pokedexSeen, pokedexOwnedFlags, pokedexSeenFlags,
@@ -596,7 +608,8 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
     hallOfFame,
     items: bagItems,
     pcItems,
-    rawData: view
+    rawData: view,
+    genExtension: gen1SaveExt
   };
 }
 

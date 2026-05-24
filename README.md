@@ -18,8 +18,28 @@ A web-based Pokemon save file editor supporting **Gen I** (R/B/Y) and **Gen II**
 Three-pillar design following the **Open-Closed Principle**:
 
 1. **Generation Adapter Pattern** — `IGenerationAdapter` with sub-interfaces. Add generations by creating adapters.
-2. **Canonical Data Model** — `ParsedSave`/`PokemonStats` with `genExtension` for generation-specific data.
-3. **Modular UI + React Context** — `SaveContext` eliminates prop drilling.
+2. **Canonical Data Model (CDM)** — `CanonicalPokemon`/`CanonicalSave` with `genExtension` for generation-specific data. The CDM is the single source of truth for all runtime data.
+3. **Modular UI + React Context** — `SaveContext` eliminates prop drilling. Extension system injects generation-specific UI panels.
+
+### Canonical Data Model
+
+The CDM defines two core types in `lib/canonicalModel.ts`:
+
+- **`CanonicalPokemon`** — Universal fields (dexId, nickname, stats, types, moves, IVs/EVs) plus a `genExtension: IGenExtension | null` slot for generation-specific data.
+- **`CanonicalSave`** — Universal save fields (trainer, party, PC boxes, items, pokedex) plus a `genExtension: ISaveExtension | null` slot.
+
+**Backward compatibility**: `PokemonStats` and `ParsedSave` are type aliases for `CanonicalPokemon` and `CanonicalSave`, so all existing code continues to work without modification.
+
+**Generation extensions**:
+| Extension | Fields |
+|---|---|
+| `Gen1Extension` | catchRate, special (unified), pikachuFriendship, isParty, raw |
+| `Gen2Extension` | heldItemId/Name, isShiny (DV), gender (DV), spAtk/spDef, friendship, pokerus |
+| `Gen3Extension` | abilityId/Name, natureId/Name, ribbons, contestStats, secretId (stub) |
+
+**Design rationale**: Universal fields (isShiny, gender, spAtk, etc.) exist both as flat first-class properties AND inside `genExtension`. This is intentional — flat fields provide O(1) UI access without type guards, while `genExtension` preserves generation-specific raw/metadata for binary round-tripping and future generation support.
+
+**Adding a new generation**: Create a `GenNExtension` class, populate it in the parser, and register UI extensions. The `genExtension` slot is the ONLY place where generation-specific fields should live — never add optional fields directly to `CanonicalPokemon`. This ensures the "zero core modifications per generation" promise.
 
 ## Quick Start
 

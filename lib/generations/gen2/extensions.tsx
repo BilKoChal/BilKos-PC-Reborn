@@ -1,18 +1,22 @@
 import React from 'react';
 import { ISectionExtension, IExtensionRenderContext } from '../../interfaces';
-import { PokemonStats } from '../../parser/types';
+import { PokemonStats, isGen2Extension } from '../../parser/types';
 import { Autocomplete } from '../../../components/ui/Autocomplete';
 import { GEN2_ITEMS } from './data/constants';
 import { extensionRegistry } from '../../core/ExtensionRegistry';
 import { Sparkles, HelpCircle } from 'lucide-react';
 
 // 1. HeldItemSection: Injects held-item Autocomplete selection directly into PokemonInfoPanel
+// Now reads/writes through the canonical genExtension slot when available,
+// falling back to flat fields for backward compatibility.
 export const HeldItemSection: ISectionExtension = {
   id: 'gsc-held-item',
   panelId: 'pokemon-info',
   render(mon: PokemonStats, context: IExtensionRenderContext) {
     const listOptions = ['None', ...Object.values(GEN2_ITEMS)];
-    const currentValue = mon.heldItemName || 'None';
+    // Read from genExtension (canonical source) with flat-field fallback
+    const currentValue = (isGen2Extension(mon.genExtension) ? mon.genExtension.heldItemName : null) 
+                         || mon.heldItemName || 'None';
 
     return (
       <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-3 border border-amber-100 dark:border-amber-800/30">
@@ -31,8 +35,14 @@ export const HeldItemSection: ISectionExtension = {
             const heldItemId = matchingIdStr ? Number(matchingIdStr) : 0;
             const heldItemName = heldItemId > 0 ? GEN2_ITEMS[heldItemId] : 'None';
 
+            // Update both flat fields (for O(1) UI access) and genExtension (canonical source)
             context.onChange('heldItemId', heldItemId as unknown);
             context.onChange('heldItemName', heldItemName as unknown);
+            // Also update the genExtension if it exists
+            if (isGen2Extension(mon.genExtension)) {
+              mon.genExtension.heldItemId = heldItemId;
+              mon.genExtension.heldItemName = heldItemName;
+            }
           }}
           placeholder="No Held Item"
           className="shadow-sm"
@@ -43,6 +53,7 @@ export const HeldItemSection: ISectionExtension = {
 };
 
 // 2. ShinyFlagSection: Appends shiny sparks/stars next to the Pokémon's name card and rendering borders
+// Uses the universal isShiny flat field for O(1) access, as designed per CDM rationale.
 export const ShinyFlagSection: ISectionExtension = {
   id: 'gsc-shiny',
   panelId: 'pokemon-info',
@@ -59,7 +70,8 @@ export const ShinyFlagSection: ISectionExtension = {
   }
 };
 
-// 3. GenderSection: Leverages DV values inside genExtension to display the male/female indicator in the details view
+// 3. GenderSection: Displays the male/female indicator using the universal gender field
+// (DV-based determination stored in both flat field and genExtension)
 export const GenderSection: ISectionExtension = {
   id: 'gsc-gender',
   panelId: 'pokemon-info',
@@ -88,6 +100,7 @@ export const GenderSection: ISectionExtension = {
 };
 
 // 4. SpAtkSpDefSection: Injects helpful guidance about shared DVs for special stats in Gen 2
+// This is a static informational extension — no data reading needed.
 export const SpAtkSpDefSection: ISectionExtension = {
   id: 'gsc-sp-atk-sp-def',
   panelId: 'pokemon-stats',

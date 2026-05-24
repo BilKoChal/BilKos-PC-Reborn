@@ -1,4 +1,4 @@
-import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData } from '../../parser/types';
+import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension } from '../../parser/types';
 import { getPokemonTypes, TYPE_MAP } from '../gen1/data/pokemonTypes';
 import { 
   getUInt16BigEndian, 
@@ -97,7 +97,7 @@ export function parseGen2PokemonStruct(
       type1: 0, type2: 0, type1Name: 'Normal', type2Name: 'Normal',
       status: 'OK', catchRate: 0, moves: ['-', '-', '-', '-'], moveIds: [0, 0, 0, 0],
       movePp: [0, 0, 0, 0], movePpUps: [0, 0, 0, 0], isParty, isEgg: false, isShiny: false,
-      gender: 'Genderless', pokerus: 0,
+      gender: 'Genderless', pokerus: 0, genExtension: null,
       iv: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       raw: new Uint8Array(0), startOffset: offset, nicknameRaw: nicknameRaw || new Uint8Array(0),
@@ -197,6 +197,17 @@ export function parseGen2PokemonStruct(
 
   const raw = view.slice(offset, offset + (isParty ? 48 : 32));
 
+  // Create Gen2 extension with generation-specific data
+  const gen2Ext = new Gen2Extension();
+  gen2Ext.heldItemId = heldItemId;
+  gen2Ext.heldItemName = heldItemName;
+  gen2Ext.isShiny = isShiny;
+  gen2Ext.pokerus = pokerus;
+  gen2Ext.gender = gender;
+  gen2Ext.spAtk = spAtk;
+  gen2Ext.spDef = spDef;
+  gen2Ext.friendship = friendship;
+
   return {
     speciesId,
     dexId,
@@ -239,6 +250,7 @@ export function parseGen2PokemonStruct(
     heldItemId,
     heldItemName,
     pokerus,
+    genExtension: gen2Ext,
     raw,
     startOffset: offset,
     nicknameRaw,
@@ -493,7 +505,9 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     currentBoxCount,
     currentBoxPokemon,
     pcBoxes,
+    hallOfFame: [],
     eventFlags: [],
-    rawData: data
+    rawData: data,
+    genExtension: new Gen2SaveExtension()
   };
 }

@@ -1,4 +1,46 @@
-import type { IGenExtension } from '../canonicalModel';
+/**
+ * Parser Type Definitions
+ *
+ * This file defines the leaf types used by the Canonical Data Model (CDM)
+ * and re-exports the CDM types as backward-compatible aliases.
+ *
+ * ARCHITECTURE: The authoritative type definitions for Pokemon and Save
+ * data live in `lib/canonicalModel.ts` (CanonicalPokemon, CanonicalSave).
+ * This file provides the leaf types (Item, TrainerInfo, PokemonIVs, etc.)
+ * that the CDM references, and re-exports the CDM types under their
+ * historical names (PokemonStats, ParsedSave) for backward compatibility.
+ *
+ * MIGRATION NOTE: All new code should import CanonicalPokemon and
+ * CanonicalSave from canonicalModel. The PokemonStats and ParsedSave
+ * aliases exist so that existing imports throughout the codebase continue
+ * to work without modification. They are structurally identical —
+ * PokemonStats IS CanonicalPokemon, ParsedSave IS CanonicalSave.
+ */
+
+import type { CanonicalPokemon, CanonicalSave } from '../canonicalModel';
+
+/** Backward-compatible alias: PokemonStats = CanonicalPokemon */
+export type PokemonStats = CanonicalPokemon;
+
+/** Backward-compatible alias: ParsedSave = CanonicalSave */
+export type ParsedSave = CanonicalSave;
+
+// Re-export genExtension types and type guards for convenience
+export type { IGenExtension, ISaveExtension } from '../canonicalModel';
+export {
+  isGen1Extension,
+  isGen2Extension,
+  isGen3Extension,
+  Gen1Extension,
+  Gen2Extension,
+  Gen3Extension,
+  Gen1SaveExtension,
+  Gen2SaveExtension,
+} from '../canonicalModel';
+
+// ============================================================================
+// Leaf Types — Referenced by the CDM but defined here
+// ============================================================================
 
 export type Generation = 1 | 2;
 
@@ -30,67 +72,6 @@ export interface PokemonEVs {
     special: number;
     spAtk?: number;   
     spDef?: number;   
-}
-
-export interface PokemonStats {
-  speciesId: number;
-  dexId: number;
-  speciesName: string;
-  nickname: string;
-  isNicknamed: boolean;
-  
-  pid: number;
-  form: number;
-
-  originalTrainerName: string;
-  originalTrainerId: number;
-  secretId: number;
-  originalTrainerGender: string;
-  
-  level: number;
-  exp: number;
-  friendship: number;
-  
-  hp: number;
-  maxHp: number;
-  attack: number;
-  defense: number;
-  speed: number;
-  special: number;
-  spAtk: number; // Mirrored for UI compatibility
-  spDef: number; // Mirrored for UI compatibility
-  
-  iv: PokemonIVs;
-  ev: PokemonEVs;
-  
-  moves: string[];
-  moveIds: number[];
-  movePp: number[];
-  movePpUps: number[];
-  
-  status: string;
-  catchRate: number; // Byte 0x07 in Gen 1
-  
-  type1: number;
-  type2: number;
-  type1Name: string;
-  type2Name: string;
-
-  // UI Helpers
-  isParty: boolean;
-  isEgg: boolean;
-  isShiny: boolean;
-  gender: string;
-  pokerus: number;
-  heldItemId?: number;
-  heldItemName?: string;
-  genExtension?: IGenExtension | null;
-  
-  // Raw Data Preservation
-  raw: Uint8Array;
-  startOffset: number;
-  nicknameRaw: Uint8Array;
-  otNameRaw: Uint8Array;
 }
 
 export interface HallOfFamePokemon {
@@ -133,49 +114,6 @@ export interface MapData {
     y: number;
     lastMapId?: number;
     warpedFromMap?: number;
-}
-
-export interface ParsedSave {
-  generation: Generation;
-  gameVersion?: GameVersion;
-  originalFilename?: string;
-  fileSize: number;
-  isValid: boolean;
-  
-  trainer: TrainerInfo;
-  options?: GameOptions;
-  map?: MapData;
-  
-  rivalStarterId?: number;
-  playerStarterId?: number;
-
-  pokedexOwned: number;
-  pokedexSeen: number;
-  pokedexOwnedFlags: boolean[];
-  pokedexSeenFlags: boolean[];
-
-  partyCount: number;
-  party: PokemonStats[];
-  daycare?: PokemonStats[]; 
-  
-  currentBoxId: number;
-  currentBoxCount: number;
-  currentBoxPokemon: PokemonStats[];
-  pcBoxes: PokemonStats[][];
-
-  hallOfFame: HallOfFameTeam[];
-  
-  eventFlags: boolean[]; // 256 bits (32 bytes) for Missable Objects
-
-  items: Item[]; 
-  pcItems: Item[];
-  
-  // Optional arrays to satisfy generic UI interfaces
-  keyItems?: Item[];
-  balls?: Item[];
-  tms?: Item[];
-  
-  rawData: Uint8Array;
 }
 
 export interface ParserResult {

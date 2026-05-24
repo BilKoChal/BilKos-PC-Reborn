@@ -30,6 +30,7 @@ export const GEN1_OFFSETS = {
     PLAYER_STARTER: 0x29C3,
     WARPED_FROM_MAP: 0x29E8,
     PLAY_TIME: 0x2CED, // 0x2CED=Hours, 0x2CEE=Maxed, 0x2CEF=Min, 0x2CF0=Sec, 0x2CF1=Frames
+    HOF_DATA: 0x0598,          // Hall of Fame data start offset
     PARTY_DATA: 0x2F2C,
     CURRENT_BOX_DATA: 0x30C0,
     CHECKSUM: 0x3523,
