@@ -6,6 +6,7 @@ import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
 import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
+import { startTouchDrag, moveTouchDrag, endTouchDrag, cancelTouchDrag } from '../../lib/hooks/touchDnD';
 
 interface PartyListProps {
     party: PokemonStats[];
@@ -18,6 +19,7 @@ interface PartyListProps {
     onEmptySlotClick?: (index: number, e: React.MouseEvent) => void;
     onToggleSelection?: (index: number) => void;
     onDropPokemon?: (index: number, e: React.DragEvent) => void;
+    onTouchDrop?: (index: number) => void;
     tabId?: string;
     /** Called when a drag session begins — stores drag source, clears click-selections */
     onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
@@ -50,15 +52,17 @@ const PokemonSlot = memo<{
     onClick: (mon: PokemonStats, index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
     onToggleSelection?: (index: number) => void;
     onDropPokemon?: (index: number, boxIndex: number | undefined, e: React.DragEvent) => void;
+    onTouchDrop?: (index: number) => void;
     onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
     onEndDragSession?: () => void;
-}>(({ mon, index, isSelected, isMoveMode, tabId, gameVersion, onEnableMoveMode, onClick, onToggleSelection, onDropPokemon, onBeginDragSession, onEndDragSession }) => {
+}>(({ mon, index, isSelected, isMoveMode, tabId, gameVersion, onEnableMoveMode, onClick, onToggleSelection, onDropPokemon, onTouchDrop, onBeginDragSession, onEndDragSession }) => {
     
-    // FIX (Phase 4): Replace boolean isDragOver with a dragEnterCount ref
     const [isDragOver, setIsDragOver] = useState(false);
-    const dragEnterCountRef = useRef(0);
-    // HOTFIX: Track if THIS slot is the drag source — prevent self-highlighting
+    // Track if THIS slot is the drag source — prevent self-highlighting
     const isThisDragSourceRef = useRef(false);
+    // Touch drag state
+    const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+    const isTouchDragActiveRef = useRef(false);
     const themeColors = getVersionThemeColor(gameVersion);
 
     // Use the DRY hook
@@ -70,64 +74,108 @@ const PokemonSlot = memo<{
         onBeginDragSession, onEndDragSession
     });
 
-    // HOTFIX: Listen for global drag-end event to reset stuck isDragOver
+    // Listen for global drag-end event to reset stuck isDragOver
     useEffect(() => {
         const handler = () => {
-            dragEnterCountRef.current = 0;
             setIsDragOver(false);
         };
         document.addEventListener(DND_END_EVENT, handler);
         return () => document.removeEventListener(DND_END_EVENT, handler);
     }, []);
 
-    // HOTFIX: Wrap dragStart to mark this slot as the drag source
+    // Wrap dragStart to mark this slot as the drag source
     const handleSlotDragStart = useCallback((e: React.DragEvent) => {
         isThisDragSourceRef.current = true;
-        setIsDragOver(false); // Never highlight source slot
+        setIsDragOver(false);
         handleDragStart(e);
     }, [handleDragStart]);
 
-    // HOTFIX: Wrap dragEnd to clear source flag and dispatch global reset
+    // Wrap dragEnd to clear source flag and dispatch global reset
     const handleSlotDragEnd = useCallback(() => {
         isThisDragSourceRef.current = false;
-        dragEnterCountRef.current = 0;
         setIsDragOver(false);
-        dispatchDragEnd(); // Notify ALL slots to reset
+        dispatchDragEnd();
         handleDragEnd();
     }, [handleDragEnd]);
 
-    // FIX: Only count enter/leave events that fire directly on this slot element,
-    // NOT bubbled events from child elements (sprite, text, etc.).
-    // This keeps the enter/leave counts perfectly in sync.
+    // FIX: Simple enter/leave without counter. Set isDragOver=true on any enter,
+    // only set false on leave when cursor is truly leaving the slot (not just moving to a child).
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (!e.dataTransfer.types.includes(DND_DATA_TYPE)) return;
-        // HOTFIX: Don't highlight the slot that IS being dragged
         if (isThisDragSourceRef.current) return;
-        // Only count direct enters on this slot, not bubbled events from children
-        if (e.target !== e.currentTarget) return;
         e.preventDefault();
-        dragEnterCountRef.current++;
-        if (dragEnterCountRef.current === 1) {
-            setIsDragOver(true);
-        }
+        setIsDragOver(true);
     }, []);
 
     const handleDragLeave = useCallback((e: React.DragEvent) => {
-        // Only count direct leaves from this slot, not bubbled events from children
-        if (e.target !== e.currentTarget) return;
-        dragEnterCountRef.current--;
-        if (dragEnterCountRef.current <= 0) {
-            dragEnterCountRef.current = 0;
-            setIsDragOver(false);
+        // Only clear if cursor is leaving the slot entirely (not moving to a child)
+        const relatedTarget = e.relatedTarget as Node | null;
+        if (relatedTarget && e.currentTarget.contains(relatedTarget)) {
+            return;
         }
+        setIsDragOver(false);
     }, []);
 
     const handleSlotDrop = useCallback((e: React.DragEvent) => {
-        dragEnterCountRef.current = 0;
         setIsDragOver(false);
-        dispatchDragEnd(); // Notify all other slots to reset too
+        dispatchDragEnd();
         handleDrop(e);
     }, [handleDrop]);
+
+    // ─── Touch DnD Handlers ──────────────────────────────────────────
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        if (!mon || !tabId) return;
+        const touch = e.touches[0];
+        touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+        isTouchDragActiveRef.current = false;
+    }, [mon, tabId]);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (!touchStartPosRef.current || !mon || !tabId) return;
+        const touch = e.touches[0];
+        const start = touchStartPosRef.current;
+        const dx = touch.clientX - start.x;
+        const dy = touch.clientY - start.y;
+
+        // Start drag after moving 10px
+        if (!isTouchDragActiveRef.current && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+            isTouchDragActiveRef.current = true;
+            e.preventDefault();
+            const location = { type: 'party' as const, index };
+            const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`;
+            startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
+            if (onBeginDragSession) onBeginDragSession(tabId, location);
+        }
+
+        if (isTouchDragActiveRef.current) {
+            e.preventDefault();
+            moveTouchDrag(touch.clientX, touch.clientY);
+        }
+    }, [mon, tabId, index, onBeginDragSession]);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        if (isTouchDragActiveRef.current) {
+            const result = endTouchDrag();
+            if (result && onTouchDrop) {
+                const target = result.targetLocation;
+                if (target.type === 'party') {
+                    onTouchDrop(target.index);
+                }
+            }
+            if (onEndDragSession) onEndDragSession();
+            isTouchDragActiveRef.current = false;
+        }
+        touchStartPosRef.current = null;
+    }, [onTouchDrop, onEndDragSession]);
+
+    const handleTouchCancel = useCallback(() => {
+        if (isTouchDragActiveRef.current) {
+            cancelTouchDrag();
+            if (onEndDragSession) onEndDragSession();
+        }
+        isTouchDragActiveRef.current = false;
+        touchStartPosRef.current = null;
+    }, [onEndDragSession]);
 
     // HP Calculation
     const hpPercent = mon.maxHp > 0 ? (mon.hp / mon.maxHp) * 100 : 0;
@@ -139,10 +187,14 @@ const PokemonSlot = memo<{
 
     return (
         <div 
+            data-dnd-slot="party"
+            data-dnd-index={index}
             onMouseDown={handlePointerDown}
-            onTouchStart={handlePointerDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
             onMouseUp={handlePointerUp}
-            onTouchEnd={handlePointerUp}
             onMouseLeave={handlePointerUp}
             onClick={handleClick}
             draggable={!!mon}
@@ -194,7 +246,7 @@ const PokemonSlot = memo<{
                  </div>
              </div>
 
-             {/* Center: Sprite — pointer-events: none prevents dragLeave flicker */}
+             {/* Center: Sprite */}
              <div className="flex-grow flex items-center justify-center py-2 relative">
                  <div className={`w-40 h-40 relative flex items-center justify-center transition-transform duration-300 ${!isMoveMode && 'group-hover:scale-105'}`}>
                     <img 
@@ -242,7 +294,7 @@ const PokemonSlot = memo<{
              </div>
         </div>
     );
-// FIX (Phase 5): Add tabId and onDropPokemon to memo comparison
+// FIX: Add tabId and onDropPokemon to memo comparison
 }, (prev, next) => {
     return (
         prev.mon === next.mon && 
@@ -256,7 +308,7 @@ const PokemonSlot = memo<{
 
 export const PartyList: React.FC<PartyListProps> = ({ 
     party, isMoveMode, onEnableMoveMode, selectedMoveSources = [], 
-    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon,
+    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onTouchDrop,
     tabId, gameVersion, onBeginDragSession, onEndDragSession
 }) => {
     const { getGameTheme } = useTheme();
@@ -304,6 +356,7 @@ export const PartyList: React.FC<PartyListProps> = ({
                             onClick={(m, i, b, e) => onPokemonClick && onPokemonClick(m, i, e)}
                             onToggleSelection={(i) => onToggleSelection && onToggleSelection(i)}
                             onDropPokemon={(i, b, e) => onDropPokemon && onDropPokemon(i, e)}
+                            onTouchDrop={onTouchDrop ? (i) => onTouchDrop(i) : undefined}
                             onBeginDragSession={onBeginDragSession}
                             onEndDragSession={onEndDragSession}
                         />
@@ -322,13 +375,14 @@ export const PartyList: React.FC<PartyListProps> = ({
                             gameVersion={gameVersion}
                             onClick={(idx, e) => onEmptySlotClick && onEmptySlotClick(idx, e)}
                             onDrop={(idx, e) => handleEmptyDrop(e, idx)}
+                            onTouchDrop={onTouchDrop}
                         />
                     );
                 })}
             </div>
             
             <div className="mt-auto pt-4 text-xs text-white/60 text-center uppercase font-bold tracking-widest">
-                {isMoveMode ? 'Click to Select → Click Target to Move | Ctrl/Shift for Multi' : 'Click to Edit / Hold to Move'}
+                {isMoveMode ? 'Click to Select → Click Target to Move | Ctrl/Shift for Multi' : 'Click to Edit / Drag to Move'}
             </div>
         </div>
     );
@@ -342,50 +396,41 @@ interface EmptyPartySlotProps {
     gameVersion?: GameVersion;
     onClick: (index: number, e: React.MouseEvent) => void;
     onDrop: (index: number, e: React.DragEvent) => void;
+    onTouchDrop?: (index: number) => void;
 }
 
 const EmptyPartySlot: React.FC<EmptyPartySlotProps> = ({ 
-    index, isMoveMode, themeColors, gameVersion, onClick, onDrop 
+    index, isMoveMode, themeColors, gameVersion, onClick, onDrop, onTouchDrop
 }) => {
-    // FIX (Phase 4): Use dragEnterCount ref instead of boolean to prevent flicker
     const [isDragOver, setIsDragOver] = useState(false);
-    const dragEnterCountRef = useRef(0);
 
-    // HOTFIX: Listen for global drag-end event to reset stuck isDragOver
+    // Listen for global drag-end event to reset stuck isDragOver
     useEffect(() => {
         const handler = () => {
-            dragEnterCountRef.current = 0;
             setIsDragOver(false);
         };
         document.addEventListener(DND_END_EVENT, handler);
         return () => document.removeEventListener(DND_END_EVENT, handler);
     }, []);
 
+    // FIX: Simple enter/leave without counter
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (!e.dataTransfer.types.includes(DND_DATA_TYPE)) return;
-        // Only count direct enters on this slot, not bubbled events from children
-        if (e.target !== e.currentTarget) return;
         e.preventDefault();
-        dragEnterCountRef.current++;
-        if (dragEnterCountRef.current === 1) {
-            setIsDragOver(true);
-        }
+        setIsDragOver(true);
     }, []);
 
     const handleDragLeave = useCallback((e: React.DragEvent) => {
-        // Only count direct leaves from this slot, not bubbled events from children
-        if (e.target !== e.currentTarget) return;
-        dragEnterCountRef.current--;
-        if (dragEnterCountRef.current <= 0) {
-            dragEnterCountRef.current = 0;
-            setIsDragOver(false);
+        const relatedTarget = e.relatedTarget as Node | null;
+        if (relatedTarget && e.currentTarget.contains(relatedTarget)) {
+            return;
         }
+        setIsDragOver(false);
     }, []);
 
     const handleSlotDrop = useCallback((e: React.DragEvent) => {
-        dragEnterCountRef.current = 0;
         setIsDragOver(false);
-        dispatchDragEnd(); // Notify all other slots to reset too
+        dispatchDragEnd();
         if (e.dataTransfer.types.includes(DND_DATA_TYPE)) {
             e.preventDefault();
             onDrop(index, e);
@@ -394,6 +439,8 @@ const EmptyPartySlot: React.FC<EmptyPartySlotProps> = ({
 
     return (
         <div 
+            data-dnd-slot="party"
+            data-dnd-index={index}
             onClick={(e) => onClick(index, e)}
             onDragOver={(e) => {
                 if (e.dataTransfer.types.includes(DND_DATA_TYPE)) {

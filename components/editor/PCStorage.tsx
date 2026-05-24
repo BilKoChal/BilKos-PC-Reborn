@@ -7,6 +7,7 @@ import { MoveLocation } from '../../lib/utils/manipulation';
 import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 import { parsePk1 } from '../../lib/generations/gen1/parser';
 import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
+import { startTouchDrag, moveTouchDrag, endTouchDrag, cancelTouchDrag, isTouchDragging } from '../../lib/hooks/touchDnD';
 
 interface PCStorageProps {
     boxes: PokemonStats[][];
@@ -19,6 +20,7 @@ interface PCStorageProps {
     onEmptySlotClick?: (index: number, boxIndex: number, e: React.MouseEvent) => void;
     onToggleSelection?: (index: number, boxIndex: number) => void;
     onDropPokemon?: (index: number, boxIndex: number, e: React.DragEvent) => void;
+    onTouchDrop?: (index: number, boxIndex: number) => void;
     onMove?: (source: MoveLocation, target: MoveLocation) => void; 
     onSortClick?: () => void;
     onSetActiveBox?: (boxIndex: number) => void;
@@ -61,22 +63,23 @@ const BoxSlot = memo<{
     onEmptySlotClick?: (index: number, boxIndex: number, e: React.MouseEvent) => void;
     onToggleSelection?: (index: number, boxIndex: number) => void;
     onDropPokemon?: (index: number, boxIndex: number, e: React.DragEvent) => void;
+    onTouchDrop?: (index: number, boxIndex: number) => void;
     onEnableMoveMode?: () => void;
     onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
     onEndDragSession?: () => void;
 }>(({ 
     mon, slotIndex, viewedBoxIndex, isMoveMode, isSelected, viewMode,
     tabId, gameVersion,
-    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onEnableMoveMode,
+    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onTouchDrop, onEnableMoveMode,
     onBeginDragSession, onEndDragSession
 }) => {
     
-    // FIX (Phase 4): Replace boolean isDragOver with a dragEnterCount ref
-    // to prevent flicker when cursor moves between parent and child elements.
     const [isDragOver, setIsDragOver] = useState(false);
-    const dragEnterCountRef = useRef(0);
-    // HOTFIX: Track if THIS slot is the drag source — prevent self-highlighting
+    // Track if THIS slot is the drag source — prevent self-highlighting
     const isThisDragSourceRef = useRef(false);
+    // Touch drag state
+    const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+    const isTouchDragActiveRef = useRef(false);
     const themeColors = getVersionThemeColor(gameVersion);
 
     // Use DRY hook
@@ -88,74 +91,128 @@ const BoxSlot = memo<{
         onBeginDragSession, onEndDragSession
     });
 
-    // HOTFIX: Listen for global drag-end event to reset stuck isDragOver
-    // When a drag is cancelled (Escape, drop outside window), dragLeave doesn't
-    // fire on target slots. This event ensures all slots reset their visual state.
+    // Listen for global drag-end event to reset stuck isDragOver
     useEffect(() => {
         const handler = () => {
-            dragEnterCountRef.current = 0;
             setIsDragOver(false);
         };
         document.addEventListener(DND_END_EVENT, handler);
         return () => document.removeEventListener(DND_END_EVENT, handler);
     }, []);
 
-    // HOTFIX: Wrap dragStart to mark this slot as the drag source
+    // Wrap dragStart to mark this slot as the drag source
     const handleSlotDragStart = useCallback((e: React.DragEvent) => {
         isThisDragSourceRef.current = true;
-        setIsDragOver(false); // Never highlight source slot
+        setIsDragOver(false);
         handleDragStart(e);
     }, [handleDragStart]);
 
-    // HOTFIX: Wrap dragEnd to clear source flag and dispatch global reset event
+    // Wrap dragEnd to clear source flag and dispatch global reset event
     const handleSlotDragEnd = useCallback(() => {
         isThisDragSourceRef.current = false;
-        dragEnterCountRef.current = 0;
         setIsDragOver(false);
-        dispatchDragEnd(); // Notify ALL slots to reset (fixes stuck highlights on cancelled drags)
+        dispatchDragEnd();
         handleDragEnd();
     }, [handleDragEnd]);
 
-    // FIX: Only count enter/leave events that fire directly on this slot element,
-    // NOT bubbled events from child elements (sprite, text, etc.).
-    // This keeps the enter/leave counts perfectly in sync.
+    // FIX: Simple enter/leave without counter. Set isDragOver=true on any enter,
+    // only set false on leave when cursor is truly leaving the slot (not just moving to a child).
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (!e.dataTransfer.types.includes(DND_DATA_TYPE)) return;
-        // HOTFIX: Don't highlight the slot that IS being dragged
         if (isThisDragSourceRef.current) return;
-        // Only count direct enters on this slot, not bubbled events from children
-        if (e.target !== e.currentTarget) return;
         e.preventDefault();
-        dragEnterCountRef.current++;
-        if (dragEnterCountRef.current === 1) {
-            setIsDragOver(true);
-        }
+        setIsDragOver(true);
     }, []);
 
     const handleDragLeave = useCallback((e: React.DragEvent) => {
-        // Only count direct leaves from this slot, not bubbled events from children
-        if (e.target !== e.currentTarget) return;
-        dragEnterCountRef.current--;
-        if (dragEnterCountRef.current <= 0) {
-            dragEnterCountRef.current = 0;
-            setIsDragOver(false);
+        // Only clear if cursor is leaving the slot entirely (not moving to a child)
+        const relatedTarget = e.relatedTarget as Node | null;
+        if (relatedTarget && e.currentTarget.contains(relatedTarget)) {
+            return;
         }
+        setIsDragOver(false);
     }, []);
 
     const handleSlotDrop = useCallback((e: React.DragEvent) => {
-        dragEnterCountRef.current = 0;
         setIsDragOver(false);
-        dispatchDragEnd(); // Notify all other slots to reset too
+        dispatchDragEnd();
         handleDrop(e);
     }, [handleDrop]);
+
+    // ─── Touch DnD Handlers ──────────────────────────────────────────
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        if (!mon || !tabId) return;
+        const touch = e.touches[0];
+        touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+        isTouchDragActiveRef.current = false;
+    }, [mon, tabId]);
+
+    const handleTouchMove = useCallback((e: React.TouchEvent) => {
+        if (!touchStartPosRef.current || !mon || !tabId) return;
+        const touch = e.touches[0];
+        const start = touchStartPosRef.current;
+        const dx = touch.clientX - start.x;
+        const dy = touch.clientY - start.y;
+
+        // Start drag after moving 10px
+        if (!isTouchDragActiveRef.current && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+            isTouchDragActiveRef.current = true;
+            e.preventDefault(); // Prevent scrolling once drag starts
+            const location = viewedBoxIndex !== undefined
+                ? { type: 'box' as const, boxIndex: viewedBoxIndex, index: slotIndex }
+                : { type: 'party' as const, index: slotIndex };
+            const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${mon.dexId}.png`;
+            startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
+            if (onBeginDragSession) onBeginDragSession(tabId, location);
+        }
+
+        if (isTouchDragActiveRef.current) {
+            e.preventDefault();
+            moveTouchDrag(touch.clientX, touch.clientY);
+        }
+    }, [mon, tabId, slotIndex, viewedBoxIndex, onBeginDragSession]);
+
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        if (isTouchDragActiveRef.current) {
+            const result = endTouchDrag();
+            if (result && onTouchDrop) {
+                const target = result.targetLocation;
+                if (target.type === 'box') {
+                    onTouchDrop(target.index, target.boxIndex);
+                } else {
+                    onTouchDrop(target.index, viewedBoxIndex);
+                }
+            }
+            if (onEndDragSession) onEndDragSession();
+            isTouchDragActiveRef.current = false;
+        }
+        touchStartPosRef.current = null;
+    }, [onTouchDrop, onEndDragSession, viewedBoxIndex]);
+
+    const handleTouchCancel = useCallback(() => {
+        if (isTouchDragActiveRef.current) {
+            cancelTouchDrag();
+            if (onEndDragSession) onEndDragSession();
+        }
+        isTouchDragActiveRef.current = false;
+        touchStartPosRef.current = null;
+    }, [onEndDragSession]);
+
+    // Determine if this slot is highlighted by touch drag (CSS class on element)
+    const isTouchOver = typeof window !== 'undefined' && isDragOver;
 
     if (viewMode === 'list') {
         return (
             <div 
+                data-dnd-slot="box"
+                data-dnd-index={slotIndex}
+                data-dnd-box={viewedBoxIndex}
                 onMouseDown={handlePointerDown}
-                onTouchStart={handlePointerDown}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
                 onMouseUp={handlePointerUp}
-                onTouchEnd={handlePointerUp}
                 onMouseLeave={handlePointerUp}
                 onClick={handleClick}
                 draggable={!!mon}
@@ -241,10 +298,15 @@ const BoxSlot = memo<{
     // Grid View
     return (
         <div 
+            data-dnd-slot="box"
+            data-dnd-index={slotIndex}
+            data-dnd-box={viewedBoxIndex}
             onMouseDown={handlePointerDown}
-            onTouchStart={handlePointerDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchCancel}
             onMouseUp={handlePointerUp}
-            onTouchEnd={handlePointerUp}
             onMouseLeave={handlePointerUp}
             onClick={handleClick}
             draggable={!!mon}
@@ -357,7 +419,7 @@ const BoxSlot = memo<{
 
 export const PCStorage: React.FC<PCStorageProps> = ({ 
     boxes, currentBoxIndex, isMoveMode, onEnableMoveMode, onToggleMoveMode, selectedMoveSources = [], 
-    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onSortClick, onSetActiveBox, onImport, onToast,
+    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onTouchDrop, onSortClick, onSetActiveBox, onImport, onToast,
     tabId, gameVersion, onBeginDragSession, onEndDragSession
 }) => {
     const { getGameTheme } = useTheme();
@@ -650,6 +712,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 onEmptySlotClick={onEmptySlotClick}
                                 onToggleSelection={onToggleSelection}
                                 onDropPokemon={onDropPokemon}
+                                onTouchDrop={onTouchDrop}
                                 onEnableMoveMode={onEnableMoveMode}
                                 onBeginDragSession={onBeginDragSession}
                                 onEndDragSession={onEndDragSession}
@@ -674,6 +737,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 onEmptySlotClick={onEmptySlotClick}
                                 onToggleSelection={onToggleSelection}
                                 onDropPokemon={onDropPokemon}
+                                onTouchDrop={onTouchDrop}
                                 onEnableMoveMode={onEnableMoveMode}
                                 onBeginDragSession={onBeginDragSession}
                                 onEndDragSession={onEndDragSession}

@@ -26,6 +26,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const globalMoveSources = ctx?.globalMoveSources ?? [];
     const onToggleSelection = ctx?.onToggleSelection;
     const onDropPokemon = ctx?.onDropPokemon;
+    const onTouchDrop = ctx?.onTouchDrop;
     const tabId = ctx?.activeTabId;
     const gameVersion = ctx?.gameVersion;
     const onBeginDragSession = ctx?.onBeginDragSession;
@@ -56,6 +57,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         onEmptySlotClick={(idx, e) => handleEmptySlotClick({ type: 'party', index: idx }, e)}
                         onToggleSelection={onToggleSelection ? (idx) => onToggleSelection({ type: 'party', index: idx }) : undefined}
                         onDropPokemon={onDropPokemon ? (idx, e) => onDropPokemon({ type: 'party', index: idx }, e) : undefined}
+                        onTouchDrop={onTouchDrop ? (idx) => onTouchDrop({ type: 'party', index: idx }) : undefined}
                         tabId={tabId}
                         onBeginDragSession={onBeginDragSession}
                         onEndDragSession={onEndDragSession}

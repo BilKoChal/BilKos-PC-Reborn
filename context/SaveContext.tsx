@@ -16,6 +16,7 @@ export interface SaveContextValue {
   onMovePokemon: (target: MoveLocation, e?: React.MouseEvent) => void;
   onToggleSelection: (target: MoveLocation) => void;
   onDropPokemon: (target: MoveLocation, e?: React.DragEvent) => void;
+  onTouchDrop: (target: MoveLocation) => void;
   activeTabId: string | undefined;
   adapter: IGenerationAdapter | undefined;
   /** Called when a drag session begins — stores drag source, clears click-selections */
@@ -36,6 +37,7 @@ interface SaveProviderProps {
   onMovePokemon: (target: MoveLocation, e?: React.MouseEvent) => void;
   onToggleSelection: (target: MoveLocation) => void;
   onDropPokemon: (target: MoveLocation, e?: React.DragEvent) => void;
+  onTouchDrop: (target: MoveLocation) => void;
   activeTabId?: string;
   onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
   onEndDragSession?: () => void;
@@ -44,16 +46,16 @@ interface SaveProviderProps {
 
 export const SaveProvider: React.FC<SaveProviderProps> = ({
   data, onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode,
-  globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, activeTabId,
+  globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, onTouchDrop, activeTabId,
   onBeginDragSession, onEndDragSession, children,
 }) => {
   const value = useMemo<SaveContextValue>(() => ({
     data, generation: data.generation, gameVersion: data.gameVersion,
     onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode,
-    globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon,
+    globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, onTouchDrop,
     activeTabId, adapter: registry.getAdapter(data.generation),
     onBeginDragSession, onEndDragSession,
-  }), [data, onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode, globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, activeTabId, onBeginDragSession, onEndDragSession]);
+  }), [data, onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode, globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, onTouchDrop, activeTabId, onBeginDragSession, onEndDragSession]);
 
   return (
     <SaveContext.Provider value={value}>

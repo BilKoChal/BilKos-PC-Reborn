@@ -414,6 +414,7 @@ const App: React.FC = () => {
                     onMovePokemon={moveMode.handleGlobalPokemonSelect}
                     onToggleSelection={moveMode.handleSelectionToggle}
                     onDropPokemon={moveMode.handleDragDrop}
+                    onTouchDrop={(target) => moveMode.handleDragDrop(target)}
                     onShowToast={showToast}
                     activeTabId={activeTab.id}
                     onBeginDragSession={moveMode.beginDragSession}

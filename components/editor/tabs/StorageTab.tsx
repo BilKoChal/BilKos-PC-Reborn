@@ -25,6 +25,7 @@ export const StorageTab: React.FC<StorageTabProps> = ({
     const globalMoveSources = ctx?.globalMoveSources ?? [];
     const onToggleSelection = ctx?.onToggleSelection;
     const onDropPokemon = ctx?.onDropPokemon;
+    const onTouchDrop = ctx?.onTouchDrop;
     const onShowToast = ctx?.onShowToast;
     const tabId = ctx?.activeTabId;
     const gameVersion = ctx?.gameVersion;
@@ -45,6 +46,7 @@ export const StorageTab: React.FC<StorageTabProps> = ({
                     onEmptySlotClick={(idx, boxIdx, e) => handleEmptySlotClick({ type: 'box', boxIndex: boxIdx, index: idx }, e)}
                     onToggleSelection={onToggleSelection ? (idx, boxIdx) => onToggleSelection({ type: 'box', boxIndex: boxIdx, index: idx }) : undefined}
                     onDropPokemon={onDropPokemon ? (idx, boxIdx, e) => onDropPokemon({ type: 'box', boxIndex: boxIdx, index: idx }, e) : undefined}
+                    onTouchDrop={onTouchDrop ? (idx, boxIdx) => onTouchDrop({ type: 'box', boxIndex: boxIdx, index: idx }) : undefined}
                     onSortClick={() => setIsSortModalOpen(true)}
                     onSetActiveBox={handleSetActiveBox}
                     onImport={handleImportBox}

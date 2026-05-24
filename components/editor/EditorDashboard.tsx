@@ -38,6 +38,7 @@ interface EditorDashboardProps {
     onMovePokemon: (target: MoveLocation, e?: React.MouseEvent) => void;
     onToggleSelection: (target: MoveLocation) => void;
     onDropPokemon: (target: MoveLocation, e?: React.DragEvent) => void;
+    onTouchDrop: (target: MoveLocation) => void;
     
     onShowToast: (msg: string) => void;
 
@@ -65,6 +66,7 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     onMovePokemon,
     onToggleSelection,
     onDropPokemon,
+    onTouchDrop,
     onShowToast,
     activeTab,
     onTabChange,
@@ -291,6 +293,7 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             onMovePokemon={onMovePokemon}
             onToggleSelection={onToggleSelection}
             onDropPokemon={onDropPokemon}
+            onTouchDrop={onTouchDrop}
             activeTabId={activeTabId}
             onBeginDragSession={onBeginDragSession}
             onEndDragSession={onEndDragSession}

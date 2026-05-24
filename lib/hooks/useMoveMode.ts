@@ -172,11 +172,19 @@ export function useMoveMode(
                 sourcesToMove = [{ tabId: sourceTabId, location: payload.pokemonLocation }];
             }
         } else if (activeDragSourceRef.current) {
-            // Fallback: if no event but we have ref data (shouldn't happen normally)
+            // Fallback: touch drag or other non-event drop — use ref data
             sourcesToMove = [{ tabId: activeDragSourceRef.current.tabId, location: activeDragSourceRef.current.location }];
         }
 
         if (sourcesToMove.length === 0) return;
+
+        // Don't drop on the same location as the source
+        const src = sourcesToMove[0];
+        if (src.tabId === activeTabId && isSameLocation(src.location, target)) {
+            activeDragSourceRef.current = null;
+            return;
+        }
+
         executeMoveOperation(sourcesToMove, target);
 
         // Clean up drag session
