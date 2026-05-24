@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { ParsedSave, TrainerInfo, GameOptions } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
+import { useSaveContextSafe } from '../../context/SaveContext';
 import { Clock, Book, User, Heart, Coins, Trophy, Save, X, Swords } from 'lucide-react';
 import { REGION_BADGES } from '../../lib/data/gameData';
 import { sanitizePokemonText, isJapaneseSave } from '../../lib/utils/textValidator';
@@ -11,8 +12,6 @@ interface TrainerCardProps {
     onUpdate?: (updates: Partial<TrainerInfo>, optionUpdates?: Partial<GameOptions>) => void;
     onOptionsUpdate?: (updates: Partial<GameOptions>) => void;
 }
-
-const MAX_DEX = 151;
 
 // Gen 1 Constants
 const MAX_MONEY = 999999;
@@ -54,6 +53,9 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
     const version = data.gameVersion || 'Yellow';
     const [isEditing, setIsEditing] = useState(false);
     const [badgeTab, setBadgeTab] = useState<'johto' | 'kanto'>('johto');
+
+    const ctx = useSaveContextSafe();
+    const adapter = ctx?.adapter;
 
     const isJP = useMemo(() => isJapaneseSave(data), [data]);
     const currentGen = data.generation || 1;
@@ -103,19 +105,30 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
         setEditOptions({ ...(data.options || defaultOptions) });
     }, [t, parsedTime, data.options]);
 
-    const maxDex = currentGen === 2 ? 251 : 151;
+    // Adapter-driven values replace all hardcoded generation checks
+    const maxDex = adapter?.nationalDexMax ?? (currentGen === 2 ? 251 : 151);
     const displayBadges = REGION_BADGES[currentGen] || REGION_BADGES[1];
+    const showGender = adapter?.hasGender ?? currentGen >= 2;
+    const showMultiRegionBadges = adapter?.hasMultiRegionBadges ?? currentGen >= 2;
+    const timeFormat = adapter?.playTimeFormat ?? (currentGen >= 2 ? 'clock' : 'text');
 
     const trainerSpriteUrl = useMemo(() => {
-        if (currentGen === 2) {
-            const isFemale = isEditing ? editForm.gender === 'Female' : t.gender === 'Female';
-            if (isFemale) {
-                return 'https://play.pokemonshowdown.com/sprites/trainers/kris.png';
-            }
-            return 'https://play.pokemonshowdown.com/sprites/trainers/ethan.png';
+        const gender = isEditing ? editForm.gender : (t.gender || 'Male');
+        if (adapter) {
+            return adapter.getTrainerSpriteUrl(gender, data.gameVersion);
         }
-        return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1.png';
-    }, [currentGen, isEditing, editForm.gender, t.gender]);
+        // Fallback without adapter
+        if (currentGen >= 2) {
+            if (gender === 'Female') {
+                return 'https://play.pokemonshowdown.com/sprites/trainers/kris-gen2.png';
+            }
+            return 'https://play.pokemonshowdown.com/sprites/trainers/ethan-gen2.png';
+        }
+        if (data.gameVersion === 'Yellow') {
+            return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1.png';
+        }
+        return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1rb.png';
+    }, [adapter, currentGen, isEditing, editForm.gender, t.gender, data.gameVersion]);
 
     const getBadgeSpriteUrl = (gen: number, index: number): string => {
         if (gen === 2) {
@@ -149,7 +162,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
 
     const handleSave = () => {
         let formattedTime = "";
-        if (currentGen === 2) {
+        if (timeFormat === 'clock') {
             formattedTime = `${editForm.hours.toString().padStart(2, '0')}:${editForm.minutes.toString().padStart(2, '0')}:${editForm.seconds.toString().padStart(2, '0')}`;
         } else {
             formattedTime = `${editForm.hours}h ${editForm.minutes.toString().padStart(2, '0')}m ${editForm.seconds.toString().padStart(2, '0')}s`;
@@ -254,7 +267,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                         alt="Trainer" 
                         className="w-full h-full object-contain p-2 pixelated scale-125 relative z-10" 
                         draggable={false}
-                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1.png' }}
+                        onError={(e) => { (e.target as HTMLImageElement).src = 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1rb.png' }}
                     />
                 </div>
             </div>
@@ -377,8 +390,8 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                         )}
                     </div>
 
-                    {/* Player Gender (Gen 2 Specific) */}
-                    {currentGen === 2 && (
+                    {/* Player Gender (Adapter-driven) */}
+                    {showGender && (
                         <div className="bg-white dark:bg-gray-800/50 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center justify-between transition-colors hover:border-pink-300 dark:hover:border-pink-700">
                             <div className="flex items-center gap-2">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white shadow-inner ${
@@ -626,8 +639,8 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                     </div>
                 </div>
 
-                {/* Badges Section */}
-                {currentGen === 2 ? (
+                {/* Badges Section — adapter-driven multi-region */}
+                {showMultiRegionBadges ? (
                     <div className="space-y-4 pt-2">
                         {/* Tab Switcher */}
                         <div className="flex bg-gray-150 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm">

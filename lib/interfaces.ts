@@ -61,6 +61,25 @@ export interface IGenerationMetadata {
   /** Whether this generation has the Nature system.
    *  false for Gen1-2, true for Gen3+ */
   hasNatures: boolean;
+
+  /** Whether this generation supports player gender selection.
+   *  false for Gen1 (always Male), true for Gen2+ */
+  hasGender: boolean;
+
+  /** Whether this generation has badges from multiple regions.
+   *  false for Gen1 (Kanto only), true for Gen2+ (Johto + Kanto, etc.) */
+  hasMultiRegionBadges: boolean;
+
+  /** Play time display format used by this generation.
+   *  'text' = "12h 34m 56s" (Gen1), 'clock' = "12:34:56" (Gen2+) */
+  playTimeFormat: 'text' | 'clock';
+
+  /** Returns the URL of the trainer sprite image for this generation/version/gender.
+   *  Used by TrainerCard to display the correct trainer portrait.
+   *  @param gender - Player gender string ('Male' | 'Female')
+   *  @param gameVersion - Specific game version (e.g. 'Red', 'Yellow', 'Crystal')
+   */
+  getTrainerSpriteUrl(gender: string, gameVersion?: string): string;
 }
 
 /**

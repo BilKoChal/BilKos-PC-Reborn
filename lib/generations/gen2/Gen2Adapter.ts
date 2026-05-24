@@ -96,6 +96,17 @@ export class Gen2Adapter implements IGenerationAdapter {
   hasSplitSpecial = true;
   hasAbilities = false;
   hasNatures = false;
+  hasGender = true;
+  hasMultiRegionBadges = true;
+  playTimeFormat: 'text' | 'clock' = 'clock';
+
+  getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
+    // Gen 2: Ethan (male) or Kris (female)
+    if (gender === 'Female') {
+      return 'https://play.pokemonshowdown.com/sprites/trainers/kris-gen2.png';
+    }
+    return 'https://play.pokemonshowdown.com/sprites/trainers/ethan-gen2.png';
+  }
 
   typeList = [
     'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 'Ground', 

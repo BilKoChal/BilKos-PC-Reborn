@@ -26,6 +26,17 @@ export class Gen1Adapter implements IGenerationAdapter {
   hasSplitSpecial = false;
   hasAbilities = false;
   hasNatures = false;
+  hasGender = false;
+  hasMultiRegionBadges = false;
+  playTimeFormat: 'text' | 'clock' = 'text';
+
+  getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
+    // Yellow uses the anime-style Red sprite; Red/Blue use the classic sprite
+    if (gameVersion === 'Yellow') {
+      return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1.png';
+    }
+    return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1rb.png';
+  }
 
   // Gen 1 Types only: 15 types
   typeList = [

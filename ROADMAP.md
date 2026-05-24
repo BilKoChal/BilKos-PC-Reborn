@@ -69,9 +69,10 @@ Refactor the save model into an unified architecture:
 
 #### Task 1.4: Adapter-Driven Generation Metadata (Eliminate Hardcoded Branching)
 Replace ~27 hardcoded `generation === 1 / === 2` checks scattered across UI components with adapter-driven metadata:
-*   Add to `IGenerationMetadata`: `nationalDexMax`, `hasSplitSpecial`, `hasAbilities`, `hasNatures`.
+*   Add to `IGenerationMetadata`: `nationalDexMax`, `hasSplitSpecial`, `hasAbilities`, `hasNatures`, `hasGender`, `hasMultiRegionBadges`, `playTimeFormat`, `getTrainerSpriteUrl()`.
 *   Add to `IGenerationDataAccess`: `getAllSpeciesNames()`, `getAllMoveNames()`, `getMoveBasePp()`, `getAllItemNames()`.
-*   Refactor `Pokedex.tsx`, `EditorDashboard.tsx`, `PokemonEditorModal.tsx`, `Inventory.tsx`, `sortManager.ts`, `PokemonStatsPanel.tsx`, `PokemonInfoPanel.tsx`, `PokemonMovesPanel.tsx` to read generation facts from the adapter instead of branching on generation numbers.
+*   Refactor `Pokedex.tsx`, `EditorDashboard.tsx`, `PokemonEditorModal.tsx`, `Inventory.tsx`, `sortManager.ts`, `TrainerCard.tsx`, `PokemonStatsPanel.tsx`, `PokemonInfoPanel.tsx`, `PokemonMovesPanel.tsx` to read generation facts from the adapter instead of branching on generation numbers.
+*   Widen `Generation` from `1 | 2` to `number` and `GameVersion` from a closed string union to `string` — adding Gen 3+ no longer produces compiler error cascades. Each adapter's `supportedVersions` provides runtime validation.
 *   Result: Adding Gen 3+ requires zero UI changes — `adapter.nationalDexMax` returns 386, `adapter.hasAbilities` returns true, etc.
 
 ---

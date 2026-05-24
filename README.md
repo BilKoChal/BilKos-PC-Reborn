@@ -51,8 +51,14 @@ UI components no longer contain hardcoded `generation === 1 / === 2` checks. Ins
 | `hasSplitSpecial` | false | true | true | ... |
 | `hasAbilities` | false | false | true | ... |
 | `hasNatures` | false | false | true | ... |
+| `hasGender` | false | true | true | ... |
+| `hasMultiRegionBadges` | false | true | true | ... |
+| `playTimeFormat` | text | clock | clock | ... |
+| `getTrainerSpriteUrl()` | Red-gen1rb/Yellow-gen1 | Ethan/Kris-gen2 | Per-version | ... |
 
 Data access methods like `getAllSpeciesNames()`, `getAllMoveNames()`, `getMoveBasePp()`, and `getAllItemNames()` provide list enumeration for Autocomplete dropdowns and Pokédex grids, so UI components never import generation-specific data modules directly.
+
+**Open types**: `Generation` is `number` and `GameVersion` is `string` — widened from closed unions (`1 | 2` / `'Red' | 'Blue' | ...`) so that adding Gen 3+ does not produce compiler error cascades. Each adapter's `supportedVersions: string[]` provides runtime validation instead.
 
 **Example**: `Pokedex.tsx` uses `adapter.nationalDexMax` and `adapter.getAllSpeciesNames()` — adding Gen 3 requires zero UI changes.
 

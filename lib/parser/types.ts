@@ -42,9 +42,25 @@ export {
 // Leaf Types — Referenced by the CDM but defined here
 // ============================================================================
 
-export type Generation = 1 | 2;
+/**
+ * Generation number — widened from `1 | 2` to `number` so that adding
+ * Gen 3+ does not require editing this type. The adapter registry
+ * validates generation numbers at runtime; the type system no longer
+ * constrains them.
+ */
+export type Generation = number;
 
-export type GameVersion = 'Red' | 'Blue' | 'Yellow' | 'Gold' | 'Silver' | 'Crystal';
+/**
+ * Game version string — widened from a closed union to `string` so that
+ * adding new game versions does not require editing this type. Each
+ * adapter declares its `supportedVersions: string[]` for runtime
+ * validation; UI components use `default` branches for unknown versions.
+ *
+ * Known values (for reference): 'Red', 'Blue', 'Yellow', 'Gold',
+ * 'Silver', 'Crystal', 'Ruby', 'Sapphire', 'Emerald', 'FireRed',
+ * 'LeafGreen', etc.
+ */
+export type GameVersion = string;
 
 export interface Item {
   id: number;
