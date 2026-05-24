@@ -14,5 +14,15 @@ export default defineConfig({
       alias: {
         '@': path.resolve(__dirname, '.'),
       }
-    }
+    },
+
+    // === New: Disable minification and keep names ===
+    build: {
+      minify: false,        // stops all whitespace removal and mangling
+      sourcemap: true,      // generates .map files so browser devtools show your original code
+    },
+    esbuild: {
+      minifyIdentifiers: false,  // preserves variable/function names (backup)
+      keepNames: true,           // ensures function/class names are untouched
+    },
 });
