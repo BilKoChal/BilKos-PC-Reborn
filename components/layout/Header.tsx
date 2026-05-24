@@ -69,9 +69,42 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
         className="sticky top-0 z-50 w-full shadow-md transition-colors duration-300 bg-theme-primary text-theme-text-on-primary"
       >
         <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          {/* Logo Area + Settings Icon */}
+          {/* Logo Area */}
           <div className="flex items-center space-x-3 select-none">
-            {/* Settings Icon — top left */}
+            <div className="bg-white rounded-full p-1 border-4 border-theme-secondary">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={iconColor}>
+                 <circle cx="12" cy="12" r="10" fill="#F0F0F0" stroke="black" strokeWidth="2"/>
+                 <path d="M2 12H22" stroke="black" strokeWidth="2"/>
+                 <circle cx="12" cy="12" r="3" fill="white" stroke="black" strokeWidth="2"/>
+              </svg>
+            </div>
+            <span className="font-bold text-xl tracking-wider uppercase hidden sm:block">BilKo's PC</span>
+            <span className="font-bold text-xl tracking-wider uppercase sm:hidden">PC</span>
+          </div>
+
+          {/* Actions Area */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            
+            <div className="hidden sm:flex items-center px-3 py-1 rounded text-xs font-mono opacity-80 bg-current/15">
+              v1.1.0-alpha
+            </div>
+
+            {/* Active Sprite Mode Badge */}
+            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-current/10 border border-current/10">
+              {spriteMode === 'game-specific' ? <Gamepad2 size={12} /> : spriteMode === 'artwork' ? <Image size={12} /> : <Sparkles size={12} />}
+              <span className="hidden md:inline">{spriteMode === 'game-specific' ? 'Game' : spriteMode === 'artwork' ? 'Art' : 'Master'}</span>
+            </div>
+
+            {/* Dark Mode Toggle */}
+            <button 
+              onClick={toggleMode}
+              className="p-2 rounded-full hover:bg-current/10 active:scale-95 transition-all"
+              aria-label="Toggle Theme"
+            >
+              {mode === 'light' ? <Moon size={24} /> : <Sun size={24} />}
+            </button>
+
+            {/* Settings Icon */}
             <div className="relative" ref={settingsRef}>
               <button 
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
@@ -83,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
 
               {/* Settings Popup Panel */}
               {isSettingsOpen && (
-                <div className="absolute top-full left-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[2000] animate-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden z-[2000] animate-in slide-in-from-top-2 duration-200">
                   {/* Panel Header */}
                   <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                     <div className="flex items-center gap-2">
@@ -145,39 +178,6 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
                 </div>
               )}
             </div>
-
-            <div className="bg-white rounded-full p-1 border-4 border-theme-secondary">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={iconColor}>
-                 <circle cx="12" cy="12" r="10" fill="#F0F0F0" stroke="black" strokeWidth="2"/>
-                 <path d="M2 12H22" stroke="black" strokeWidth="2"/>
-                 <circle cx="12" cy="12" r="3" fill="white" stroke="black" strokeWidth="2"/>
-              </svg>
-            </div>
-            <span className="font-bold text-xl tracking-wider uppercase hidden sm:block">BilKo's PC</span>
-            <span className="font-bold text-xl tracking-wider uppercase sm:hidden">PC</span>
-          </div>
-
-          {/* Actions Area */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            
-            <div className="hidden sm:flex items-center px-3 py-1 rounded text-xs font-mono opacity-80 bg-current/15">
-              v1.1.0-alpha
-            </div>
-
-            {/* Active Sprite Mode Badge */}
-            <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-current/10 border border-current/10">
-              {spriteMode === 'game-specific' ? <Gamepad2 size={12} /> : spriteMode === 'artwork' ? <Image size={12} /> : <Sparkles size={12} />}
-              <span className="hidden md:inline">{spriteMode === 'game-specific' ? 'Game' : spriteMode === 'artwork' ? 'Art' : 'Master'}</span>
-            </div>
-
-            {/* Dark Mode Toggle */}
-            <button 
-              onClick={toggleMode}
-              className="p-2 rounded-full hover:bg-current/10 active:scale-95 transition-all"
-              aria-label="Toggle Theme"
-            >
-              {mode === 'light' ? <Moon size={24} /> : <Sun size={24} />}
-            </button>
 
             <button 
               onClick={() => setIsMenuOpen(true)}
