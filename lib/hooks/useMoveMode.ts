@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { MoveLocation, isSameLocation, transferPokemonBatch, movePokemonBatch } from '../utils/manipulation';
 import { ParsedSave } from '../parser/types';
+import { parseDragData, DragPayload, DND_DATA_TYPE } from './dndTypes';
 
 /**
  * Tracks the source (tab + location) of a selected Pokemon in move mode.
@@ -12,7 +13,7 @@ export interface GlobalMoveSource {
 
 /**
  * Custom hook for managing global move mode state and operations.
- * Extracted from App.tsx to encapsulate all move/drag-and-drop logic.
+ * Handles same-save and cross-save Pokemon moves with secure tabId tracking.
  */
 export function useMoveMode(
     getTab: (tabId: string) => { id: string; data: ParsedSave } | undefined,
@@ -28,7 +29,7 @@ export function useMoveMode(
         setIsMoveMode(val);
         setSelectedMoveLocations([]);
         if (val) {
-            showToast("Move Mode Active! Checkbox to select, Drag to move.");
+            showToast("Move Mode Active! Click to select, then click target to swap/move. Use Ctrl/Shift or checkbox for multi-select.");
         }
     }, [showToast]);
 
@@ -111,6 +112,15 @@ export function useMoveMode(
         }
     }, [getActiveTabId, getActiveTabData, getTab, onUpdateSave, showToast]);
 
+    /**
+     * Handle Pokemon slot click in move mode.
+     * 
+     * Selection Model:
+     * - Click (no modifiers): Select first Pokemon. If already selected, click another to swap/move.
+     * - Ctrl/Cmd + Click: Toggle multi-select (like checkbox).
+     * - Shift + Click: Range select from last selected.
+     * - Checkbox click: Toggle multi-select for that Pokemon.
+     */
     const handleGlobalPokemonSelect = useCallback((location: MoveLocation, e?: React.MouseEvent) => {
         const activeTabId = getActiveTabId();
         const activeData = getActiveTabData();
@@ -120,13 +130,16 @@ export function useMoveMode(
         const targetMon = targetBoxList[location.index];
         const isEmpty = !targetMon;
 
-        // --- 1. MODIFIERS (Shift/Ctrl) ---
+        // --- 1. MODIFIERS (Ctrl/Shift for multi-select) ---
         if (e?.ctrlKey || e?.metaKey) {
+            // Ctrl+click = toggle selection (same as checkbox)
+            if (isEmpty) return; // Can't select empty slots for multi-select
             handleSelectionToggle(location);
             return;
         }
 
         if (e?.shiftKey) {
+            // Shift+click = range select
             if (isEmpty) return;
             if (selectedMoveLocations.length === 0) {
                 setSelectedMoveLocations([{ tabId: activeTabId, location }]);
@@ -178,39 +191,41 @@ export function useMoveMode(
         }
 
         // --- 2. NO MODIFIERS ---
+        // No selection yet → select this Pokemon
         if (selectedMoveLocations.length === 0) {
             if (!isEmpty) setSelectedMoveLocations([{ tabId: activeTabId, location }]);
             return;
         }
 
+        // Clicking on an already-selected Pokemon → keep it as sole selection
         if (isSelected(activeTabId, location)) {
             setSelectedMoveLocations([{ tabId: activeTabId, location }]);
             return;
         }
 
-        // EXECUTE MOVE
+        // EXECUTE MOVE/SWAP: Move all selected Pokemon to the clicked target
         executeMoveOperation(selectedMoveLocations, location);
     }, [getActiveTabId, getActiveTabData, selectedMoveLocations, isSelected, handleSelectionToggle, executeMoveOperation]);
 
+    /**
+     * Handle drop event from HTML5 drag-and-drop.
+     * Parses the DragPayload with sourceTabId for secure cross-save transfers.
+     */
     const handleGlobalDrop = useCallback((target: MoveLocation, e?: React.DragEvent) => {
         const activeTabId = getActiveTabId();
         if (!activeTabId) return;
 
         let sourcesToMove: GlobalMoveSource[] = [];
 
+        // If we have existing selections, use them
         if (selectedMoveLocations.length > 0) {
             sourcesToMove = selectedMoveLocations;
         } else if (e) {
-            try {
-                const data = e.dataTransfer.getData('text/plain');
-                if (data) {
-                    const singleSource = JSON.parse(data) as MoveLocation;
-                    if (singleSource && (singleSource.index !== undefined)) {
-                        sourcesToMove = [{ tabId: activeTabId, location: singleSource }];
-                    }
-                }
-            } catch (err) {
-                console.error("Drop data parse error", err);
+            // Parse drag payload with sourceTabId
+            const payload = parseDragData(e.dataTransfer);
+            if (payload && payload.type === 'POKEMON' && payload.pokemonLocation) {
+                const sourceTabId = payload.sourceTabId || activeTabId;
+                sourcesToMove = [{ tabId: sourceTabId, location: payload.pokemonLocation }];
             }
         }
 

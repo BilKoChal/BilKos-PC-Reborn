@@ -22,6 +22,9 @@ export interface SaveContextValue {
   onToggleSelection: (target: MoveLocation) => void;
   onDropPokemon: (target: MoveLocation, e?: React.DragEvent) => void;
 
+  // Tab identity for cross-save drag
+  activeTabId: string | undefined;
+
   // Adapter access
   adapter: IGenerationAdapter | undefined;
 }
@@ -38,6 +41,7 @@ interface SaveProviderProps {
   onMovePokemon: (target: MoveLocation, e?: React.MouseEvent) => void;
   onToggleSelection: (target: MoveLocation) => void;
   onDropPokemon: (target: MoveLocation, e?: React.DragEvent) => void;
+  activeTabId?: string;
   children: ReactNode;
 }
 
@@ -51,6 +55,7 @@ export const SaveProvider: React.FC<SaveProviderProps> = ({
   onMovePokemon,
   onToggleSelection,
   onDropPokemon,
+  activeTabId,
   children,
 }) => {
   const value = useMemo<SaveContextValue>(() => ({
@@ -65,8 +70,9 @@ export const SaveProvider: React.FC<SaveProviderProps> = ({
     onMovePokemon,
     onToggleSelection,
     onDropPokemon,
+    activeTabId,
     adapter: registry.getAdapter(data.generation),
-  }), [data, onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode, globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon]);
+  }), [data, onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode, globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, activeTabId]);
 
   return (
     <SaveContext.Provider value={value}>

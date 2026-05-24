@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react';
-import { PokemonStats } from '../../lib/parser/types';
+import { PokemonStats, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
-import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, Move, Shuffle, Power, Download } from 'lucide-react';
+import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, CheckSquare, Square, Move, Shuffle, Power, Download, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
 import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 import { parsePk1 } from '../../lib/generations/gen1/parser';
+import { DND_DATA_TYPE } from '../../lib/hooks/dndTypes';
 
 interface PCStorageProps {
     boxes: PokemonStats[][];
@@ -23,10 +24,25 @@ interface PCStorageProps {
     onSortClick?: () => void;
     onSetActiveBox?: (boxIndex: number) => void;
     onImport?: (newBoxData: PokemonStats[], boxIndex: number) => void;
-    onToast?: (msg: string) => void; // Added Toast Handler
+    onToast?: (msg: string) => void;
+    tabId?: string;
+    gameVersion?: GameVersion;
 }
 
 type ViewMode = 'grid' | 'list';
+
+// Version to color mapping for themed drag rings
+const getVersionThemeColor = (version?: GameVersion) => {
+    switch (version) {
+        case 'Red': return { ring: 'ring-red-400', border: 'border-red-400', shadow: 'shadow-red-400/50', bg: 'bg-red-50 dark:bg-red-900/20' };
+        case 'Blue': return { ring: 'ring-blue-400', border: 'border-blue-400', shadow: 'shadow-blue-400/50', bg: 'bg-blue-50 dark:bg-blue-900/20' };
+        case 'Yellow': return { ring: 'ring-yellow-400', border: 'border-yellow-400', shadow: 'shadow-yellow-400/50', bg: 'bg-yellow-50 dark:bg-yellow-900/20' };
+        case 'Gold': return { ring: 'ring-amber-400', border: 'border-amber-400', shadow: 'shadow-amber-400/50', bg: 'bg-amber-50 dark:bg-amber-900/20' };
+        case 'Silver': return { ring: 'ring-slate-400', border: 'border-slate-400', shadow: 'shadow-slate-400/50', bg: 'bg-slate-50 dark:bg-slate-900/20' };
+        case 'Crystal': return { ring: 'ring-cyan-400', border: 'border-cyan-400', shadow: 'shadow-cyan-400/50', bg: 'bg-cyan-50 dark:bg-cyan-900/20' };
+        default: return { ring: 'ring-blue-400', border: 'border-blue-400', shadow: 'shadow-blue-400/50', bg: 'bg-blue-50 dark:bg-blue-900/20' };
+    }
+};
 
 // Memoized Slot Component
 const BoxSlot = memo<{
@@ -36,6 +52,8 @@ const BoxSlot = memo<{
     isMoveMode?: boolean;
     isSelected: boolean;
     viewMode: ViewMode;
+    tabId?: string;
+    gameVersion?: GameVersion;
     onPokemonClick?: (mon: PokemonStats, index: number, boxIndex: number, e: React.MouseEvent) => void;
     onEmptySlotClick?: (index: number, boxIndex: number, e: React.MouseEvent) => void;
     onToggleSelection?: (index: number, boxIndex: number) => void;
@@ -43,14 +61,18 @@ const BoxSlot = memo<{
     onEnableMoveMode?: () => void;
 }>(({ 
     mon, slotIndex, viewedBoxIndex, isMoveMode, isSelected, viewMode,
+    tabId, gameVersion,
     onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onEnableMoveMode 
 }) => {
     
+    const [isDragOver, setIsDragOver] = useState(false);
+    const themeColors = getVersionThemeColor(gameVersion);
+
     // Use DRY hook
     const { 
-        handleDragStart, handleDrop, handlePointerDown, handlePointerUp, handleClick 
+        handleDragStart, handleDragOver, handleDrop, handlePointerDown, handlePointerUp, handleClick 
     } = useSlotLogic({
-        mon, index: slotIndex, boxIndex: viewedBoxIndex, isMoveMode, isSelected,
+        mon, index: slotIndex, boxIndex: viewedBoxIndex, isMoveMode, isSelected, tabId,
         onEnableMoveMode, onToggleSelection, onPokemonClick, onEmptySlotClick, onDropPokemon
     });
 
@@ -65,14 +87,23 @@ const BoxSlot = memo<{
                 onClick={handleClick}
                 draggable={!!mon}
                 onDragStart={handleDragStart}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
+                onDragOver={(e) => {
+                    handleDragOver(e);
+                    setIsDragOver(true);
+                }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={(e) => {
+                    setIsDragOver(false);
+                    handleDrop(e);
+                }}
                 className={`
                     flex items-center p-0 rounded-2xl border transition-all cursor-pointer group h-24 overflow-hidden relative select-none
-                    ${mon
-                        ? `bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-400 shadow-sm hover:shadow-md 
-                           ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500' : ''}`
-                        : 'bg-gray-50/50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-800 border-dashed opacity-60'
+                    ${isDragOver
+                        ? `ring-4 ${themeColors.ring} ${themeColors.border} scale-105 z-40 ${themeColors.shadow} shadow-xl ${themeColors.bg}`
+                        : mon
+                            ? `bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:border-blue-400 shadow-sm hover:shadow-md 
+                               ${isSelected ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-500 ring-2 ring-blue-400' : ''}`
+                            : 'bg-gray-50/50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-800 border-dashed opacity-60'
                     }
                 `}
             >
@@ -85,9 +116,11 @@ const BoxSlot = memo<{
                             onClick={(e) => { e.stopPropagation(); onToggleSelection && onToggleSelection(slotIndex, viewedBoxIndex); }}
                             className="absolute top-1 left-1 z-30 p-2 cursor-pointer"
                         >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'}`}>
-                                {isSelected && <MousePointer2 size={10} className="text-white" />}
-                            </div>
+                            {isSelected ? (
+                                <CheckSquare className="w-4 h-4 text-blue-500 bg-white rounded shadow-sm" />
+                            ) : (
+                                <Square className="w-4 h-4 text-blue-400 bg-white/60 rounded shadow-sm hover:text-blue-500" />
+                            )}
                         </div>
                     )}
                 </div>
@@ -127,7 +160,7 @@ const BoxSlot = memo<{
                     </>
                 ) : (
                     <div className="flex-grow flex items-center justify-center text-gray-300 dark:text-gray-700 font-bold uppercase tracking-widest text-sm">
-                        Empty Slot
+                        {isDragOver ? 'Drop Here' : 'Empty Slot'}
                     </div>
                 )}
             </div>
@@ -145,18 +178,32 @@ const BoxSlot = memo<{
             onClick={handleClick}
             draggable={!!mon}
             onDragStart={handleDragStart}
-            onDragOver={(e) => e.preventDefault()} 
-            onDrop={handleDrop}
+            onDragOver={(e) => {
+                handleDragOver(e);
+                setIsDragOver(true);
+            }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(e) => {
+                setIsDragOver(false);
+                handleDrop(e);
+            }}
             className={`
                 relative aspect-square rounded-xl flex flex-col items-center justify-between p-2
                 transition-all duration-200 border-2 group select-none
-                ${mon 
-                    ? `bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 
-                       ${isSelected ? 'border-blue-500 ring-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20' : isMoveMode ? 'hover:border-blue-400 cursor-grab active:cursor-grabbing' : 'hover:border-blue-500 hover:shadow-md cursor-pointer'} 
-                      `
-                    : `bg-gray-200/50 dark:bg-gray-800/30 border-transparent border-dashed 
-                       ${isMoveMode ? 'hover:border-blue-400 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'hover:bg-gray-200 dark:hover:bg-gray-800/50'}
-                      `
+                ${isDragOver
+                    ? `ring-4 ${themeColors.ring} ${themeColors.border} scale-110 z-40 ${themeColors.shadow} shadow-2xl ${themeColors.bg} animate-pulse`
+                    : mon 
+                        ? `bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 
+                           ${isSelected 
+                               ? 'border-blue-500 ring-4 ring-offset-2 ring-blue-400 bg-blue-50 dark:bg-blue-900/20 shadow-lg z-20' 
+                               : isMoveMode 
+                                   ? 'hover:border-blue-400 cursor-grab active:cursor-grabbing' 
+                                   : 'hover:border-blue-500 hover:shadow-md cursor-pointer'
+                           } 
+                          `
+                        : `bg-gray-200/50 dark:bg-gray-800/30 border-transparent border-dashed 
+                           ${isMoveMode ? 'hover:border-blue-400 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20' : 'hover:bg-gray-200 dark:hover:bg-gray-800/50'}
+                          `
                 }
             `}
         >
@@ -164,11 +211,13 @@ const BoxSlot = memo<{
             {isMoveMode && mon && (
                 <div 
                     onClick={(e) => { e.stopPropagation(); onToggleSelection && onToggleSelection(slotIndex, viewedBoxIndex); }}
-                    className="absolute top-1 left-1 z-30 p-2 -m-2 cursor-pointer"
+                    className="absolute top-1 left-1 z-30 p-1 cursor-pointer"
                 >
-                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-blue-500 border-blue-500' : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-500'}`}>
-                        {isSelected && <MousePointer2 size={10} className="text-white" />}
-                    </div>
+                    {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-blue-500 bg-white rounded shadow-sm" />
+                    ) : (
+                        <Square className="w-4 h-4 text-blue-400 bg-white/60 rounded shadow-sm hover:text-blue-500 hover:bg-white transition-colors" />
+                    )}
                 </div>
             )}
 
@@ -209,8 +258,17 @@ const BoxSlot = memo<{
                 </>
             ) : (
                 <div className="flex flex-col items-center justify-center h-full text-gray-300 dark:text-gray-700">
-                    <span className="text-xs font-mono font-bold">{slotIndex + 1}</span>
-                    <Box size={24} className="mt-2 opacity-50" />
+                    {isDragOver ? (
+                        <>
+                            <Plus size={24} className="mb-1 opacity-80" />
+                            <span className="text-[10px] font-bold uppercase">Drop Here</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="text-xs font-mono font-bold">{slotIndex + 1}</span>
+                            <Box size={24} className="mt-2 opacity-50" />
+                        </>
+                    )}
                 </div>
             )}
         </div>
@@ -221,13 +279,15 @@ const BoxSlot = memo<{
         prev.isSelected === next.isSelected &&
         prev.viewMode === next.viewMode &&
         prev.isMoveMode === next.isMoveMode &&
-        prev.viewedBoxIndex === next.viewedBoxIndex 
+        prev.viewedBoxIndex === next.viewedBoxIndex &&
+        prev.gameVersion === next.gameVersion
     );
 });
 
 export const PCStorage: React.FC<PCStorageProps> = ({ 
     boxes, currentBoxIndex, isMoveMode, onEnableMoveMode, onToggleMoveMode, selectedMoveSources = [], 
-    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onSortClick, onSetActiveBox, onImport, onToast
+    onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onSortClick, onSetActiveBox, onImport, onToast,
+    tabId, gameVersion
 }) => {
     const { getGameTheme } = useTheme();
     const theme = getGameTheme();
@@ -275,8 +335,6 @@ export const PCStorage: React.FC<PCStorageProps> = ({
         if (!e.target.files || !onImport) return;
         
         const files: File[] = Array.from(e.target.files);
-        
-        // We will process files one by one and stop if PC is full
         let importedCount = 0;
 
         for (const file of files) {
@@ -290,12 +348,9 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                 continue;
             }
 
-            // Find a box with space
             let targetBoxIndex = viewedBoxIndex;
             
-            // 1. Check current viewed box first
             if (boxes[targetBoxIndex].length >= 20) {
-                // 2. Search for first available box starting from next one
                 let foundIndex = -1;
                 for (let i = 1; i < MAX_BOXES; i++) {
                     const checkIndex = (viewedBoxIndex + i) % MAX_BOXES;
@@ -307,32 +362,14 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
                 if (foundIndex !== -1) {
                     targetBoxIndex = foundIndex;
-                    // Provide feedback that we switched boxes
                     if (onToast) onToast(`Box ${viewedBoxIndex + 1} is full! Importing to Box ${targetBoxIndex + 1}.`);
                 } else {
                     if (onToast) onToast("PC Storage is completely full! Cannot import.");
-                    break; // Stop processing more files
+                    break;
                 }
             }
 
-            // Prepare for Import
             mon.isParty = false;
-            
-            // We need to pass the *entire* box array to onImport for the specific index
-            // But onImport expects (newBoxData, boxIndex). 
-            // We need to fetch the *current* state of that box from props.boxes
-            // Note: Since props.boxes might update after onImport triggers a state change in parent,
-            // batch importing multiple files in a loop like this might have race conditions if onImport is async/state-based.
-            // However, React batching usually handles this if we are careful.
-            // Ideally we should construct the new state locally for all files and send once, 
-            // but the current onImport signature is per-box.
-            
-            // Hack for multi-file: We are modifying props.boxes reference in the loop context which is bad.
-            // Better approach: We only support single file fully reliably or we rely on the parent to update fast enough.
-            // Given the constraints, let's assume one file for now or sequential updates.
-            
-            // For safety with multiple files, we should probably just do one at a time or reconstruct the whole array.
-            // Let's implement single file logic robustly first.
             
             const targetBoxData = [...boxes[targetBoxIndex]];
             targetBoxData.push(mon);
@@ -537,6 +574,8 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 isMoveMode={isMoveMode}
                                 isSelected={isSlotSelected(slotIndex)}
                                 viewMode="grid"
+                                tabId={tabId}
+                                gameVersion={gameVersion}
                                 onPokemonClick={onPokemonClick}
                                 onEmptySlotClick={onEmptySlotClick}
                                 onToggleSelection={onToggleSelection}
@@ -557,6 +596,8 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 isMoveMode={isMoveMode}
                                 isSelected={isSlotSelected(slotIndex)}
                                 viewMode="list"
+                                tabId={tabId}
+                                gameVersion={gameVersion}
                                 onPokemonClick={onPokemonClick}
                                 onEmptySlotClick={onEmptySlotClick}
                                 onToggleSelection={onToggleSelection}

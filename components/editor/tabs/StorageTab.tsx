@@ -31,6 +31,8 @@ export const StorageTab: React.FC<StorageTabProps> = ({
     const onToggleSelection = ctx?.onToggleSelection;
     const onDropPokemon = ctx?.onDropPokemon;
     const onShowToast = ctx?.onShowToast;
+    const tabId = ctx?.activeTabId;
+    const gameVersion = ctx?.gameVersion;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -51,6 +53,8 @@ export const StorageTab: React.FC<StorageTabProps> = ({
                     onSetActiveBox={handleSetActiveBox}
                     onImport={handleImportBox}
                     onToast={onShowToast ?? (() => {})}
+                    tabId={tabId}
+                    gameVersion={gameVersion}
                 />
             </div>
 

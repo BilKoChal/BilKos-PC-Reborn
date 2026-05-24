@@ -415,6 +415,7 @@ const App: React.FC = () => {
                     onToggleSelection={moveMode.handleSelectionToggle}
                     onDropPokemon={moveMode.handleGlobalDrop}
                     onShowToast={showToast}
+                    activeTabId={activeTab.id}
                 />
             </div>
         ) : (

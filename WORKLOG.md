@@ -436,3 +436,102 @@ Added inline comments to affected panel imports (`MOVES_LIST`, `MOVES_PP`, `POKE
 - `/lib/utils/textCodec.ts`
 - `/context/SaveContext.tsx`
 
+
+### 2026-05-25 - Phase C: Advanced Drag-and-Drop & Selection System
+
+**Author**: Code Review & Enhancement Agent
+
+#### Background:
+Following Phases A and B, the drag-and-drop and Pokemon selection system was significantly enhanced with cross-save support, smart selection model, hover tab activation, and modern visual feedback.
+
+#### 1. Smart Pokemon Selection Model
+
+**Before**: Selection in move mode was confusing — clicking always toggled selection regardless of context, making it hard to perform simple swap operations.
+
+**After**: Clear, intuitive selection model:
+- **Click (no modifiers)** on unselected Pokemon → Select it as sole selection
+- **Click (no modifiers)** on different Pokemon while one is selected → Execute swap/move
+- **Click (no modifiers)** on already-selected Pokemon → Keep as sole selection
+- **Click checkbox** → Toggle multi-select for that Pokemon
+- **Ctrl/Cmd + Click** → Toggle multi-select (same as checkbox)
+- **Shift + Click** → Range select from last selected to clicked Pokemon
+
+Updated `handleGlobalPokemonSelect` in `useMoveMode.ts` with clear modifier-first logic flow.
+
+#### 2. Cross-Save Drag-and-Drop with Secure TabId Tracking
+
+**Before**: Drag data was plain JSON `{ type, boxIndex, index }` with no source tab identity. Drop handler always assumed `activeTabId` as source, making cross-save transfers via drag unreliable.
+
+**After**: New `DragPayload` type includes `sourceTabId`:
+```typescript
+interface DragPayload {
+    type: 'POKEMON';
+    pokemonLocation: MoveLocation;
+    sourceTabId: string;    // Securely serialized origin tab
+    description?: string;
+}
+```
+
+Created `/lib/hooks/dndTypes.ts` with:
+- `DND_DATA_TYPE` custom MIME type (`application/x-bilkos-pc-drag`)
+- `setDragData()` / `parseDragData()` helpers for typed serialization
+- `DragPayload` interface with `sourceTabId`
+
+Updated `useSlotLogic.ts` to accept `tabId` prop and include it in drag data.
+Updated `useMoveMode.ts` `handleGlobalDrop` to parse `sourceTabId` from payload for correct cross-save transfer.
+
+#### 3. Hover Tab Activation (400ms)
+
+**Before**: Switching tabs during a drag required canceling the drag, clicking the tab, then re-dragging.
+
+**After**: `SaveTabBar.tsx` now includes `DragAwareTab` component with:
+- `onDragEnter` / `onDragOver` / `onDragLeave` / `onDrop` handlers
+- 400ms hover timer — hovering over an inactive tab for 400ms auto-switches to it
+- Themed ring highlight on hover with game version color
+- Timer cleanup on `dragLeave` and `drop` events
+- `DND_DATA_TYPE` check ensures only Pokemon drags trigger tab switching
+
+#### 4. Modern Drag-Over Visual Feedback
+
+**Before**: Simple yellow ring on drag-over with no animation or theme awareness.
+
+**After**: High-contrast, game-themed feedback on both Party and PC slots:
+- **Themed ring**: 4px ring color matches the game version (Red=red, Blue=blue, Gold=amber, Crystal=cyan, etc.)
+- **Scale animation**: `scale-110` on drag-over with `animate-pulse` for attention
+- **Themed shadow**: Colored shadow (`shadow-red-400/50`, etc.) for depth
+- **Themed background**: Light tinted background matching game version
+- **z-index management**: `z-40` for drag-over ensures slot appears above neighbors
+- **"Drop Here" text**: Empty slots change from "Empty" to "Drop Here" during drag-over
+
+#### 5. Empty Party Slot Redesign
+
+**Before**: Empty party slots used `Ban` icon with static styling and minimal drag support.
+
+**After**: New `EmptyPartySlot` component in `PartyList.tsx`:
+- `Plus` icon instead of `Ban` for positive affordance
+- Full drag-over support with themed ring, scale, and shadow feedback
+- "Drop Here" text during active drag, "Place Here" in move mode, "Empty Slot" otherwise
+- `DND_DATA_TYPE` checking for proper drag event filtering
+- Smooth `transition-all duration-200` for hover/drag state changes
+
+#### 6. SaveContext Enhanced with activeTabId
+
+Added `activeTabId: string | undefined` to `SaveContextValue` interface and `SaveProvider` props, allowing all context consumers to access the current tab identity for secure cross-save operations.
+
+#### Files Modified (Phase C):
+- `/lib/hooks/useSlotLogic.ts` — Added `tabId` prop, custom MIME type drag, `handleDragOver` with type checking
+- `/lib/hooks/useMoveMode.ts` — Updated `handleGlobalDrop` to parse `sourceTabId` from `DragPayload`; improved selection logic with clear Ctrl/Shift/no-modifier flow
+- `/components/editor/SaveTabBar.tsx` — Complete rewrite with `DragAwareTab` sub-component, 400ms hover activation, themed ring highlights
+- `/components/editor/PartyList.tsx` — Complete rewrite with `EmptyPartySlot`, `CheckSquare`/`Square` checkboxes, themed drag-over feedback, `tabId`/`gameVersion` props
+- `/components/editor/PCStorage.tsx` — Added themed drag-over feedback to both grid and list `BoxSlot`, `CheckSquare`/`Square` checkboxes, `tabId`/`gameVersion` props, `DND_DATA_TYPE` checking
+- `/components/editor/EditorDashboard.tsx` — Added `activeTabId` prop, passes to `SaveProvider`
+- `/components/editor/tabs/DashboardTab.tsx` — Passes `tabId` and `gameVersion` from context to `PartyList`
+- `/components/editor/tabs/StorageTab.tsx` — Passes `tabId` and `gameVersion` from context to `PCStorage`
+- `/context/SaveContext.tsx` — Added `activeTabId` to context value and provider props
+- `/App.tsx` — Passes `activeTabId` to `EditorDashboard`
+- `/README.md` — Updated with Phase C features
+- `/WORKLOG.md` — This entry
+
+#### New Files Created (Phase C):
+- `/lib/hooks/dndTypes.ts` — DND types, constants, and helpers (`DragPayload`, `DND_DATA_TYPE`, `setDragData`, `parseDragData`, `serializeDragData`)
+

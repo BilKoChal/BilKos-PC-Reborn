@@ -26,11 +26,13 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
     const globalMoveSources = ctx?.globalMoveSources ?? [];
     const onToggleSelection = ctx?.onToggleSelection;
     const onDropPokemon = ctx?.onDropPokemon;
+    const tabId = ctx?.activeTabId;
+    const gameVersion = ctx?.gameVersion;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Column: Trainer Card (3 Cols) */}
-            <div className="lg:col-span-4 xl:col-span-3">
+            <div className="lg:col-span-4 xl:lg:col-span-3">
                 <TrainerCard 
                     data={data} 
                     onUpdate={handleTrainerUpdate}
@@ -39,12 +41,12 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
             </div>
             
             {/* Right Column: Party (9 Cols) */}
-            <div className="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
+            <div className="lg:col-span-8 xl:lg:col-span-9 flex flex-col gap-4">
                 <div>
                     <PartyList 
                         party={data.party} 
                         generation={data.generation}
-                        gameVersion={data.gameVersion}
+                        gameVersion={gameVersion}
                         isMoveMode={isMoveMode}
                         onEnableMoveMode={() => setIsMoveMode?.(true)} 
                         selectedMoveSources={globalMoveSources}
@@ -52,6 +54,7 @@ export const DashboardTab: React.FC<DashboardTabProps> = ({
                         onEmptySlotClick={(idx, e) => handleEmptySlotClick({ type: 'party', index: idx }, e)}
                         onToggleSelection={onToggleSelection ? (idx) => onToggleSelection({ type: 'party', index: idx }) : undefined}
                         onDropPokemon={onDropPokemon ? (idx, e) => onDropPokemon({ type: 'party', index: idx }, e) : undefined}
+                        tabId={tabId}
                     />
                 </div>
             </div>

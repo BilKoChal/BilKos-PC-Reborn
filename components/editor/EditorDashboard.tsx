@@ -44,6 +44,9 @@ interface EditorDashboardProps {
     // Tab Control
     activeTab: DashboardTab;
     onTabChange: (tab: DashboardTab) => void;
+
+    // Tab identity for cross-save drag
+    activeTabId?: string;
 }
 
 export const EditorDashboard: React.FC<EditorDashboardProps> = ({ 
@@ -60,7 +63,8 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     onDropPokemon,
     onShowToast,
     activeTab,
-    onTabChange
+    onTabChange,
+    activeTabId
 }) => {
     const { getGameTheme, mode } = useTheme();
     const theme = getGameTheme();
@@ -281,6 +285,7 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             onMovePokemon={onMovePokemon}
             onToggleSelection={onToggleSelection}
             onDropPokemon={onDropPokemon}
+            activeTabId={activeTabId}
         >
         <div className="min-h-screen bg-gray-50 dark:bg-gray-950 pb-20 font-sans transition-colors duration-300">
             {/* Modals */}

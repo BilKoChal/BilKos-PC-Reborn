@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { PokemonStats } from '../parser/types';
+import { setDragData, parseDragData, DragPayload, DND_DATA_TYPE } from './dndTypes';
 
 interface UseSlotLogicProps {
     mon: PokemonStats | undefined;
@@ -7,6 +8,7 @@ interface UseSlotLogicProps {
     boxIndex?: number;
     isMoveMode?: boolean;
     isSelected?: boolean;
+    tabId?: string;
     onEnableMoveMode?: () => void;
     onToggleSelection?: (index: number, boxIndex?: number) => void;
     onPokemonClick?: (mon: PokemonStats, index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
@@ -15,7 +17,7 @@ interface UseSlotLogicProps {
 }
 
 export const useSlotLogic = ({
-    mon, index, boxIndex, isMoveMode, isSelected,
+    mon, index, boxIndex, isMoveMode, isSelected, tabId,
     onEnableMoveMode, onToggleSelection, onPokemonClick, onEmptySlotClick, onDropPokemon
 }: UseSlotLogicProps) => {
     
@@ -27,17 +29,36 @@ export const useSlotLogic = ({
             onEnableMoveMode();
         }
 
-        const type = boxIndex !== undefined ? 'box' : 'party';
-        
-        // If not empty, set data
-        if (mon || !isMoveMode) {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', JSON.stringify({ type, boxIndex, index }));
+        if (!mon) {
+            e.preventDefault();
+            return;
         }
+
+        const type = boxIndex !== undefined ? 'box' : 'party';
+        const location = type === 'box' 
+            ? { type: 'box' as const, boxIndex: boxIndex!, index } 
+            : { type: 'party' as const, index };
+
+        const payload: DragPayload = {
+            type: 'POKEMON',
+            pokemonLocation: location,
+            sourceTabId: tabId || '',
+            description: mon.nickname
+        };
+
+        setDragData(e, payload);
 
         // Auto-select if in move mode and not already selected
         if (isMoveMode && !isSelected && onToggleSelection) {
             onToggleSelection(index, boxIndex);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        // Check if this is our custom drag type
+        if (e.dataTransfer.types.includes(DND_DATA_TYPE)) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
         }
     };
 
@@ -68,8 +89,6 @@ export const useSlotLogic = ({
     };
 
     const handleClick = (e: React.MouseEvent) => {
-        // Prevent click if we just finished a long press? 
-        // Logic handled by mode switch usually.
         if (mon) {
             onPokemonClick && onPokemonClick(mon, index, boxIndex, e);
         } else {
@@ -79,6 +98,7 @@ export const useSlotLogic = ({
 
     return {
         handleDragStart,
+        handleDragOver,
         handleDrop,
         handlePointerDown,
         handlePointerUp,
