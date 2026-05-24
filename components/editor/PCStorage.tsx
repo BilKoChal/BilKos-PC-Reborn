@@ -6,7 +6,7 @@ import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
 import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 import { parsePk1 } from '../../lib/generations/gen1/parser';
-import { DND_DATA_TYPE } from '../../lib/hooks/dndTypes';
+import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
 
 interface PCStorageProps {
     boxes: PokemonStats[][];
@@ -75,6 +75,8 @@ const BoxSlot = memo<{
     // to prevent flicker when cursor moves between parent and child elements.
     const [isDragOver, setIsDragOver] = useState(false);
     const dragEnterCountRef = useRef(0);
+    // HOTFIX: Track if THIS slot is the drag source — prevent self-highlighting
+    const isThisDragSourceRef = useRef(false);
     const themeColors = getVersionThemeColor(gameVersion);
 
     // Use DRY hook
@@ -86,9 +88,39 @@ const BoxSlot = memo<{
         onBeginDragSession, onEndDragSession
     });
 
-    // FIX (Phase 4): Proper dragEnter/dragLeave counting to prevent child-element flicker
+    // HOTFIX: Listen for global drag-end event to reset stuck isDragOver
+    // When a drag is cancelled (Escape, drop outside window), dragLeave doesn't
+    // fire on target slots. This event ensures all slots reset their visual state.
+    useEffect(() => {
+        const handler = () => {
+            dragEnterCountRef.current = 0;
+            setIsDragOver(false);
+        };
+        document.addEventListener(DND_END_EVENT, handler);
+        return () => document.removeEventListener(DND_END_EVENT, handler);
+    }, []);
+
+    // HOTFIX: Wrap dragStart to mark this slot as the drag source
+    const handleSlotDragStart = useCallback((e: React.DragEvent) => {
+        isThisDragSourceRef.current = true;
+        setIsDragOver(false); // Never highlight source slot
+        handleDragStart(e);
+    }, [handleDragStart]);
+
+    // HOTFIX: Wrap dragEnd to clear source flag and dispatch global reset event
+    const handleSlotDragEnd = useCallback(() => {
+        isThisDragSourceRef.current = false;
+        dragEnterCountRef.current = 0;
+        setIsDragOver(false);
+        dispatchDragEnd(); // Notify ALL slots to reset (fixes stuck highlights on cancelled drags)
+        handleDragEnd();
+    }, [handleDragEnd]);
+
+    // FIX (Phase 4) + HOTFIX: Proper dragEnter/dragLeave counting + skip if this is drag source
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (!e.dataTransfer.types.includes(DND_DATA_TYPE)) return;
+        // HOTFIX: Don't highlight the slot that IS being dragged
+        if (isThisDragSourceRef.current) return;
         e.preventDefault();
         dragEnterCountRef.current++;
         if (dragEnterCountRef.current === 1) {
@@ -113,6 +145,7 @@ const BoxSlot = memo<{
     const handleSlotDrop = useCallback((e: React.DragEvent) => {
         dragEnterCountRef.current = 0;
         setIsDragOver(false);
+        dispatchDragEnd(); // Notify all other slots to reset too
         handleDrop(e);
     }, [handleDrop]);
 
@@ -126,8 +159,8 @@ const BoxSlot = memo<{
                 onMouseLeave={handlePointerUp}
                 onClick={handleClick}
                 draggable={!!mon}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
+                onDragStart={handleSlotDragStart}
+                onDragEnd={handleSlotDragEnd}
                 onDragOver={handleDragOver}
                 onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
@@ -215,8 +248,8 @@ const BoxSlot = memo<{
             onMouseLeave={handlePointerUp}
             onClick={handleClick}
             draggable={!!mon}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
+            onDragStart={handleSlotDragStart}
+            onDragEnd={handleSlotDragEnd}
             onDragOver={handleDragOver}
             onDragEnter={handleDragEnter}
             onDragLeave={handleDragLeave}
