@@ -116,11 +116,15 @@ const BoxSlot = memo<{
         handleDragEnd();
     }, [handleDragEnd]);
 
-    // FIX (Phase 4) + HOTFIX: Proper dragEnter/dragLeave counting + skip if this is drag source
+    // FIX: Only count enter/leave events that fire directly on this slot element,
+    // NOT bubbled events from child elements (sprite, text, etc.).
+    // This keeps the enter/leave counts perfectly in sync.
     const handleDragEnter = useCallback((e: React.DragEvent) => {
         if (!e.dataTransfer.types.includes(DND_DATA_TYPE)) return;
         // HOTFIX: Don't highlight the slot that IS being dragged
         if (isThisDragSourceRef.current) return;
+        // Only count direct enters on this slot, not bubbled events from children
+        if (e.target !== e.currentTarget) return;
         e.preventDefault();
         dragEnterCountRef.current++;
         if (dragEnterCountRef.current === 1) {
@@ -129,12 +133,8 @@ const BoxSlot = memo<{
     }, []);
 
     const handleDragLeave = useCallback((e: React.DragEvent) => {
-        // Belt-and-suspenders: check if relatedTarget is still within the slot
-        const relatedTarget = e.relatedTarget as Node | null;
-        if (relatedTarget && e.currentTarget.contains(relatedTarget)) {
-            return; // Cursor moved to a child element — not actually leaving
-        }
-        
+        // Only count direct leaves from this slot, not bubbled events from children
+        if (e.target !== e.currentTarget) return;
         dragEnterCountRef.current--;
         if (dragEnterCountRef.current <= 0) {
             dragEnterCountRef.current = 0;
