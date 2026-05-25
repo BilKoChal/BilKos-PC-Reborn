@@ -106,10 +106,10 @@ export const OFFSETS_JPN = {
 
 export function isSaveJapanese(view: Uint8Array): boolean {
   if (view.byteLength < 0x3524) return false;
-  const intPartyCount = view[0x2F2C];
-  const intFirstSpecies = view[0x2F2D];
-  const jpnPartyCount = view[0x2ED5];
-  const jpnFirstSpecies = view[0x2ED6];
+  const intPartyCount = view[0x2F2C]!;
+  const intFirstSpecies = view[0x2F2D]!;
+  const jpnPartyCount = view[0x2ED5]!;
+  const jpnFirstSpecies = view[0x2ED6]!;
   
   const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
   const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
@@ -129,7 +129,7 @@ function getPokedexFlags(data: Uint8Array, start: number): boolean[] {
      const bitIndex = i % 8;
      
      if (byteIndex < 19) {
-        const byte = data[start + byteIndex];
+        const byte = data[start + byteIndex]!;
         flags.push((byte & (1 << bitIndex)) !== 0);
      } else {
         flags.push(false);
@@ -144,20 +144,20 @@ function getEventFlags(data: Uint8Array, start: number): boolean[] {
     for (let i = 0; i < 256; i++) {
         const byteIndex = Math.floor(i / 8);
         const bitIndex = i % 8;
-        const byte = data[start + byteIndex];
+        const byte = data[start + byteIndex]!;
         flags.push((byte & (1 << bitIndex)) !== 0);
     }
     return flags;
 }
 
 function parseItems(view: Uint8Array, startOffset: number, maxCapacity: number = 20): Item[] {
-  const count = view[startOffset];
+  const count = view[startOffset]!;
   const items: Item[] = [];
   
   let currentOffset = startOffset + 1;
   for (let i = 0; i < count && i < maxCapacity; i++) {
-    const itemId = view[currentOffset];
-    const quantity = view[currentOffset + 1];
+    const itemId = view[currentOffset]!;
+    const quantity = view[currentOffset + 1]!;
     
     if (itemId === 0xFF) break;
 
@@ -201,32 +201,32 @@ function parsePokemonStruct(
     };
   }
 
-  const speciesId = view[offset];
-  const dexId = GEN1_INTERNAL_TO_DEX[speciesId] || 0;
+  const speciesId = view[offset]!;
+  const dexId = GEN1_INTERNAL_TO_DEX[speciesId] ?? 0;
 
-  const catchRate = view[offset + 0x07];
+  const catchRate = view[offset + 0x07]!;
 
   const moveIds = [
-      view[offset + 8],
-      view[offset + 9],
-      view[offset + 10],
-      view[offset + 11]
+      view[offset + 8]!,
+      view[offset + 9]!,
+      view[offset + 10]!,
+      view[offset + 11]!
   ];
 
   const moves = moveIds.map(id => getMoveName(id));
 
   const pps = [
-      view[offset + 29] & 0x3F,
-      view[offset + 30] & 0x3F,
-      view[offset + 31] & 0x3F,
-      view[offset + 32] & 0x3F
+      view[offset + 29]! & 0x3F,
+      view[offset + 30]! & 0x3F,
+      view[offset + 31]! & 0x3F,
+      view[offset + 32]! & 0x3F
   ];
   
   const ppUps = [
-      view[offset + 29] >> 6,
-      view[offset + 30] >> 6,
-      view[offset + 31] >> 6,
-      view[offset + 32] >> 6
+      view[offset + 29]! >> 6,
+      view[offset + 30]! >> 6,
+      view[offset + 31]! >> 6,
+      view[offset + 32]! >> 6
   ];
 
   const originalTrainerId = getUInt16BigEndian(view, offset + 0x0C);
@@ -237,8 +237,8 @@ function parsePokemonStruct(
   const spdEv = getUInt16BigEndian(view, offset + 0x17);
   const spcEv = getUInt16BigEndian(view, offset + 0x19);
 
-  const ivByte1 = view[offset + 0x1B];
-  const ivByte2 = view[offset + 0x1C];
+  const ivByte1 = view[offset + 0x1B]!;
+  const ivByte2 = view[offset + 0x1C]!;
 
   const atkIv = (ivByte1 >> 4) & 0xF;
   const defIv = ivByte1 & 0xF;
@@ -253,10 +253,10 @@ function parsePokemonStruct(
   let speed = 0;
   let special = 0;
   
-  let level = view[offset + 0x03]; 
+  let level = view[offset + 0x03]!; 
 
   if (isParty) {
-      const partyLevel = view[offset + 33];
+      const partyLevel = view[offset + 33]!;
       if (partyLevel > 0) {
           level = partyLevel;
       }
@@ -272,10 +272,10 @@ function parsePokemonStruct(
       const base = GEN1_BASE_STATS[dexId];
       if (base) {
           maxHp = calculateGen1Stat(base.hp, hpIv, hpEv, level, true);
-          attack = calculateGen1Stat(base.atk, atkIv, atkEv, level, false);
-          defense = calculateGen1Stat(base.def, defIv, defEv, level, false);
-          speed = calculateGen1Stat(base.spe, spdIv, spdEv, level, false);
-          special = calculateGen1Stat(base.spc, spcIv, spcEv, level, false);
+          attack = calculateGen1Stat(base.atk!, atkIv, atkEv, level, false);
+          defense = calculateGen1Stat(base.def!, defIv, defEv, level, false);
+          speed = calculateGen1Stat(base.spe!, spdIv, spdEv, level, false);
+          special = calculateGen1Stat(base.spc!, spcIv, spcEv, level, false);
       } else {
           maxHp = currentHp; 
       }
@@ -314,11 +314,11 @@ function parsePokemonStruct(
     special,
     spAtk: special,
     spDef: special,
-    type1: view[offset + 5],
-    type2: view[offset + 6],
-    type1Name: getTypeName(view[offset + 5]),
-    type2Name: getTypeName(view[offset + 6]),
-    status: decodeStatus(view[offset + 4]),
+    type1: view[offset + 5]!,
+    type2: view[offset + 6]!,
+    type1Name: getTypeName(view[offset + 5]!),
+    type2Name: getTypeName(view[offset + 6]!),
+    status: decodeStatus(view[offset + 4]!),
     catchRate: catchRate,
     moves,
     moveIds,
@@ -343,7 +343,7 @@ function parsePokemonStruct(
 
 function parseBox(view: Uint8Array, boxStart: number, offsets: typeof OFFSETS_INT, isJapanese: boolean): PokemonStats[] {
     const boxPokemon: PokemonStats[] = [];
-    const boxCount = view[boxStart];
+    const boxCount = view[boxStart]!;
     const monCount = offsets.BOX_MON_COUNT;
     
     if (boxCount > monCount) return []; 
@@ -372,7 +372,7 @@ function parseBox(view: Uint8Array, boxStart: number, offsets: typeof OFFSETS_IN
 }
 
 function parseDaycare(view: Uint8Array, offsets: typeof OFFSETS_INT, isJapanese: boolean): PokemonStats | undefined {
-    const inUse = view[offsets.DAYCARE_IN_USE];
+    const inUse = view[offsets.DAYCARE_IN_USE]!;
     if (inUse === 0) return undefined;
 
     const nickname = decodeText(view, offsets.DAYCARE_NAME, offsets.STR_LEN, isJapanese);
@@ -392,7 +392,7 @@ function parseDaycare(view: Uint8Array, offsets: typeof OFFSETS_INT, isJapanese:
 }
 
 function parseOptions(view: Uint8Array, offsets: typeof OFFSETS_INT): GameOptions {
-    const byte = view[offsets.OPTIONS];
+    const byte = view[offsets.OPTIONS]!;
     const battleAnimation = (byte & 0x80) ? 'Off' : 'On';
     const battleStyle = (byte & 0x40) ? 'Set' : 'Shift';
     const speedBits = byte & 0x7;
@@ -427,12 +427,12 @@ function parseHallOfFame(view: Uint8Array, offsets: typeof OFFSETS_INT, isJapane
         
         for (let j = 0; j < monsPerTeam; j++) {
             const offset = hofStart + (i * monsPerTeam * structSize) + (j * structSize);
-            const speciesId = view[offset];
-            const dexId = GEN1_INTERNAL_TO_DEX[speciesId] || 0;
+            const speciesId = view[offset]!;
+            const dexId = GEN1_INTERNAL_TO_DEX[speciesId] ?? 0;
             
             if (speciesId === 0 || speciesId === 0xFF || dexId === 0) continue;
 
-            const level = view[offset + 1];
+            const level = view[offset + 1]!;
             const nickname = decodeText(view, offset + 2, strLen, isJapanese);
             const speciesName = getPokemonName(dexId);
             const finalNickname = (nickname && nickname.trim()) ? nickname : speciesName;
@@ -464,7 +464,7 @@ export function detectGameVersion(view: Uint8Array, filename?: string): GameVers
   const isJP = isSaveJapanese(view);
   const pikaOffset = isJP ? OFFSETS_JPN.PIKACHU_FRIENDSHIP : OFFSETS_INT.PIKACHU_FRIENDSHIP;
   if (view.byteLength > pikaOffset) {
-    const pikachuFriendship = view[pikaOffset];
+    const pikachuFriendship = view[pikaOffset]!;
     if (pikachuFriendship > 0) return 'Yellow';
   }
   if (filename) {
@@ -481,10 +481,10 @@ export function validateGen1Checksum(view: Uint8Array, customOffsets?: Record<st
     const offsets = customOffsets || (isJP ? OFFSETS_JPN : OFFSETS_INT);
     let sum = 0;
     for (let i = offsets.PLAYER_NAME; i <= 0x3522; i++) {
-        sum += view[i];
+        sum += view[i]!;
     }
     const calculated = (~sum) & 0xFF;
-    const actual = view[offsets.CHECKSUM];
+    const actual = view[offsets.CHECKSUM]!;
     return calculated === actual;
 }
 
@@ -505,8 +505,8 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
   // Parse Yellow-only Surfing Pikachu high score (little-endian BCD)
   let pikachuSurfScore = 0;
   if (gameVersion === 'Yellow' && offsets.PIKACHU_SURF_RECORD !== undefined && view.length > offsets.PIKACHU_SURF_RECORD + 1) {
-      const lowByte = view[offsets.PIKACHU_SURF_RECORD];
-      const highByte = view[offsets.PIKACHU_SURF_RECORD + 1];
+      const lowByte = view[offsets.PIKACHU_SURF_RECORD]!;
+      const highByte = view[offsets.PIKACHU_SURF_RECORD + 1]!;
       const d1 = lowByte & 0x0F;
       const d2 = (lowByte >> 4) & 0x0F;
       const d3 = highByte & 0x0F;
@@ -514,11 +514,11 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
       pikachuSurfScore = d4 * 1000 + d3 * 100 + d2 * 10 + d1;
   }
   
-  const hours = view[offsets.PLAY_TIME]; 
-  const minutes = view[offsets.PLAY_TIME + 2];
-  const seconds = view[offsets.PLAY_TIME + 3];
+  const hours = view[offsets.PLAY_TIME]!; 
+  const minutes = view[offsets.PLAY_TIME + 2]!;
+  const seconds = view[offsets.PLAY_TIME + 3]!;
   const playTime = `${hours}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
-  const badges = view[offsets.BADGES];
+  const badges = view[offsets.BADGES]!;
   
   const pokedexOwned = countSetBits(view, offsets.POKEDEX_OWNED, 19);
   const pokedexSeen = countSetBits(view, offsets.POKEDEX_SEEN, 19);
@@ -528,18 +528,18 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
 
   const options = parseOptions(view, offsets);
   const daycare = parseDaycare(view, offsets, isJapanese);
-  const playerStarterId = GEN1_INTERNAL_TO_DEX[view[offsets.PLAYER_STARTER]] || 0;
-  const rivalStarterId = GEN1_INTERNAL_TO_DEX[view[offsets.RIVAL_STARTER]] || 0;
+  const playerStarterId = GEN1_INTERNAL_TO_DEX[view[offsets.PLAYER_STARTER]!] ?? 0;
+  const rivalStarterId = GEN1_INTERNAL_TO_DEX[view[offsets.RIVAL_STARTER]!] ?? 0;
   
   const mapData = {
-      currentMapId: view[offsets.CURRENT_MAP],
-      x: view[offsets.X_COORD],
-      y: view[offsets.Y_COORD],
-      lastMapId: view[offsets.LAST_MAP],
-      warpedFromMap: view[offsets.WARPED_FROM_MAP]
+      currentMapId: view[offsets.CURRENT_MAP]!,
+      x: view[offsets.X_COORD]!,
+      y: view[offsets.Y_COORD]!,
+      lastMapId: view[offsets.LAST_MAP]!,
+      warpedFromMap: view[offsets.WARPED_FROM_MAP]!
   };
 
-  const partyCount = view[offsets.PARTY_DATA];
+  const partyCount = view[offsets.PARTY_DATA]!;
   const party: PokemonStats[] = [];
   const partyStart = offsets.PARTY_DATA;
   const partyStructSize = offsets.PARTY_MON_SIZE;
@@ -560,7 +560,7 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
   }
 
   const maxBoxes = isJapanese ? 8 : 12;
-  const currentBoxId = view[offsets.CURRENT_BOX_ID] & 0x7F; 
+  const currentBoxId = view[offsets.CURRENT_BOX_ID]! & 0x7F; 
   const allBoxes: PokemonStats[][] = [];
   for (let i = 0; i < maxBoxes; i++) {
       let boxOffset = 0;

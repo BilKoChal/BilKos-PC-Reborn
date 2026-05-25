@@ -43,8 +43,8 @@ function writeItems(writer: BinaryWriter, items: Item[], maxCapacity: number) {
     writer.u8(items.length); // Item Count
     
     for (let i = 0; i < items.length && i < maxCapacity; i++) {
-        writer.u8(items[i].id);
-        writer.u8(items[i].count);
+        writer.u8(items[i]!.id);
+        writer.u8(items[i]!.count);
     }
     writer.u8(0xFF); // Terminator
 }
@@ -70,7 +70,7 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
 
     // Moves (08-0B)
     for (let i = 0; i < 4; i++) {
-        writer.u8(mon.moveIds[i] || 0);
+        writer.u8(mon.moveIds[i] ?? 0);
     }
 
     // OT ID (0C-0D)
@@ -94,7 +94,7 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
 
     // PP (1D-20)
     for (let i = 0; i < 4; i++) {
-        const ppVal = (mon.movePp[i] & 0x3F) | ((mon.movePpUps[i] & 0x3) << 6);
+        const ppVal = (mon.movePp[i]! & 0x3F) | ((mon.movePpUps[i]! & 0x3) << 6);
         writer.u8(ppVal);
     }
 
@@ -111,7 +111,7 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
 
 // Helper: Write a full Box
 function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Record<string, number>, isJapanese: boolean) {
-    const monCount = offsets.BOX_MON_COUNT;
+    const monCount = offsets.BOX_MON_COUNT!;
 
     // 1. Count
     writer.u8(boxPokemon.length);
@@ -131,7 +131,7 @@ function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Rec
     // 3. Pokemon Structs
     for (let i = 0; i < monCount; i++) { // Always write slot space
         if (i < boxPokemon.length) {
-            writePokemonStruct(writer, boxPokemon[i], false);
+            writePokemonStruct(writer, boxPokemon[i]!, false);
         } else {
             // Write Empty Struct (33 bytes)
             for (let j = 0; j < 33; j++) writer.u8(0);
@@ -141,18 +141,18 @@ function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Rec
     // 4. OT Names (STR_LEN bytes * monCount)
     for (let i = 0; i < monCount; i++) {
         if (i < boxPokemon.length) {
-            writer.string(boxPokemon[i].originalTrainerName, offsets.STR_LEN, 0x50, isJapanese);
+            writer.string(boxPokemon[i]!.originalTrainerName, offsets.STR_LEN!, 0x50, isJapanese);
         } else {
-            for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
+            for (let j = 0; j < offsets.STR_LEN!; j++) writer.u8(0x50);
         }
     }
 
     // 5. Nicknames (STR_LEN bytes * monCount)
     for (let i = 0; i < monCount; i++) {
         if (i < boxPokemon.length) {
-            writer.string(boxPokemon[i].nickname, offsets.STR_LEN, 0x50, isJapanese);
+            writer.string(boxPokemon[i]!.nickname, offsets.STR_LEN!, 0x50, isJapanese);
         } else {
-            for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
+            for (let j = 0; j < offsets.STR_LEN!; j++) writer.u8(0x50);
         }
     }
 }
@@ -160,7 +160,7 @@ function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Rec
 function calculateChecksum(buffer: Uint8Array, start: number, end: number): number {
     let sum = 0;
     for (let i = start; i <= end; i++) {
-        sum += buffer[i];
+        sum += buffer[i]!;
     }
     return (~sum) & 0xFF;
 }
@@ -283,16 +283,16 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
         
         if (save.trainer.playTime.includes(':')) {
             const parts = save.trainer.playTime.split(':');
-            hours = parseInt(parts[0], 10) || 0;
-            minutes = parseInt(parts[1], 10) || 0;
-            seconds = parseInt(parts[2], 10) || 0;
+            hours = parseInt(parts[0]!, 10) || 0;
+            minutes = parseInt(parts[1]!, 10) || 0;
+            seconds = parseInt(parts[2]!, 10) || 0;
         } else {
             const hoursMatch = save.trainer.playTime.match(/(\d+)\s*h/i);
             const minutesMatch = save.trainer.playTime.match(/(\d+)\s*m/i);
             const secondsMatch = save.trainer.playTime.match(/(\d+)\s*s/i);
-            if (hoursMatch) hours = parseInt(hoursMatch[1], 10) || 0;
-            if (minutesMatch) minutes = parseInt(minutesMatch[1], 10) || 0;
-            if (secondsMatch) seconds = parseInt(secondsMatch[1], 10) || 0;
+            if (hoursMatch) hours = parseInt(hoursMatch[1]!, 10) || 0;
+            if (minutesMatch) minutes = parseInt(minutesMatch[1]!, 10) || 0;
+            if (secondsMatch) seconds = parseInt(secondsMatch[1]!, 10) || 0;
         }
         
         writer.seek(offsets.PLAY_TIME);
@@ -345,7 +345,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     writer.seek(offsets.PARTY_DATA + 8);
     for (let i = 0; i < 6; i++) {
         if (i < save.party.length) {
-            writePokemonStruct(writer, save.party[i], true);
+            writePokemonStruct(writer, save.party[i]!, true);
         } else {
             // Fill empty slots with 0
             for (let j = 0; j < 44; j++) writer.u8(0);
@@ -356,7 +356,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     writer.seek(offsets.PARTY_OT_NAMES);
     for (let i = 0; i < 6; i++) {
         if (i < save.party.length) {
-            writer.string(save.party[i].originalTrainerName, offsets.STR_LEN, 0x50, isJapanese);
+            writer.string(save.party[i]!.originalTrainerName, offsets.STR_LEN!, 0x50, isJapanese);
         } else {
             for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
         }
@@ -366,7 +366,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     writer.seek(offsets.PARTY_NICKNAMES);
     for (let i = 0; i < 6; i++) {
         if (i < save.party.length) {
-            writer.string(save.party[i].nickname, offsets.STR_LEN, 0x50, isJapanese);
+            writer.string(save.party[i]!.nickname, offsets.STR_LEN!, 0x50, isJapanese);
         } else {
             for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
         }
@@ -430,7 +430,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     // Bank 2 Checksum
     let b2Sum = 0;
     for (let j = BANK2_START; j <= BANK2_END_DATA; j++) {
-        if (j !== BANK2_CHKSUM_ALL) b2Sum += buffer[j];
+        if (j !== BANK2_CHKSUM_ALL) b2Sum += buffer[j]!;
     }
     writer.seek(BANK2_CHKSUM_ALL);
     writer.u8((~b2Sum) & 0xFF);
@@ -438,7 +438,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     // Bank 3 Checksum
     let b3Sum = 0;
     for (let j = BANK3_START; j <= BANK3_END_DATA; j++) {
-        if (j !== BANK3_CHKSUM_ALL) b3Sum += buffer[j];
+        if (j !== BANK3_CHKSUM_ALL) b3Sum += buffer[j]!;
     }
     writer.seek(BANK3_CHKSUM_ALL);
     writer.u8((~b3Sum) & 0xFF);

@@ -56,7 +56,7 @@ export function isValidPokemonChar(char: string, isJapanese?: boolean): boolean 
 export function sanitizePokemonText(text: string, isJapanese?: boolean): string {
   let result = '';
   for (let i = 0; i < text.length; i++) {
-    const char = text[i];
+    const char = text[i]!;
     if (isJapanese) {
       if (ALLOWED_JPN_CHARS.has(char)) {
         result += char;
@@ -79,10 +79,10 @@ export function isJapaneseSave(save: { rawData?: Uint8Array; generation?: number
   if (!save || !save.rawData || save.generation !== 1) return false;
   const view = save.rawData;
   if (view.byteLength < 0x3524) return false;
-  const intPartyCount = view[0x2F2C];
-  const intFirstSpecies = view[0x2F2D];
-  const jpnPartyCount = view[0x2ED5];
-  const jpnFirstSpecies = view[0x2ED6];
+  const intPartyCount = view[0x2F2C]!;
+  const intFirstSpecies = view[0x2F2D]!;
+  const jpnPartyCount = view[0x2ED5]!;
+  const jpnFirstSpecies = view[0x2ED6]!;
   
   const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
   const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;

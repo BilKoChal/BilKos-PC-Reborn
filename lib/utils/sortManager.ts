@@ -111,11 +111,11 @@ function sortLivingDex(
             group.sort((a, b) => b.mon.level - a.mon.level);
             
             // Winner takes the slot
-            dexKeepers.set(id, group[0]);
+            dexKeepers.set(id, group[0]!);
             
             // Rest go to overflow
             for (let i = 1; i < group.length; i++) {
-                overflow.push(group[i]);
+                overflow.push(group[i]!);
             }
         }
     }
@@ -147,7 +147,7 @@ function sortLivingDex(
                 if (matches.length > 0) {
                     // Pick best from this save
                     matches.sort((a, b) => b.mon.level - a.mon.level);
-                    const candidate = matches[0];
+                    const candidate = matches[0]!;
 
                     // Compare with current best external found so far
                     if (!bestExternal || candidate.mon.level > bestExternal.mon.level) {
@@ -171,7 +171,7 @@ function sortLivingDex(
         if (keeper) {
             const boxIndex = Math.floor((id - 1) / boxCapacity);
             if (boxIndex < overflowStartBox) {
-                newBoxes[boxIndex].push(keeper.mon);
+                newBoxes[boxIndex]!.push(keeper.mon);
             } else {
                 overflow.push(keeper);
             }
@@ -185,11 +185,11 @@ function sortLivingDex(
     // Fill Overflow Boxes
     let currentOvBox = overflowStartBox;
     for (const item of overflow) {
-        while (currentOvBox < numBoxes && newBoxes[currentOvBox].length >= boxCapacity) {
+        while (currentOvBox < numBoxes && newBoxes[currentOvBox]!.length >= boxCapacity) {
             currentOvBox++;
         }
         if (currentOvBox < numBoxes) {
-            newBoxes[currentOvBox].push(item.mon);
+            newBoxes[currentOvBox]!.push(item.mon);
         } else {
             console.warn("Storage Full! Dropping pokemon:", item.mon.nickname);
         }
@@ -201,8 +201,8 @@ function sortLivingDex(
 
     // Try finding one in overflow (Boxes (numBoxes - 1) -> overflowStartBox)
     for (let i = numBoxes - 1; i >= overflowStartBox; i--) {
-        if (newBoxes[i] && newBoxes[i].length > 0) {
-            partyMon = newBoxes[i].pop();
+        if (newBoxes[i] && newBoxes[i]!.length > 0) {
+            partyMon = newBoxes[i]!.pop();
             if (partyMon) break;
         }
     }
@@ -210,8 +210,8 @@ function sortLivingDex(
     // If still no party mon, steal from Living Dex (Boxes (overflowStartBox - 1) -> 0)
     if (!partyMon) {
         for (let i = overflowStartBox - 1; i >= 0; i--) {
-            if (newBoxes[i] && newBoxes[i].length > 0) {
-                partyMon = newBoxes[i].pop();
+            if (newBoxes[i] && newBoxes[i]!.length > 0) {
+                partyMon = newBoxes[i]!.pop();
                 if (partyMon) break;
             }
         }
@@ -246,8 +246,8 @@ function sortLivingDex(
             pcBoxes: newBoxes,
             party: finalParty,
             partyCount: finalParty.length,
-            currentBoxPokemon: newBoxes[targetSave.currentBoxId] || [],
-            currentBoxCount: (newBoxes[targetSave.currentBoxId] || []).length
+            currentBoxPokemon: newBoxes[targetSave.currentBoxId] ?? [],
+            currentBoxCount: (newBoxes[targetSave.currentBoxId] ?? []).length
         },
         externalRemovals
     };
@@ -274,11 +274,11 @@ export function sortPCBoxes(
 
   if (scope === 'single') {
     const boxIdx = targetSave.currentBoxId;
-    newBoxes[boxIdx] = sortList(newBoxes[boxIdx], criteria, direction);
+    newBoxes[boxIdx] = sortList(newBoxes[boxIdx]!, criteria, direction);
   } 
   else if (scope === 'all-indiv') {
     for (let i = 0; i < newBoxes.length; i++) {
-      newBoxes[i] = sortList(newBoxes[i], criteria, direction);
+      newBoxes[i] = sortList(newBoxes[i]!, criteria, direction);
     }
   } 
   else if (scope === 'all-global') {
@@ -306,8 +306,8 @@ export function sortPCBoxes(
     newData: {
       ...targetSave,
       pcBoxes: newBoxes,
-      currentBoxPokemon: newBoxes[targetSave.currentBoxId] || [],
-      currentBoxCount: (newBoxes[targetSave.currentBoxId] || []).length
+      currentBoxPokemon: newBoxes[targetSave.currentBoxId] ?? [],
+      currentBoxCount: (newBoxes[targetSave.currentBoxId] ?? []).length
     }
   };
 }

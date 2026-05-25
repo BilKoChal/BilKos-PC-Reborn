@@ -18,7 +18,7 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
     // Group events by category
     const groupedEvents = GEN1_EVENTS.reduce((acc, event) => {
         if (!acc[event.category]) acc[event.category] = [];
-        acc[event.category].push(event);
+        acc[event.category]!.push(event);
         return acc;
     }, {} as Record<string, GameEvent[]>);
 

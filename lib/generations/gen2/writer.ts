@@ -20,11 +20,11 @@ export function writeGen2PokemonStruct(
 
   // 2. Held Item ID
   // Map held item name or lookup held item code
-  data[offset + 1] = mon.heldItemId !== undefined ? mon.heldItemId : (mon.raw && mon.raw[1] !== undefined ? mon.raw[1] : 0);
+  data[offset + 1] = mon.heldItemId !== undefined ? mon.heldItemId : (mon.raw && mon.raw[1] !== undefined ? mon.raw[1]! : 0);
 
   // 3. Move IDs
   for (let m = 0; m < 4; m++) {
-    const moveId = mon.moveIds && mon.moveIds[m] !== undefined ? mon.moveIds[m] : 0;
+    const moveId = mon.moveIds && mon.moveIds[m] !== undefined ? mon.moveIds[m]! : 0;
     data[offset + 2 + m] = moveId;
   }
 
@@ -52,8 +52,8 @@ export function writeGen2PokemonStruct(
 
   // 8. Move PP & PP Ups (4 bytes)
   for (let m = 0; m < 4; m++) {
-    const pps = mon.movePp && mon.movePp[m] !== undefined ? mon.movePp[m] : 0;
-    const ups = mon.movePpUps && mon.movePpUps[m] !== undefined ? mon.movePpUps[m] : 0;
+    const pps = mon.movePp && mon.movePp[m] !== undefined ? mon.movePp[m]! : 0;
+    const ups = mon.movePpUps && mon.movePpUps[m] !== undefined ? mon.movePpUps[m]! : 0;
     data[offset + 23 + m] = (ups << 6) | (pps & 0x3F);
   }
 
@@ -93,7 +93,7 @@ export function writeInventoryPocketGen2(
 
   let curr = start;
   for (let i = 0; i < count; i++) {
-    const item = items[i];
+    const item = items[i]!;
     data[curr] = item.id;
     if (size === 2) {
       data[curr + 1] = item.count;
@@ -113,7 +113,7 @@ export function writePCBoxGen2(data: Uint8Array, offset: number, pokemonList: Po
 
   // Write species list
   for (let i = 0; i < count; i++) {
-    data[speciesListOffset + i] = pokemonList[i].speciesId;
+    data[speciesListOffset + i] = pokemonList[i]!.speciesId;
   }
   data[speciesListOffset + count] = 0xFF;
 
@@ -123,7 +123,7 @@ export function writePCBoxGen2(data: Uint8Array, offset: number, pokemonList: Po
     const otNamesOffset = pokemonStructStart + (20 * 32) + (i * 11);
     const nicknamesOffset = pokemonStructStart + (20 * 32) + (20 * 11) + (i * 11);
 
-    const mon = pokemonList[i];
+    const mon = pokemonList[i]!;
     
     // Write internal structure
     writeGen2PokemonStruct(data, structOffset, mon, false);
@@ -195,17 +195,17 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   let minutesVal = 0;
   let secondsVal = 0;
   if (timeParts.length >= 2) {
-    hoursVal = parseInt(timeParts[0], 10) || 0;
-    minutesVal = parseInt(timeParts[1], 10) || 0;
-    secondsVal = parseInt(timeParts[2], 10) || 0;
+    hoursVal = parseInt(timeParts[0]!, 10) || 0;
+    minutesVal = parseInt(timeParts[1]!, 10) || 0;
+    secondsVal = parseInt(timeParts[2]!, 10) || 0;
   } else {
     // Fallback if playTime was formatted as Gen1 "12h 34m"
     const hoursMatch = (save.trainer.playTime || "").match(/(\d+)\s*h/i);
     const minutesMatch = (save.trainer.playTime || "").match(/(\d+)\s*m/i);
     const secondsMatch = (save.trainer.playTime || "").match(/(\d+)\s*s/i);
-    if (hoursMatch) hoursVal = parseInt(hoursMatch[1], 10) || 0;
-    if (minutesMatch) minutesVal = parseInt(minutesMatch[1], 10) || 0;
-    if (secondsMatch) secondsVal = parseInt(secondsMatch[1], 10) || 0;
+    if (hoursMatch) hoursVal = parseInt(hoursMatch[1]!, 10) || 0;
+    if (minutesMatch) minutesVal = parseInt(minutesMatch[1]!, 10) || 0;
+    if (secondsMatch) secondsVal = parseInt(secondsMatch[1]!, 10) || 0;
   }
 
   data[0x2051] = (hoursVal >> 8) & 0xFF;
@@ -224,7 +224,7 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   const partyCount = Math.min(save.party.length, 6);
   data[0x288A] = partyCount;
   for (let i = 0; i < partyCount; i++) {
-    data[0x288B + i] = save.party[i].speciesId;
+    data[0x288B + i] = save.party[i]!.speciesId;
   }
   data[0x288B + partyCount] = 0xFF;
 
@@ -233,7 +233,7 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
      const otNamesOffset = 0x29B2 + (i * 11);
      const nicknamesOffset = 0x29F4 + (i * 11);
 
-     const mon = save.party[i];
+     const mon = save.party[i]!;
      writeGen2PokemonStruct(data, structOffset, mon, true);
 
      const nicknameBuffer = encodeGameBoyText(mon.nickname, 11, 0x50);
@@ -267,11 +267,11 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
         ? 0x4000 + (b * 1102)
         : 0x6000 + ((b - 7) * 1102);
 
-      writePCBoxGen2(data, boxOffset, save.pcBoxes[b]);
+      writePCBoxGen2(data, boxOffset, save.pcBoxes[b]!);
     }
 
     // Copy the active edited box content to Bank 1 active box location at 0x2D10
-    writePCBoxGen2(data, 0x2D10, save.pcBoxes[activeBoxId]);
+    writePCBoxGen2(data, 0x2D10, save.pcBoxes[activeBoxId]!);
   }
 
   // --- Recompute Checksums and dual-bank redundancy copies ---

@@ -105,7 +105,7 @@ export class BinaryWriter {
 
         for (let i = 0; i < maxLength; i++) {
             if (i < str.length) {
-                const char = str[i];
+                const char = str[i]!;
                 if (isJapanese) {
                     const kIdx = JPN_KATAKANA.indexOf(char);
                     if (kIdx !== -1) {

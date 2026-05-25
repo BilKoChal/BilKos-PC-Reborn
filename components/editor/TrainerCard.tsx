@@ -32,18 +32,18 @@ const parsePlayTime = (timeStr: string) => {
     if (timeStr.includes(':')) {
         // GSC style: HH:MM:SS or HH:MM
         const parts = timeStr.split(':');
-        hours = parseInt(parts[0], 10) || 0;
-        minutes = parseInt(parts[1], 10) || 0;
-        seconds = parseInt(parts[2], 10) || 0;
+        hours = parseInt(parts[0]!, 10) || 0;
+        minutes = parseInt(parts[1]!, 10) || 0;
+        seconds = parseInt(parts[2]!, 10) || 0;
     } else {
         // Gen 1 style: "12h 34m"
         const hoursMatch = timeStr.match(/(\d+)\s*h/i);
         const minutesMatch = timeStr.match(/(\d+)\s*m/i);
         const secondsMatch = timeStr.match(/(\d+)\s*s/i);
         
-        if (hoursMatch) hours = parseInt(hoursMatch[1], 10) || 0;
-        if (minutesMatch) minutes = parseInt(minutesMatch[1], 10) || 0;
-        if (secondsMatch) seconds = parseInt(secondsMatch[1], 10) || 0;
+        if (hoursMatch) hours = parseInt(hoursMatch[1]!, 10) || 0;
+        if (minutesMatch) minutes = parseInt(minutesMatch[1]!, 10) || 0;
+        if (secondsMatch) seconds = parseInt(secondsMatch[1]!, 10) || 0;
     }
     return { hours, minutes, seconds };
 };
@@ -110,7 +110,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
 
     // Adapter-driven values replace all hardcoded generation checks
     const maxDex = adapter?.nationalDexMax ?? (currentGen === 2 ? 251 : 151);
-    const displayBadges = REGION_BADGES[currentGen] || REGION_BADGES[1];
+    const displayBadges = REGION_BADGES[currentGen] ?? REGION_BADGES[1]!;
     const showGender = adapter?.hasGender ?? currentGen >= 2;
     const showMultiRegionBadges = adapter?.hasMultiRegionBadges ?? currentGen >= 2;
     const timeFormat = adapter?.playTimeFormat ?? (currentGen >= 2 ? 'clock' : 'text');

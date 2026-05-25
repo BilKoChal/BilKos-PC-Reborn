@@ -20,7 +20,7 @@ import { calculateGen2Stat } from './statCalculator';
 export function calculateGen2Checksum(data: Uint8Array, start: number, end: number): number {
   let sum = 0;
   for (let i = start; i <= end; i++) {
-    sum += data[i];
+    sum += data[i]!;
   }
   return sum & 0xFFFF;
 }
@@ -33,7 +33,7 @@ export function getPokedexFlagsGen2(data: Uint8Array, offset: number): boolean[]
   // Previously used 200 bits (25 bytes) which missed species #201-251.
   const POKEDEX_FLAG_BITS = 256;
   for (let i = 0; i < POKEDEX_FLAG_BITS; i++) {
-    const byte = data[offset + Math.floor(i / 8)];
+    const byte = data[offset + Math.floor(i / 8)]!;
     flags.push(((byte >> (i % 8)) & 1) === 1);
   }
   return flags;
@@ -149,17 +149,17 @@ export function parseGen2PokemonStruct(
     };
   }
 
-  const speciesId = view[offset];
+  const speciesId = view[offset]!;
   const dexId = speciesId; // Gen 2 species IDs match National Dex index (1-251)
 
-  const heldItemId = view[offset + 0x01];
+  const heldItemId = view[offset + 0x01]!;
   const heldItemName = getGen2ItemName(heldItemId);
 
   const moveIds = [
-    view[offset + 2],
-    view[offset + 3],
-    view[offset + 4],
-    view[offset + 5]
+    view[offset + 2]!,
+    view[offset + 3]!,
+    view[offset + 4]!,
+    view[offset + 5]!
   ];
   const moves = moveIds.map(id => GEN2_MOVES_LIST[id] || "-");
 
@@ -172,8 +172,8 @@ export function parseGen2PokemonStruct(
   const spdEv = getUInt16BigEndian(view, offset + 17);
   const spcEv = getUInt16BigEndian(view, offset + 19);
 
-  const ivByte1 = view[offset + 21];
-  const ivByte2 = view[offset + 22];
+  const ivByte1 = view[offset + 21]!;
+  const ivByte2 = view[offset + 22]!;
 
   const atkIv = (ivByte1 >> 4) & 0xF;
   const defIv = ivByte1 & 0xF;
@@ -182,22 +182,22 @@ export function parseGen2PokemonStruct(
   const hpIv = ((atkIv & 1) << 3) | ((defIv & 1) << 2) | ((spdIv & 1) << 1) | (spcIv & 1);
 
   const pps = [
-    view[offset + 23] & 0x3F,
-    view[offset + 24] & 0x3F,
-    view[offset + 25] & 0x3F,
-    view[offset + 26] & 0x3F
+    view[offset + 23]! & 0x3F,
+    view[offset + 24]! & 0x3F,
+    view[offset + 25]! & 0x3F,
+    view[offset + 26]! & 0x3F
   ];
 
   const ppUps = [
-    view[offset + 23] >> 6,
-    view[offset + 24] >> 6,
-    view[offset + 25] >> 6,
-    view[offset + 26] >> 6
+    view[offset + 23]! >> 6,
+    view[offset + 24]! >> 6,
+    view[offset + 25]! >> 6,
+    view[offset + 26]! >> 6
   ];
 
-  const friendship = view[offset + 27];
-  const pokerus = view[offset + 28];
-  const level = view[offset + 31];
+  const friendship = view[offset + 27]!;
+  const pokerus = view[offset + 28]!;
+  const level = view[offset + 31]!;
 
   const baseStats = getGen2BaseStats(dexId);
 
@@ -281,7 +281,7 @@ export function parseGen2PokemonStruct(
     moveIds,
     movePp: pps,
     movePpUps: ppUps,
-    status: isParty ? decodeStatus(view[offset + 32]) : "OK",
+    status: isParty ? decodeStatus(view[offset + 32]!) : "OK",
     catchRate: 0,
     type1: type1Id,
     type2: type2Id,
@@ -303,13 +303,13 @@ export function parseGen2PokemonStruct(
 }
 
 export function parseItemsPocketGen2(view: Uint8Array, start: number, countIdx: number, size: number, maxCap: number): Item[] {
-  const count = view[countIdx];
+  const count = view[countIdx]!;
   const items: Item[] = [];
   let curr = start;
 
   for (let i = 0; i < count && i < maxCap; i++) {
-    const id = view[curr];
-    const qty = size === 2 ? view[curr + 1] : 1;
+    const id = view[curr]!;
+    const qty = size === 2 ? view[curr + 1]! : 1;
     if (id === 0xFF || id === 0) break;
 
     items.push({
@@ -323,7 +323,7 @@ export function parseItemsPocketGen2(view: Uint8Array, start: number, countIdx: 
 }
 
 export function parsePCBoxGen2(view: Uint8Array, offset: number): PokemonStats[] {
-  const count = view[offset];
+  const count = view[offset]!;
   const list: PokemonStats[] = [];
   if (count === 0 || count > 20) return list;
 
@@ -331,7 +331,7 @@ export function parsePCBoxGen2(view: Uint8Array, offset: number): PokemonStats[]
   const pokemonStructStart = offset + 22; // 1 (count) + 21 (species list + 0xFF terminator)
 
   for (let i = 0; i < count; i++) {
-    const speciesId = view[speciesListOffset + i];
+    const speciesId = view[speciesListOffset + i]!;
     if (speciesId === 0xFF) break;
 
     const structOffset = pokemonStructStart + (i * 32);
@@ -365,10 +365,10 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
 
   // Detect GSC format version using primary checksums
   const gsSumComputed = calculateGen2Checksum(data, 0x2009, 0x2D68);
-  const gsSumStored = data[0x2D69] | (data[0x2D6A] << 8);
+  const gsSumStored = data[0x2D69]! | (data[0x2D6A]! << 8);
 
   const crySumComputed = calculateGen2Checksum(data, 0x2009, 0x2B82);
-  const crySumStored = data[0x2D0D] | (data[0x2D0E] << 8);
+  const crySumStored = data[0x2D0D]! | (data[0x2D0E]! << 8);
 
   let gameVersion: 'Gold' | 'Silver' | 'Crystal' = 'Gold';
   let isChecksumValid = false;
@@ -425,14 +425,14 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
 
   const money = parseBCD(data, 0x23DB, 3);
   const coins = parseBCD(data, 0x23E1, 2);
-  const badges = data[0x23E4] | (data[0x23E5] << 8);
+  const badges = data[0x23E4]! | (data[0x23E5]! << 8);
 
-  const hours = (data[0x2051] << 8) | data[0x2052];
-  const minutes = data[0x2053] || 0;
-  const seconds = data[0x2054] || 0;
+  const hours = (data[0x2051]! << 8) | data[0x2052]!;
+  const minutes = data[0x2053]! || 0;
+  const seconds = data[0x2054]! || 0;
   const playTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-  const genderByte = data[0x3E3D] || 0;
+  const genderByte = data[0x3E3D]! || 0;
   const trainerGender: 'Male' | 'Female' = genderByte === 1 ? 'Female' : 'Male';
 
   const trainer: TrainerInfo = {
@@ -446,7 +446,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   };
 
   // --- Parse Party Pokémon ---
-  const partyCount = data[0x288A];
+  const partyCount = data[0x288A]!;
   const partyList: PokemonStats[] = [];
 
   for (let i = 0; i < partyCount && i < 6; i++) {
@@ -496,14 +496,14 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   }
 
   // Active PC box ID (starts at 1 in some fields, let's standardise 0-13 indices)
-  const currentBoxIdValue = data[0x2724] !== undefined ? (data[0x2724] & 0x7F) : 0;
+  const currentBoxIdValue = data[0x2724] !== undefined ? (data[0x2724]! & 0x7F) : 0;
   const currentBoxId = Math.max(0, Math.min(13, currentBoxIdValue));
 
   const currentBoxCount = pcBoxes[currentBoxId]?.length || 0;
   const currentBoxPokemon = pcBoxes[currentBoxId] || [];
 
   // Option parsing for GSC
-  const optionsByte = data[0x2000];
+  const optionsByte = data[0x2000]!;
   const gscBattleAnimation = (optionsByte & 0x80) ? 'Off' : 'On';
   const gscBattleStyle = (optionsByte & 0x40) ? 'Set' : 'Shift';
   const gscSpeedBits = optionsByte & 0x7;

@@ -67,7 +67,7 @@ export function useMoveMode(
         const activeData = getActiveTabData();
         if (!activeTabId || !activeData) return;
 
-        const targetBoxList = location.type === 'party' ? activeData.party : activeData.pcBoxes[location.boxIndex];
+        const targetBoxList = location.type === 'party' ? activeData.party : activeData.pcBoxes[location.boxIndex]!;
         const targetMon = targetBoxList[location.index];
         if (!targetMon) return;
 
@@ -88,7 +88,7 @@ export function useMoveMode(
         const activeData = getActiveTabData();
         if (!activeTabId || !activeData) return;
 
-        const firstSource = sources[0];
+        const firstSource = sources[0]!;
         const sourceTab = getTab(firstSource.tabId);
         const targetTab = getTab(activeTabId);
 
@@ -103,7 +103,7 @@ export function useMoveMode(
 
         const targetList = targetLocation.type === 'party'
             ? targetTab.data.party
-            : targetTab.data.pcBoxes[targetLocation.boxIndex];
+            : targetTab.data.pcBoxes[targetLocation.boxIndex]!;
         const targetMon = targetList[targetLocation.index];
 
         const isTargetOccupied = !!targetMon;
@@ -179,7 +179,7 @@ export function useMoveMode(
         if (sourcesToMove.length === 0) return;
 
         // Don't drop on the same location as the source
-        const src = sourcesToMove[0];
+        const src = sourcesToMove[0]!;
         if (src.tabId === activeTabId && isSameLocation(src.location, target)) {
             activeDragSourceRef.current = null;
             return;
@@ -217,7 +217,7 @@ export function useMoveMode(
         const activeData = getActiveTabData();
         if (!activeTabId || !activeData) return;
 
-        const targetBoxList = location.type === 'party' ? activeData.party : activeData.pcBoxes[location.boxIndex];
+        const targetBoxList = location.type === 'party' ? activeData.party : activeData.pcBoxes[location.boxIndex]!;
         const targetMon = targetBoxList[location.index];
         const isEmpty = !targetMon;
 
@@ -237,7 +237,7 @@ export function useMoveMode(
                 return;
             }
 
-            const lastSelected = selectedMoveLocations[selectedMoveLocations.length - 1];
+            const lastSelected = selectedMoveLocations[selectedMoveLocations.length - 1]!;
             const lastLoc = lastSelected.location;
 
             if (lastSelected.tabId !== activeTabId) {

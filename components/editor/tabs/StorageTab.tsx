@@ -43,10 +43,10 @@ export const StorageTab: React.FC<StorageTabProps> = ({
                     onToggleMoveMode={() => setIsMoveMode?.(!isMoveMode)}
                     selectedMoveSources={globalMoveSources}
                     onPokemonClick={(mon, idx, boxIdx, e) => handlePokemonClick(mon, 'box', idx, boxIdx, e)}
-                    onEmptySlotClick={(idx, boxIdx, e) => handleEmptySlotClick({ type: 'box', boxIndex: boxIdx, index: idx }, e)}
-                    onToggleSelection={onToggleSelection ? (idx, boxIdx) => onToggleSelection({ type: 'box', boxIndex: boxIdx, index: idx }) : undefined}
-                    onDropPokemon={onDropPokemon ? (idx, boxIdx, e) => onDropPokemon({ type: 'box', boxIndex: boxIdx, index: idx }, e) : undefined}
-                    onTouchDrop={onTouchDrop ? (idx, boxIdx) => onTouchDrop({ type: 'box', boxIndex: boxIdx, index: idx }) : undefined}
+                    onEmptySlotClick={(idx, boxIdx, e) => handleEmptySlotClick({ type: 'box' as const, boxIndex: boxIdx!, index: idx }, e)}
+                    onToggleSelection={onToggleSelection ? (idx, boxIdx) => onToggleSelection({ type: 'box' as const, boxIndex: boxIdx!, index: idx }) : undefined}
+                    onDropPokemon={onDropPokemon ? (idx, boxIdx, e) => onDropPokemon({ type: 'box' as const, boxIndex: boxIdx!, index: idx }, e) : undefined}
+                    onTouchDrop={onTouchDrop ? (idx, boxIdx) => onTouchDrop({ type: 'box' as const, boxIndex: boxIdx!, index: idx }) : undefined}
                     onSortClick={() => setIsSortModalOpen(true)}
                     onSetActiveBox={handleSetActiveBox}
                     onImport={handleImportBox}

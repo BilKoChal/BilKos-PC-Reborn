@@ -78,13 +78,13 @@ export function movePokemonBatch(
     const newParty = [...data.party];
     const newBoxes = data.pcBoxes.map(box => [...box]);
 
-    const getList = (loc: MoveLocation) => loc.type === 'party' ? newParty : newBoxes[loc.boxIndex];
+    const getList = (loc: MoveLocation) => loc.type === 'party' ? newParty : newBoxes[loc.boxIndex]!;
     const targetList = getList(target);
 
     // 1. Extract Moving Mons
     const movingMons = sortedSources.map(src => {
         const list = getList(src);
-        return { ...list[src.index] }; // Clone
+        return { ...list[src.index]! }; // Clone
     });
 
     // 2. Remove Sources (Descending order to preserve indices during removal)
@@ -119,8 +119,8 @@ export function movePokemonBatch(
             party: newParty,
             partyCount: newParty.length,
             pcBoxes: newBoxes,
-            currentBoxPokemon: newBoxes[data.currentBoxId],
-            currentBoxCount: newBoxes[data.currentBoxId].length
+            currentBoxPokemon: newBoxes[data.currentBoxId]!,
+            currentBoxCount: newBoxes[data.currentBoxId]!.length
         }
     };
 }
@@ -165,7 +165,7 @@ export function transferPokemonBatch(
         // so they don't reduce the party count.
         if (!targetIsParty) {
             // Moving from party to box — calculate effective party drain
-            const targetBoxList = targetSave.pcBoxes[targetStart.boxIndex];
+            const targetBoxList = targetSave.pcBoxes[targetStart.boxIndex]!;
             let occupiedTargetCount = 0;
             for (let i = 0; i < partyMovingOut; i++) {
                 const tgtIdx = targetStart.index + i;
@@ -200,7 +200,7 @@ export function transferPokemonBatch(
     const getList = (isSource: boolean, loc: MoveLocation) => {
         const party = isSource ? sourceParty : targetParty;
         const boxes = isSource ? sourceBoxes : targetBoxes;
-        return loc.type === 'party' ? party : boxes[loc.boxIndex];
+        return loc.type === 'party' ? party : boxes[loc.boxIndex]!;
     };
 
     // 2. Sort Sources (Ascending)
@@ -214,7 +214,7 @@ export function transferPokemonBatch(
 
     // 3. Execution Loop
     for (let i = 0; i < sortedSources.length; i++) {
-        const srcLoc = sortedSources[i];
+        const srcLoc = sortedSources[i]!;
         
         // Calculate Target Location sequentially
         const currentTgtIndex = targetStart.index + i;
@@ -228,7 +228,7 @@ export function transferPokemonBatch(
         if (tgtLoc.index >= tgtLimit) break; // Stop if target full/out of bounds
 
         // Get Mons
-        const srcMon = srcList[srcLoc.index];
+        const srcMon = srcList[srcLoc.index]!;
         // If srcMon is null (already moved in a weird overlap edge case), skip
         if (!srcMon) continue;
 
@@ -247,11 +247,11 @@ export function transferPokemonBatch(
         // Use source save's generation for source mon, target save's generation for target mon
         const sourceGen = sourceSave.generation;
         const targetGen = sameSave ? sourceSave.generation : targetSave.generation;
-        const readySource = prepareForLocation({ ...srcMon }, isTgtParty, isTgtParty ? targetGen : sourceGen);
+        const readySource = prepareForLocation({ ...srcMon }, isTgtParty, isTgtParty ? targetGen : sourceGen) as PokemonStats;
         
         if (tgtMon) {
             // --- SWAP ---
-            const readyTarget = prepareForLocation({ ...tgtMon }, isSrcParty, isSrcParty ? sourceGen : targetGen);
+            const readyTarget = prepareForLocation({ ...tgtMon }, isSrcParty, isSrcParty ? sourceGen : targetGen) as PokemonStats;
             
             srcList[srcLoc.index] = readyTarget;
             tgtList[tgtLoc.index] = readySource;
@@ -280,8 +280,8 @@ export function transferPokemonBatch(
             party: cleanedParty,
             partyCount: cleanedParty.length,
             pcBoxes: cleanedBoxes,
-            currentBoxPokemon: cleanedBoxes[original.currentBoxId],
-            currentBoxCount: cleanedBoxes[original.currentBoxId].length
+            currentBoxPokemon: cleanedBoxes[original.currentBoxId]!,
+            currentBoxCount: cleanedBoxes[original.currentBoxId]!.length
         };
     };
 

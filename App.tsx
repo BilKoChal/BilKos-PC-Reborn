@@ -105,7 +105,7 @@ const App: React.FC = () => {
       }
       const activeTabExists = tabs.some(t => t.id === activeTabId);
       if (!activeTabExists) {
-          setActiveTabId(tabs[tabs.length - 1].id);
+          setActiveTabId(tabs[tabs.length - 1]!.id);
       }
   }, [tabs, activeTabId]);
 
@@ -118,7 +118,7 @@ const App: React.FC = () => {
           const currentFile = fileQueue[0];
 
           try {
-              const result = await detectAndParseSave(currentFile);
+              const result = await detectAndParseSave(currentFile!);
 
               if (result.success && result.data) {
                   const data = result.data;
@@ -135,12 +135,12 @@ const App: React.FC = () => {
                       setPendingSaveData(data);
                   }
               } else {
-                  setErrorMessage(`Failed to load "${currentFile.name}".\n\nReason: ${result.error}`);
+                  setErrorMessage(`Failed to load "${currentFile!.name}".\n\nReason: ${result.error}`);
                   setFileQueue(prev => prev.slice(1));
               }
           } catch (e) {
               console.error(e);
-              setErrorMessage(`Unexpected error processing "${currentFile.name}".`);
+              setErrorMessage(`Unexpected error processing "${currentFile!.name}".`);
               setFileQueue(prev => prev.slice(1));
           } finally {
               setIsProcessingQueue(false);
@@ -293,7 +293,7 @@ const App: React.FC = () => {
                           if (rem.location === 'party') {
                               newParty.splice(rem.index, 1);
                           } else if (rem.location === 'box' && rem.boxIndex !== undefined) {
-                              newBoxes[rem.boxIndex].splice(rem.index, 1);
+                              newBoxes[rem.boxIndex]!.splice(rem.index, 1);
                           }
                       });
 
@@ -302,8 +302,8 @@ const App: React.FC = () => {
                           party: newParty,
                           partyCount: newParty.length,
                           pcBoxes: newBoxes,
-                          currentBoxPokemon: newBoxes[tab.data.currentBoxId],
-                          currentBoxCount: newBoxes[tab.data.currentBoxId].length
+                          currentBoxPokemon: newBoxes[tab.data.currentBoxId]!,
+                          currentBoxCount: newBoxes[tab.data.currentBoxId]!.length
                       };
                       return { ...tab, data: updatedData, isDirty: true };
                   }

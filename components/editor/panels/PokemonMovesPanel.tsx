@@ -109,10 +109,10 @@ export const PokemonMovesPanel: React.FC<PokemonMovesPanelProps> = ({
                                                 {[1, 2, 3].map(step => (
                                                     <button
                                                     key={step}
-                                                    onClick={() => updatePpUp(i, mon.movePpUps[i] === step ? step - 1 : step)} // Toggle logic
+                                                    onClick={() => updatePpUp(i, mon.movePpUps[i]! === step ? step - 1 : step)} // Toggle logic
                                                     className={`
                                                         w-3 h-3 rounded-full border transition-all
-                                                        ${mon.movePpUps[i] >= step 
+                                                        ${mon.movePpUps[i]! >= step 
                                                             ? 'bg-green-500 border-green-600' 
                                                             : 'bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-green-200'
                                                         }

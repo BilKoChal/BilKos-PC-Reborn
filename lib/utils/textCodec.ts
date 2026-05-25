@@ -17,6 +17,10 @@ export const CHAR_MAP_REV: Record<string, number> = {
   'q': 0xB0, 'r': 0xB1, 's': 0xB2, 't': 0xB3, 'u': 0xB4, 'v': 0xB5, 'w': 0xB6, 'x': 0xB7,
   'y': 0xB8, 'z': 0xB9, ' ': 0x7F, '?': 0xE6, '!': 0xE7, '.': 0xE8, '-': 0xE3,
   '👤': 0x5D,
+  '♂': 0xEF, '♀': 0xF5,
+  'é': 0xBA,
+  "'": 0xE0, '\u2019': 0xE0, '`': 0xE0,  // Apostrophe variants
+  '/': 0xF3, ',': 0xF4,
   '0': 0xF6, '1': 0xF7, '2': 0xF8, '3': 0xF9, '4': 0xFA, '5': 0xFB, '6': 0xFC, '7': 0xFD, '8': 0xFE, '9': 0xFF
 };
 
@@ -31,8 +35,8 @@ export function encodeGameBoyText(text: string, length: number, terminator: numb
   const buffer = new Uint8Array(length);
   for (let i = 0; i < length; i++) {
     if (i < text.length) {
-      const char = text[i];
-      buffer[i] = CHAR_MAP_REV[char] !== undefined ? CHAR_MAP_REV[char] : 0xE6; // Default to '?' on unmatched
+      const char = text[i]!;
+      buffer[i] = CHAR_MAP_REV[char] !== undefined ? CHAR_MAP_REV[char]! : 0xE6; // Default to '?' on unmatched
     } else {
       buffer[i] = terminator;
     }

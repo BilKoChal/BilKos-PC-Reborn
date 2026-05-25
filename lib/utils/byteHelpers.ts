@@ -3,7 +3,7 @@
 export function parseBCD(data: Uint8Array, start: number, length: number): number {
   let result = 0;
   for (let i = 0; i < length; i++) {
-    const byte = data[start + i];
+    const byte = data[start + i]!;
     result = result * 100 + ((byte >> 4) * 10 + (byte & 0x0F));
   }
   return result;
@@ -25,7 +25,7 @@ export function setBCD(view: DataView, offset: number, value: number, length: nu
 export function countSetBits(data: Uint8Array, start: number, length: number): number {
   let count = 0;
   for (let i = 0; i < length; i++) {
-    let byte = data[start + i];
+    let byte = data[start + i]!;
     while (byte > 0) {
       byte &= (byte - 1); 
       count++;
@@ -37,7 +37,7 @@ export function countSetBits(data: Uint8Array, start: number, length: number): n
 // --- Big Endian Helpers (Gen 1 & 2) ---
 
 export function getUInt16BigEndian(data: Uint8Array, offset: number): number {
-  return (data[offset] << 8) | data[offset + 1];
+  return (data[offset]! << 8) | data[offset + 1]!;
 }
 
 export function setUInt16BigEndian(view: DataView, offset: number, value: number) {
@@ -46,7 +46,7 @@ export function setUInt16BigEndian(view: DataView, offset: number, value: number
 }
 
 export function getUInt24BigEndian(data: Uint8Array, offset: number): number {
-  return (data[offset] << 16) | (data[offset + 1] << 8) | data[offset + 2];
+  return (data[offset]! << 16) | (data[offset + 1]! << 8) | data[offset + 2]!;
 }
 
 export function setUInt24BigEndian(view: DataView, offset: number, value: number) {
@@ -61,7 +61,7 @@ export function getUInt16LE(data: Uint8Array | DataView, offset: number): number
   if (data instanceof DataView) {
     return data.getUint16(offset, true);
   }
-  return data[offset] | (data[offset + 1] << 8);
+  return data[offset]! | (data[offset + 1]! << 8);
 }
 
 export function getUInt32LE(data: Uint8Array | DataView, offset: number): number {
@@ -69,10 +69,10 @@ export function getUInt32LE(data: Uint8Array | DataView, offset: number): number
     return data.getUint32(offset, true);
   }
   return (
-    data[offset] |
-    (data[offset + 1] << 8) |
-    (data[offset + 2] << 16) |
-    (data[offset + 3] << 24)
+    data[offset]! |
+    (data[offset + 1]! << 8) |
+    (data[offset + 2]! << 16) |
+    (data[offset + 3]! << 24)
   ) >>> 0; 
 }
 
@@ -104,7 +104,7 @@ export function getAsciiString(view: Uint8Array, start: number, length: number):
   let str = '';
   for (let i = 0; i < length; i++) {
     if (start + i >= view.length) break;
-    const byte = view[start + i];
+    const byte = view[start + i]!;
     if (byte === 0) break;
     str += String.fromCharCode(byte);
   }

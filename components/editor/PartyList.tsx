@@ -128,17 +128,17 @@ const PokemonSlot = memo<{
     // ─── Touch DnD Handlers ──────────────────────────────────────────
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         if (!mon || !tabId) return;
-        const touch = e.touches[0];
+        const touch = e.touches[0]!;
         touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
         isTouchDragActiveRef.current = false;
     }, [mon, tabId]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         if (!touchStartPosRef.current || !mon || !tabId) return;
-        const touch = e.touches[0];
+        const touch = e.touches[0]!;
         const start = touchStartPosRef.current;
-        const dx = touch.clientX - start.x;
-        const dy = touch.clientY - start.y;
+        const dx = touch.clientX - start!.x;
+        const dy = touch.clientY - start!.y;
 
         // Start drag after moving 10px
         if (!isTouchDragActiveRef.current && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
@@ -146,13 +146,13 @@ const PokemonSlot = memo<{
             e.preventDefault();
             const location = { type: 'party' as const, index };
             const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny);
-            startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
+            startTouchDrag(tabId, location, spriteUrl, touch!.clientX, touch!.clientY);
             if (onBeginDragSession) onBeginDragSession(tabId, location);
         }
 
         if (isTouchDragActiveRef.current) {
             e.preventDefault();
-            moveTouchDrag(touch.clientX, touch.clientY);
+            moveTouchDrag(touch!.clientX, touch!.clientY);
         }
     }, [mon, tabId, index, onBeginDragSession, spriteMode, gameVersion]);
 

@@ -125,14 +125,14 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             let added = false;
 
             // Check current box
-            if (newData.pcBoxes[targetBoxIndex].length < 20) {
-                newData.pcBoxes[targetBoxIndex].push(mon);
+            if (newData.pcBoxes[targetBoxIndex]!.length < 20) {
+                newData.pcBoxes[targetBoxIndex]!.push(mon);
                 added = true;
             } else {
                 // Find any box
                 for (let i = 0; i < 12; i++) {
-                    if (newData.pcBoxes[i].length < 20) {
-                        newData.pcBoxes[i].push(mon);
+                    if (newData.pcBoxes[i]!.length < 20) {
+                        newData.pcBoxes[i]!.push(mon);
                         targetBoxIndex = i;
                         added = true;
                         break;
@@ -143,8 +143,8 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             if (added) {
                 // Update cache if we modified current box
                 if (targetBoxIndex === newData.currentBoxId) {
-                    newData.currentBoxPokemon = newData.pcBoxes[targetBoxIndex];
-                    newData.currentBoxCount = newData.pcBoxes[targetBoxIndex].length;
+                    newData.currentBoxPokemon = newData.pcBoxes[targetBoxIndex]!;
+                    newData.currentBoxCount = newData.pcBoxes[targetBoxIndex]!.length;
                 }
                 updateData(newData);
             } else {
@@ -185,9 +185,9 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
         if (selectedPokemon.source === 'party') {
             newData.party[selectedPokemon.index] = updatedMon;
         } else if (selectedPokemon.source === 'box' && selectedPokemon.boxIndex !== undefined) {
-            newData.pcBoxes[selectedPokemon.boxIndex][selectedPokemon.index] = updatedMon;
+            newData.pcBoxes[selectedPokemon.boxIndex]![selectedPokemon.index] = updatedMon;
             if (selectedPokemon.boxIndex === data.currentBoxId) {
-                newData.currentBoxPokemon = newData.pcBoxes[selectedPokemon.boxIndex];
+                newData.currentBoxPokemon = newData.pcBoxes[selectedPokemon.boxIndex]!;
             }
         }
 
@@ -198,8 +198,8 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
         const newData = { ...data };
         newData.currentBoxId = boxIndex;
         // In Gen 1 logic, we assume PC Boxes array is the source of truth
-        newData.currentBoxPokemon = newData.pcBoxes[boxIndex];
-        newData.currentBoxCount = newData.pcBoxes[boxIndex].length;
+        newData.currentBoxPokemon = newData.pcBoxes[boxIndex]!;
+        newData.currentBoxCount = newData.pcBoxes[boxIndex]!.length;
         updateData(newData);
     };
 

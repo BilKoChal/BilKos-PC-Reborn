@@ -18,10 +18,10 @@ interface PCStorageProps {
     onEnableMoveMode?: () => void;
     onToggleMoveMode?: () => void;
     selectedMoveSources?: MoveLocation[];
-    onPokemonClick?: (mon: PokemonStats, index: number, boxIndex: number, e: React.MouseEvent) => void;
-    onEmptySlotClick?: (index: number, boxIndex: number, e: React.MouseEvent) => void;
-    onToggleSelection?: (index: number, boxIndex: number) => void;
-    onDropPokemon?: (index: number, boxIndex: number, e: React.DragEvent) => void;
+    onPokemonClick?: (mon: PokemonStats, index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
+    onEmptySlotClick?: (index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
+    onToggleSelection?: (index: number, boxIndex?: number) => void;
+    onDropPokemon?: (index: number, boxIndex: number | undefined, e: React.DragEvent) => void;
     onTouchDrop?: (index: number, boxIndex: number) => void;
     onMove?: (source: MoveLocation, target: MoveLocation) => void; 
     onSortClick?: () => void;
@@ -62,10 +62,10 @@ const BoxSlot = memo<{
     tabId?: string;
     gameVersion?: GameVersion;
     spriteMode: 'game-specific' | 'master' | 'artwork';
-    onPokemonClick?: (mon: PokemonStats, index: number, boxIndex: number, e: React.MouseEvent) => void;
-    onEmptySlotClick?: (index: number, boxIndex: number, e: React.MouseEvent) => void;
-    onToggleSelection?: (index: number, boxIndex: number) => void;
-    onDropPokemon?: (index: number, boxIndex: number, e: React.DragEvent) => void;
+    onPokemonClick?: (mon: PokemonStats, index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
+    onEmptySlotClick?: (index: number, boxIndex: number | undefined, e: React.MouseEvent) => void;
+    onToggleSelection?: (index: number, boxIndex?: number) => void;
+    onDropPokemon?: (index: number, boxIndex: number | undefined, e: React.DragEvent) => void;
     onTouchDrop?: (index: number, boxIndex: number) => void;
     onEnableMoveMode?: () => void;
     onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
@@ -145,17 +145,17 @@ const BoxSlot = memo<{
     // ─── Touch DnD Handlers ──────────────────────────────────────────
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
         if (!mon || !tabId) return;
-        const touch = e.touches[0];
+        const touch = e.touches[0]!;
         touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
         isTouchDragActiveRef.current = false;
     }, [mon, tabId]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
         if (!touchStartPosRef.current || !mon || !tabId) return;
-        const touch = e.touches[0];
+        const touch = e.touches[0]!;
         const start = touchStartPosRef.current;
-        const dx = touch.clientX - start.x;
-        const dy = touch.clientY - start.y;
+        const dx = touch.clientX - start!.x;
+        const dy = touch.clientY - start!.y;
 
         // Start drag after moving 10px
         if (!isTouchDragActiveRef.current && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
@@ -165,13 +165,13 @@ const BoxSlot = memo<{
                 ? { type: 'box' as const, boxIndex: viewedBoxIndex, index: slotIndex }
                 : { type: 'party' as const, index: slotIndex };
             const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny);
-            startTouchDrag(tabId, location, spriteUrl, touch.clientX, touch.clientY);
+            startTouchDrag(tabId, location, spriteUrl, touch!.clientX, touch!.clientY);
             if (onBeginDragSession) onBeginDragSession(tabId, location);
         }
 
         if (isTouchDragActiveRef.current) {
             e.preventDefault();
-            moveTouchDrag(touch.clientX, touch.clientY);
+            moveTouchDrag(touch!.clientX, touch!.clientY);
         }
     }, [mon, tabId, slotIndex, viewedBoxIndex, onBeginDragSession, spriteMode, gameVersion]);
 
@@ -487,11 +487,11 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
             let targetBoxIndex = viewedBoxIndex;
             
-            if (boxes[targetBoxIndex].length >= 20) {
+            if (boxes[targetBoxIndex]!.length >= 20) {
                 let foundIndex = -1;
                 for (let i = 1; i < MAX_BOXES; i++) {
                     const checkIndex = (viewedBoxIndex + i) % MAX_BOXES;
-                    if (boxes[checkIndex].length < 20) {
+                    if (boxes[checkIndex]!.length < 20) {
                         foundIndex = checkIndex;
                         break;
                     }
@@ -508,7 +508,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
             mon.isParty = false;
             
-            const targetBoxData = [...boxes[targetBoxIndex]];
+            const targetBoxData = [...boxes[targetBoxIndex]!]
             targetBoxData.push(mon);
             
             onImport(targetBoxData, targetBoxIndex);

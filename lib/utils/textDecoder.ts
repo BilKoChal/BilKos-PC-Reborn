@@ -63,7 +63,7 @@ export const decodeText = (buffer: Uint8Array, offset: number, maxLength: number
   let result = '';
   for (let i = 0; i < maxLength; i++) {
     if (offset + i >= buffer.length) break;
-    const byte = buffer[offset + i];
+    const byte = buffer[offset + i]!;
     
     // Terminators: 0x50 is standard, but 0x00 is often found in empty/padded data
     if (byte === 0x50 || byte === 0x00) break; 

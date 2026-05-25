@@ -45,7 +45,7 @@ export const PokemonDetailView: React.FC<PokemonDetailViewProps> = ({ id, owned,
     const spriteUrl = getPokemonSpriteUrl(id, spriteMode, version);
     // Compute integer-scaling style for pixel sprites in the large detail panel
     // Container is 256px (mobile) or 320px (desktop). Integer scale keeps pixel art sharp.
-    const integerScaleStyle = getIntegerScaleStyle(spriteMode, 320);
+    const integerScaleStyle = getIntegerScaleStyle(spriteMode, 320) as React.CSSProperties;
 
     return (
         <div className="fixed inset-0 z-[300] bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={(e) => e.stopPropagation()}>

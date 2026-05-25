@@ -30,10 +30,10 @@ export const HeldItemSection: ISectionExtension = {
             const trimmedName = name.trim();
             // Find key (ID) corresponding to the item name
             const matchingIdStr = Object.keys(GEN2_ITEMS).find(
-              (key) => GEN2_ITEMS[Number(key)].toLowerCase() === trimmedName.toLowerCase()
+              (key) => GEN2_ITEMS[Number(key)]!.toLowerCase() === trimmedName.toLowerCase()
             );
             const heldItemId = matchingIdStr ? Number(matchingIdStr) : 0;
-            const heldItemName = heldItemId > 0 ? GEN2_ITEMS[heldItemId] : 'None';
+            const heldItemName = heldItemId > 0 ? GEN2_ITEMS[heldItemId]! : 'None';
 
             // Update both flat fields (for O(1) UI access) and genExtension (canonical source)
             context.onChange('heldItemId', heldItemId as unknown);

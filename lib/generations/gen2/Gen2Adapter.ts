@@ -144,10 +144,10 @@ export class Gen2Adapter implements IGenerationAdapter {
     if (size === 32768 || size === 32768 + 16 || size === 65536) {
       // Compute GSC Checksums to see if they match GS or Crystal ranges
       const gsSumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2D68);
-      const gsSumStored = buffer[0x2D69] | (buffer[0x2D6A] << 8);
+      const gsSumStored = buffer[0x2D69]! | (buffer[0x2D6A]! << 8);
 
       const crySumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2B82);
-      const crySumStored = buffer[0x2D0D] | (buffer[0x2D0E] << 8);
+      const crySumStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
 
       const lowerFile = filename.toLowerCase();
 
@@ -207,10 +207,10 @@ export class Gen2Adapter implements IGenerationAdapter {
 
   validateSave(buffer: Uint8Array): boolean {
     const gsSumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2D68);
-    const gsSumStored = buffer[0x2D69] | (buffer[0x2D6A] << 8);
+    const gsSumStored = buffer[0x2D69]! | (buffer[0x2D6A]! << 8);
 
     const crySumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2B82);
-    const crySumStored = buffer[0x2D0D] | (buffer[0x2D0E] << 8);
+    const crySumStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
 
     return (crySumComputed === crySumStored && crySumStored !== 0) || 
            (gsSumComputed === gsSumStored && gsSumStored !== 0);

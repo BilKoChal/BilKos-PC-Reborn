@@ -24,6 +24,13 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+
+    // ── Strict Mode (Issue 2.1) ──
+    // Each error caught by these flags is a latent bug or unstated assumption.
+    // Do this before Gen 3, not after.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true
   }
 }

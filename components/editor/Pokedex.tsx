@@ -79,8 +79,8 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
             let valB: string | number = b;
             
             if (sortMode === 'name') {
-                valA = pokemonNames[a];
-                valB = pokemonNames[b];
+                valA = pokemonNames[a]!;
+                valB = pokemonNames[b]!;
             }
 
             if (valA < valB) return sortDir === 'asc' ? -1 : 1;
@@ -106,8 +106,8 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
             {selectedId && (
                 <PokemonDetailView 
                     id={selectedId}
-                    owned={ownedFlags[selectedId]}
-                    seen={seenFlags[selectedId]}
+                    owned={ownedFlags[selectedId]!}
+                    seen={seenFlags[selectedId]!}
                     version={detectedVersion}
                     onClose={() => setSelectedId(null)}
                     onToggleStatus={() => toggleEntry(selectedId)}
@@ -208,7 +208,7 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
                                     <img 
                                         src={getPokemonSpriteUrl(id, spriteMode, data.gameVersion)} 
                                         alt={name}
-                                        style={spriteMode !== 'artwork' ? getIntegerScaleStyle(spriteMode, 160) : undefined}
+                                        style={spriteMode !== 'artwork' ? getIntegerScaleStyle(spriteMode, 160) as React.CSSProperties : undefined}
                                         className={getSpriteImgClasses(spriteMode, `object-contain transition-all duration-300 ${spriteMode === 'artwork' ? 'w-full h-full' : ''} ${!isSeen && !isOwned ? 'brightness-0 opacity-10' : isSeen && !isOwned ? 'grayscale opacity-60' : 'group-hover:scale-110'}`)}
                                         loading="lazy"
                                     />
