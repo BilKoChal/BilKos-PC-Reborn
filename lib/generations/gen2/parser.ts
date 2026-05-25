@@ -1110,6 +1110,43 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   // Move Tutor Flags (Crystal only — derived from event flags)
   gen2SaveExt.moveTutorFlags = deriveMoveTutorFlags(eventFlags, offsets);
 
+  // ── Phase 4: RTC, Mom Savings, Unown Dex, Phone Contacts ──
+
+  // Phase 4: RTC
+  gen2SaveExt.rtcFlags = data[offsets.rtcFlags] ?? 0;
+
+  // Phase 4: Mom Savings (3-byte BCD, same format as money)
+  if (offsets.momSavings + 2 < data.length) {
+    const momBytes = data.slice(offsets.momSavings, offsets.momSavings + 3);
+    gen2SaveExt.momSavings = (momBytes[0]! << 16) | (momBytes[1]! << 8) | momBytes[2]!;
+  }
+
+  // Phase 4: Unown Dex
+  if (offsets.unownDex > 0 && offsets.unownDex + 27 < data.length) {
+    const unownOffset = offsets.unownDex;
+    // 26 bytes: caught forms (1 byte per letter, 0=not caught, 1=caught)
+    for (let i = 0; i < 26; i++) {
+      gen2SaveExt.unownCaughtForms.push(data[unownOffset + i] ?? 0);
+    }
+    gen2SaveExt.unownUnlockedFlags = data[unownOffset + 26] ?? 0;
+    gen2SaveExt.unownFirstSeen = data[unownOffset + 27] ?? 0;
+  }
+
+  // Phase 4: Phone Contacts
+  if (offsets.phoneContacts > 0) {
+    const phoneOffset = offsets.phoneContacts;
+    for (let i = 0; i < 39; i++) {
+      const entryOffset = phoneOffset + (i * offsets.stringLength);
+      // Check if slot is occupied (first byte non-zero and non-0xFF)
+      if (entryOffset >= data.length || data[entryOffset] === 0 || data[entryOffset] === 0xFF) continue;
+      const name = decodeText(data, entryOffset, offsets.stringLength);
+      const trainerClass = data[entryOffset + offsets.stringLength] ?? 0;
+      const mapGroup = data[entryOffset + offsets.stringLength + 1] ?? 0;
+      const mapNumber = data[entryOffset + offsets.stringLength + 2] ?? 0;
+      gen2SaveExt.phoneContacts.push({ trainerClass, name, mapGroup, mapNumber });
+    }
+  }
+
   return {
     generation: 2,
     gameVersion,

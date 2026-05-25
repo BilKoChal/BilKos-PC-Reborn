@@ -341,6 +341,20 @@ export class Gen2SaveExtension implements ISaveExtension {
   gsBallEventEnabled: boolean = false;
   /** Move Tutor flags — which move tutors have been used (Crystal only, derived from event flags) */
   moveTutorFlags: boolean[] = [];
+
+  // ── Phase 4: Advanced Features ──
+  /** RTC flags byte (latched RTC data) */
+  rtcFlags: number = 0;
+  /** Mom savings amount (BCD, same format as money) */
+  momSavings: number = 0;
+  /** Phone contacts — up to 39 entries */
+  phoneContacts: { trainerClass: number; name: string; mapGroup: number; mapNumber: number }[] = [];
+  /** Unown caught form letters (26 entries for A-Z) */
+  unownCaughtForms: number[] = [];
+  /** Unown unlock flags byte */
+  unownUnlockedFlags: number = 0;
+  /** First Unown form seen */
+  unownFirstSeen: number = 0;
 }
 
 // ============================================================================

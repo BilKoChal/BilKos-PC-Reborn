@@ -1,7 +1,7 @@
 import { IGenerationAdapter, BaseStats } from '../../interfaces';
 import { ParsedSave, PokemonStats, Gen2SaveExtension } from '../../parser/types';
-import { parseGen2Save, calculateGen2Checksum, isGen2Shiny } from './parser';
-import { writeGen2Save } from './writer';
+import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
+import { writeGen2Save, writeGen2PokemonStruct } from './writer';
 import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
 import { 
   GEN2_POKEMON_NAMES, 
@@ -262,14 +262,40 @@ export class Gen2Adapter implements IGenerationAdapter {
            (gsSum === gsStored && gsStored !== 0);
   }
 
-  supportsStandalone = false;
+  supportsStandalone = true;
 
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
-    throw new Error("GSC Standalone Pokemon files (.pk2) parsing not explicitly requested.");
+    // .pk2 format: 32 bytes (box format) or 48 bytes (party format)
+    const isParty = buffer.length >= 48;
+    const speciesId = buffer[0] || 0;
+    const speciesName = GEN2_POKEMON_NAMES[speciesId] || `Species ${speciesId}`;
+
+    // Standalone .pk2 files don't include OT name or nickname strings;
+    // use the species name as the default nickname and a generic OT name.
+    const defaultNickname = speciesName.toUpperCase();
+    const defaultOtName = '';
+    const emptyRaw = new Uint8Array(0);
+
+    return parseGen2PokemonStruct(
+      buffer,
+      0,
+      isParty,
+      defaultNickname,
+      defaultOtName,
+      emptyRaw,
+      emptyRaw
+    );
   }
 
   createStandalonePokemon(mon: PokemonStats): Uint8Array {
-    throw new Error("GSC Standalone Pokemon files (.pk2) writing not explicitly requested.");
+    // .pk2 format: 32 bytes (box) or 48 bytes (party)
+    const isParty = mon.isParty;
+    const size = isParty ? 48 : 32;
+    const buffer = new Uint8Array(size);
+
+    writeGen2PokemonStruct(buffer, 0, mon, isParty);
+
+    return buffer;
   }
 
   calculateStat(base: number, iv: number, ev: number, level: number, isHp: boolean): number {
@@ -504,6 +530,53 @@ export class Gen2Adapter implements IGenerationAdapter {
       otGender: gen2Ext.caughtOtGender,
       metLocation: gen2Ext.metLocation,
       raw: gen2Ext.caughtData,
+    };
+  }
+
+  // ── Phase 4: Advanced Features Convenience Methods ──
+
+  /**
+   * Get RTC (Real-Time Clock) flags from a Gen 2 save.
+   * Returns the raw RTC flags byte. The RTC is used for time-based
+   * events like day/night cycles and berry growth.
+   */
+  getRtcFlags(save: ParsedSave): number {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    return ext?.rtcFlags ?? 0;
+  }
+
+  /**
+   * Get Mom savings amount from a Gen 2 save.
+   * Mom can save a percentage of battle earnings for the player.
+   * Returns 0 if the extension is not available.
+   */
+  getMomSavings(save: ParsedSave): number {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    return ext?.momSavings ?? 0;
+  }
+
+  /**
+   * Get phone contacts from a Gen 2 save.
+   * Returns an array of phone contacts (up to 39) with trainer class,
+   * name, and map location info. Returns empty array if not available.
+   */
+  getPhoneContacts(save: ParsedSave): { trainerClass: number; name: string; mapGroup: number; mapNumber: number }[] {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    return ext?.phoneContacts ?? [];
+  }
+
+  /**
+   * Get Unown Pokedex data from a Gen 2 save.
+   * Returns the caught Unown form data (26 entries for A-Z),
+   * unlock flags, and first seen form. Returns null if no data.
+   */
+  getUnownDexData(save: ParsedSave): { caughtForms: number[]; unlockedFlags: number; firstSeen: number } | null {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    if (!ext || ext.unownCaughtForms.length === 0) return null;
+    return {
+      caughtForms: ext.unownCaughtForms,
+      unlockedFlags: ext.unownUnlockedFlags,
+      firstSeen: ext.unownFirstSeen,
     };
   }
 }

@@ -4,7 +4,7 @@ import { PokemonStats, isGen2Extension, Gen2SaveExtension, Gen2Extension } from 
 import { Autocomplete } from '../../../components/ui/Autocomplete';
 import { GEN2_ITEMS } from './data/constants';
 import { extensionRegistry } from '../../core/ExtensionRegistry';
-import { Sparkles, HelpCircle, MapPin, Baby, Swords, Gift, CreditCard, SunMoon, Zap, Flame, Snowflake } from 'lucide-react';
+import { Sparkles, HelpCircle, MapPin, Baby, Swords, Gift, CreditCard, SunMoon, Zap, Flame, Snowflake, Clock, PiggyBank, Phone, Eye } from 'lucide-react';
 
 // 1. HeldItemSection: Injects held-item Autocomplete selection directly into PokemonInfoPanel
 // Now reads/writes through the canonical genExtension slot when available,
@@ -132,7 +132,10 @@ export const DaycareSection: ISectionExtension = {
     const saveData = data as Record<string, unknown>;
     const genExt = saveData.genExtension as Gen2SaveExtension | null;
     
-    if (!genExt || genExt.generation !== 2) return null;
+    // Guard: only render if this is actually save-level data (Gen2SaveExtension)
+    // When rendered in Pokemon context, genExtension is Gen2Extension (not Gen2SaveExtension)
+    // Gen2SaveExtension has daycareParent1; Gen2Extension does not
+    if (!genExt || genExt.generation !== 2 || !('daycareParent1' in genExt)) return null;
     
     const hasParent1 = genExt.daycareParent1 !== null;
     const hasParent2 = genExt.daycareParent2 !== null;
@@ -185,7 +188,14 @@ export const MapPositionSection: ISectionExtension = {
     const saveData = data as Record<string, unknown>;
     const genExt = saveData.genExtension as Gen2SaveExtension | null;
     
-    if (!genExt || genExt.generation !== 2) return null;
+    // Guard: only render if this is actually save-level data (Gen2SaveExtension)
+    // Gen2SaveExtension has currentMapId; Gen2Extension does not
+    if (!genExt || genExt.generation !== 2 || !('currentMapId' in genExt)) return null;
+    
+    // Additional safety: ensure currentMapId is actually a number before calling toString
+    const mapId = typeof genExt.currentMapId === 'number' ? genExt.currentMapId : 0;
+    const mapX = typeof genExt.mapX === 'number' ? genExt.mapX : 0;
+    const mapY = typeof genExt.mapY === 'number' ? genExt.mapY : 0;
     
     return (
       <div className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-3 border border-blue-100 dark:border-blue-800/30">
@@ -194,8 +204,8 @@ export const MapPositionSection: ISectionExtension = {
           <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">Position</span>
         </div>
         <div className="text-[10px] text-blue-600 dark:text-blue-400 space-y-0.5">
-          <div>Map: {genExt.currentMapId} (0x{genExt.currentMapId.toString(16).toUpperCase()})</div>
-          <div>X: {genExt.mapX}, Y: {genExt.mapY}</div>
+          <div>Map: {mapId} (0x{mapId.toString(16).toUpperCase()})</div>
+          <div>X: {mapX}, Y: {mapY}</div>
         </div>
       </div>
     );
@@ -260,7 +270,8 @@ export const BlueCardSection: ISectionExtension = {
     const saveData = data as Record<string, unknown>;
     const genExt = saveData.genExtension as Gen2SaveExtension | null;
     
-    if (!genExt || genExt.generation !== 2 || genExt.blueCardPoints < 0) return null;
+    // Guard: only render if this is save-level data (Gen2SaveExtension has blueCardPoints)
+    if (!genExt || genExt.generation !== 2 || !('blueCardPoints' in genExt) || genExt.blueCardPoints < 0) return null;
     
     return (
       <div className="bg-indigo-50 dark:bg-indigo-900/10 rounded-xl p-3 border border-indigo-100 dark:border-indigo-800/30">
@@ -289,7 +300,8 @@ export const MysteryGiftSection: ISectionExtension = {
     const saveData = data as Record<string, unknown>;
     const genExt = saveData.genExtension as Gen2SaveExtension | null;
     
-    if (!genExt || genExt.generation !== 2 || genExt.mysteryGiftUnlocked < 0) return null;
+    // Guard: only render if this is save-level data (Gen2SaveExtension has mysteryGiftUnlocked)
+    if (!genExt || genExt.generation !== 2 || !('mysteryGiftUnlocked' in genExt) || genExt.mysteryGiftUnlocked < 0) return null;
     
     const isUnlocked = genExt.mysteryGiftUnlocked !== 0;
     const statusColor = isUnlocked 
@@ -329,9 +341,10 @@ export const GSBallEventSection: ISectionExtension = {
     const saveData = data as Record<string, unknown>;
     const genExt = saveData.genExtension as Gen2SaveExtension | null;
     
-    if (!genExt || genExt.generation !== 2) return null;
+    // Guard: only render if this is save-level data (Gen2SaveExtension has gsBallEventEnabled)
+    if (!genExt || genExt.generation !== 2 || !('gsBallEventEnabled' in genExt)) return null;
     
-    // Only show for Crystal saves (check if gender offset is valid, which means Crystal)
+    // Only show for Crystal saves (check if blueCardPoints is valid, which means Crystal)
     const isCrystal = genExt.blueCardPoints >= 0;
     if (!isCrystal) return null;
     
@@ -372,7 +385,8 @@ export const MoveTutorSection: ISectionExtension = {
     const saveData = data as Record<string, unknown>;
     const genExt = saveData.genExtension as Gen2SaveExtension | null;
     
-    if (!genExt || genExt.generation !== 2 || genExt.moveTutorFlags.length === 0) return null;
+    // Guard: only render if this is save-level data (Gen2SaveExtension has moveTutorFlags)
+    if (!genExt || genExt.generation !== 2 || !('moveTutorFlags' in genExt) || genExt.moveTutorFlags.length === 0) return null;
     
     const tutorNames = ['Flamethrower', 'Thunderbolt', 'Ice Beam'];
     const tutorIcons = [
@@ -419,3 +433,158 @@ extensionRegistry.registerExtension('pokemon-info', 2, BlueCardSection);
 extensionRegistry.registerExtension('pokemon-info', 2, MysteryGiftSection);
 extensionRegistry.registerExtension('pokemon-info', 2, GSBallEventSection);
 extensionRegistry.registerExtension('pokemon-info', 2, MoveTutorSection);
+
+// ============================================================================
+// Phase 4: Advanced Features UI Extensions
+// ============================================================================
+
+// 12. RTCClockSection: Phase 4 — Displays RTC (Real-Time Clock) status
+// Shows the RTC flags byte from the save file. The RTC is used for
+// time-based events in Gold/Silver/Crystal. This section displays the
+// raw flags value and indicates whether the clock is active.
+export const RTCClockSection: ISectionExtension = {
+  id: 'gsc-rtc-clock',
+  panelId: 'pokemon-info',
+  render(data: PokemonStats | Record<string, unknown>, context: IExtensionRenderContext) {
+    const saveData = data as Record<string, unknown>;
+    const genExt = saveData.genExtension as Gen2SaveExtension | null;
+    
+    // Guard: only render if this is save-level data with rtcFlags
+    if (!genExt || genExt.generation !== 2 || !('rtcFlags' in genExt)) return null;
+    
+    return (
+      <div className="bg-teal-50 dark:bg-teal-900/10 rounded-xl p-3 border border-teal-100 dark:border-teal-800/30">
+        <div className="flex items-center gap-2 mb-1">
+          <Clock size={14} className="text-teal-500" />
+          <span className="text-xs font-bold text-teal-600 dark:text-teal-400 uppercase tracking-widest">RTC Clock</span>
+        </div>
+        <div className="text-[10px] text-teal-600 dark:text-teal-400">
+          <div>Flags: 0x{genExt.rtcFlags.toString(16).toUpperCase().padStart(2, '0')} ({genExt.rtcFlags})</div>
+          <div className="mt-0.5 opacity-70">Real-Time Clock for time-based events</div>
+        </div>
+      </div>
+    );
+  }
+};
+
+// 13. MomSavingsSection: Phase 4 — Displays Mom savings amount
+// Mom can save a percentage of battle earnings. This section shows
+// the current savings amount stored in BCD format.
+export const MomSavingsSection: ISectionExtension = {
+  id: 'gsc-mom-savings',
+  panelId: 'pokemon-info',
+  render(data: PokemonStats | Record<string, unknown>, context: IExtensionRenderContext) {
+    const saveData = data as Record<string, unknown>;
+    const genExt = saveData.genExtension as Gen2SaveExtension | null;
+    
+    // Guard: only render if this is save-level data with momSavings
+    if (!genExt || genExt.generation !== 2 || !('momSavings' in genExt)) return null;
+    if (genExt.momSavings === 0) return null; // Don't show when no savings
+    
+    // Format as money (BCD display)
+    const savingsStr = genExt.momSavings.toLocaleString();
+    
+    return (
+      <div className="bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-3 border border-yellow-100 dark:border-yellow-800/30">
+        <div className="flex items-center gap-2 mb-1">
+          <PiggyBank size={14} className="text-yellow-500" />
+          <span className="text-xs font-bold text-yellow-600 dark:text-yellow-400 uppercase tracking-widest">Mom Savings</span>
+        </div>
+        <div className="text-[11px] font-semibold text-yellow-700 dark:text-yellow-300">
+          {savingsStr}
+        </div>
+      </div>
+    );
+  }
+};
+
+// 14. PhoneContactsSection: Phase 4 — Displays phone contacts
+// GSC stores up to 39 phone contacts from trainers met throughout the game.
+// This section shows how many contacts are registered and lists them.
+export const PhoneContactsSection: ISectionExtension = {
+  id: 'gsc-phone-contacts',
+  panelId: 'pokemon-info',
+  render(data: PokemonStats | Record<string, unknown>, context: IExtensionRenderContext) {
+    const saveData = data as Record<string, unknown>;
+    const genExt = saveData.genExtension as Gen2SaveExtension | null;
+    
+    // Guard: only render if this is save-level data with phoneContacts
+    if (!genExt || genExt.generation !== 2 || !('phoneContacts' in genExt)) return null;
+    if (genExt.phoneContacts.length === 0) return null;
+    
+    return (
+      <div className="bg-cyan-50 dark:bg-cyan-900/10 rounded-xl p-3 border border-cyan-100 dark:border-cyan-800/30">
+        <div className="flex items-center gap-2 mb-2">
+          <Phone size={14} className="text-cyan-500" />
+          <span className="text-xs font-bold text-cyan-600 dark:text-cyan-400 uppercase tracking-widest">Phone Contacts</span>
+          <span className="text-[9px] bg-cyan-200 dark:bg-cyan-800 text-cyan-700 dark:text-cyan-300 px-1.5 py-0.5 rounded-full font-bold">{genExt.phoneContacts.length}</span>
+        </div>
+        <div className="space-y-0.5 max-h-24 overflow-y-auto">
+          {genExt.phoneContacts.slice(0, 10).map((contact, idx) => (
+            <div key={idx} className="text-[10px] text-cyan-600 dark:text-cyan-400 truncate">
+              {contact.name}
+            </div>
+          ))}
+          {genExt.phoneContacts.length > 10 && (
+            <div className="text-[9px] text-cyan-500/50 italic">
+              +{genExt.phoneContacts.length - 10} more...
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+};
+
+// 15. UnownDexSection: Phase 4 — Displays Unown Pokedex forms
+// After the main Pokedex data, there are 28 bytes of Unown-specific data
+// tracking which Unown letter forms have been caught. This section
+// shows the caught forms as a visual letter grid.
+export const UnownDexSection: ISectionExtension = {
+  id: 'gsc-unown-dex',
+  panelId: 'pokemon-info',
+  render(data: PokemonStats | Record<string, unknown>, context: IExtensionRenderContext) {
+    const saveData = data as Record<string, unknown>;
+    const genExt = saveData.genExtension as Gen2SaveExtension | null;
+    
+    // Guard: only render if this is save-level data with unownCaughtForms
+    if (!genExt || genExt.generation !== 2 || !('unownCaughtForms' in genExt)) return null;
+    if (genExt.unownCaughtForms.length === 0) return null;
+    
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const caughtCount = genExt.unownCaughtForms.filter(v => v > 0).length;
+    
+    return (
+      <div className="bg-violet-50 dark:bg-violet-900/10 rounded-xl p-3 border border-violet-100 dark:border-violet-800/30">
+        <div className="flex items-center gap-2 mb-2">
+          <Eye size={14} className="text-violet-500" />
+          <span className="text-xs font-bold text-violet-600 dark:text-violet-400 uppercase tracking-widest">Unown Dex</span>
+          <span className="text-[9px] bg-violet-200 dark:bg-violet-800 text-violet-700 dark:text-violet-300 px-1.5 py-0.5 rounded-full font-bold">{caughtCount}/26</span>
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {alphabet.split('').map((letter, idx) => {
+            const isCaught = genExt.unownCaughtForms[idx] !== undefined && genExt.unownCaughtForms[idx] > 0;
+            return (
+              <span 
+                key={letter}
+                className={`text-[9px] w-5 h-5 flex items-center justify-center rounded font-bold ${
+                  isCaught 
+                    ? 'bg-violet-200 dark:bg-violet-700 text-violet-700 dark:text-violet-200' 
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600'
+                }`}
+              >
+                {letter}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+};
+
+// Phase 4: Register advanced feature extensions
+extensionRegistry.registerExtension('pokemon-info', 2, RTCClockSection);
+extensionRegistry.registerExtension('pokemon-info', 2, MomSavingsSection);
+extensionRegistry.registerExtension('pokemon-info', 2, PhoneContactsSection);
+extensionRegistry.registerExtension('pokemon-info', 2, UnownDexSection);

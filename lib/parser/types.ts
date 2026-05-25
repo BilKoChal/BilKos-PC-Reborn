@@ -188,3 +188,19 @@ export interface ParserResult {
    *  (e.g. Yellow, Crystal) and can be opened directly. */
   ambiguous?: boolean;
 }
+
+// ============================================================================
+// Gen 2 Phone Contact
+// ============================================================================
+
+/**
+ * Gen 2 Phone Contact entry.
+ * Each phone contact stores the trainer's name, class, and map location
+ * so the player can rematch them via the PokeGear phone feature.
+ */
+export interface Gen2PhoneContact {
+  trainerClass: number;
+  name: string;
+  mapGroup: number;
+  mapNumber: number;
+}

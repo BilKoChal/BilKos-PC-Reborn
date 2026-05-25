@@ -390,6 +390,86 @@ function writeGen2CrystalData(
 }
 
 /**
+ * Write Phase 4 advanced feature data back to the save file.
+ * This includes: RTC flags, Mom savings, Unown Dex, and Phone Contacts.
+ * For fields that haven't been edited (still at defaults), the raw data
+ * is preserved from the original save to avoid corrupting untouched fields.
+ */
+function writeGen2Phase4Data(
+  data: Uint8Array,
+  offsets: Gen2OffsetsConfig,
+  gen2SaveExt: Gen2SaveExtension
+) {
+  // Phase 4: RTC flags
+  if (offsets.rtcFlags >= 0 && offsets.rtcFlags < data.length) {
+    data[offsets.rtcFlags] = gen2SaveExt.rtcFlags;
+  }
+
+  // Phase 4: Mom Savings (3-byte BCD, same format as money)
+  if (offsets.momSavings >= 0 && offsets.momSavings + 2 < data.length) {
+    data[offsets.momSavings] = (gen2SaveExt.momSavings >> 16) & 0xFF;
+    data[offsets.momSavings + 1] = (gen2SaveExt.momSavings >> 8) & 0xFF;
+    data[offsets.momSavings + 2] = gen2SaveExt.momSavings & 0xFF;
+  }
+
+  // Phase 4: Unown Dex (28 bytes: 26 caught forms + 1 unlock flags + 1 first seen)
+  if (offsets.unownDex > 0 && offsets.unownDex + 27 < data.length) {
+    const unownOffset = offsets.unownDex;
+    // Only write if we have parsed data (unownCaughtForms has 26 entries)
+    if (gen2SaveExt.unownCaughtForms.length === 26) {
+      for (let i = 0; i < 26; i++) {
+        data[unownOffset + i] = gen2SaveExt.unownCaughtForms[i]!;
+      }
+      data[unownOffset + 26] = gen2SaveExt.unownUnlockedFlags;
+      data[unownOffset + 27] = gen2SaveExt.unownFirstSeen;
+    }
+    // If unownCaughtForms is empty (not parsed), preserve raw data — already in data buffer
+  }
+
+  // Phase 4: Phone Contacts
+  // Phone contacts are stored as fixed-size entries at offsets.phoneContacts.
+  // Each entry is: [name: stringLength bytes] [trainerClass: 1] [mapGroup: 1] [mapNumber: 1]
+  // The total entry stride is stringLength + 3.
+  if (offsets.phoneContacts > 0 && gen2SaveExt.phoneContacts.length > 0) {
+    const phoneOffset = offsets.phoneContacts;
+    const strLen = offsets.stringLength;
+    const entryStride = strLen + 3;
+
+    // Clear the phone contact region first
+    for (let i = 0; i < 39; i++) {
+      const entryOffset = phoneOffset + (i * entryStride);
+      if (entryOffset + entryStride <= data.length) {
+        // Clear name area
+        for (let j = 0; j < strLen; j++) {
+          data[entryOffset + j] = 0x00;
+        }
+        // Clear metadata area
+        data[entryOffset + strLen] = 0x00;
+        data[entryOffset + strLen + 1] = 0x00;
+        data[entryOffset + strLen + 2] = 0x00;
+      }
+    }
+
+    // Write each contact
+    for (let i = 0; i < gen2SaveExt.phoneContacts.length && i < 39; i++) {
+      const contact = gen2SaveExt.phoneContacts[i]!;
+      const entryOffset = phoneOffset + (i * entryStride);
+      if (entryOffset + entryStride > data.length) break;
+
+      // Encode the name
+      const nameBuf = encodeGameBoyText(contact.name, strLen, 0x50);
+      data.set(nameBuf, entryOffset);
+
+      // Write metadata
+      data[entryOffset + strLen] = contact.trainerClass;
+      data[entryOffset + strLen + 1] = contact.mapGroup;
+      data[entryOffset + strLen + 2] = contact.mapNumber;
+    }
+  }
+  // If phoneContacts is empty (not parsed), preserve raw data — already in data buffer
+}
+
+/**
  * Main Gen 2 save writer.
  * Uses centralized offset system for version/region-aware writing.
  * Phase 2 adds: rival name, event flags, daycare, box names, TM/HM pocket, map data.
@@ -564,6 +644,9 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
 
   // ── Phase 3: Write Crystal-Specific Data ──
   writeGen2CrystalData(data, offsets, gen2SaveExt);
+
+  // ── Phase 4: Write RTC, Mom Savings, Unown Dex, Phone Contacts ──
+  writeGen2Phase4Data(data, offsets, gen2SaveExt);
 
   // ── Write PC Boxes ──
   const activeBoxId = save.currentBoxId || 0;

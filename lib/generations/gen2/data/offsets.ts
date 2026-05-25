@@ -97,6 +97,14 @@ export interface Gen2OffsetsConfig {
 
   // ── RTC ──
   rtcFlags: number;
+
+  // ── Phase 4: Advanced Features ──
+  /** Mom savings amount (3-byte BCD, near money offset) */
+  momSavings: number;
+  /** Phone contacts start offset (after event flags section) */
+  phoneContacts: number;
+  /** Unown Dex start offset (after pokedex seen section) */
+  unownDex: number;
 }
 
 // ── Region Config Constants ──
@@ -173,6 +181,7 @@ const INT_GS_OFFSETS = {
   timePlayed: 0x2053,
   palette: 0x206B,
   money: 0x23DB,
+  momSavings: 0x23DD,
   coins: 0x23E2,
   johtoBadges: 0x23E4,
   tmHmPouch: 0x23E6,
@@ -188,10 +197,12 @@ const INT_GS_OFFSETS = {
   eventFlags: 0x261F,
   eventWork: 0x251F,
   boxNames: 0x2727,
+  phoneContacts: 0x2660,
   otherCurrentBox: 0x284C,
   party: 0x288A,
   pokedexCaught: 0x2A4C,
   pokedexSeen: 0x2A6C,
+  unownDex: 0x2A8C,
   daycare: 0x2AA8,
   currentBoxCopy: 0x2D6C,
   accumulatedChecksumEnd: 0x2D68,
@@ -215,6 +226,7 @@ const INT_CRYSTAL_OFFSETS = {
   timePlayed: 0x2052,     // 1 byte earlier than GS!
   palette: 0x206A,
   money: 0x23DC,
+  momSavings: 0x23DE,
   coins: 0x23E3,
   johtoBadges: 0x23E5,
   tmHmPouch: 0x23E7,
@@ -230,10 +242,12 @@ const INT_CRYSTAL_OFFSETS = {
   eventFlags: 0x2600,
   eventWork: 0x2500,
   boxNames: 0x2703,
+  phoneContacts: 0x263C,
   otherCurrentBox: 0x284C,
   party: 0x2865,
   pokedexCaught: 0x2A27,
   pokedexSeen: 0x2A47,
+  unownDex: 0x2A67,
   daycare: 0x2A83,
   currentBoxCopy: 0x2D10,
   accumulatedChecksumEnd: 0x2B82,
@@ -257,6 +271,7 @@ const JPN_GS_OFFSETS = {
   timePlayed: 0x2034,
   palette: 0x204C,
   money: 0x23BC,
+  momSavings: 0x23DE,
   coins: 0x23C3,
   johtoBadges: 0x23C5,
   tmHmPouch: 0x23C7,
@@ -272,10 +287,12 @@ const JPN_GS_OFFSETS = {
   eventFlags: 0x2600,
   eventWork: 0x2500,
   boxNames: 0x2708,
+  phoneContacts: 0x2648,
   otherCurrentBox: 0x2842,
   party: 0x283E,
   pokedexCaught: 0x29CE,
   pokedexSeen: 0x29EE,
+  unownDex: 0x2A0E,
   daycare: 0x2A2A,
   currentBoxCopy: 0x2D10,
   accumulatedChecksumEnd: 0x2C8B,
@@ -299,6 +316,7 @@ const JPN_CRYSTAL_OFFSETS = {
   timePlayed: 0x2034,
   palette: 0x204C,
   money: 0x23BE,
+  momSavings: 0x23DF,
   coins: 0x23C5,
   johtoBadges: 0x23C7,
   tmHmPouch: 0x23C9,
@@ -314,10 +332,12 @@ const JPN_CRYSTAL_OFFSETS = {
   eventFlags: 0x25E2,
   eventWork: 0x24E2,
   boxNames: 0x26E5,
+  phoneContacts: 0x261E,
   otherCurrentBox: 0x2842,
   party: 0x281A,
   pokedexCaught: 0x29AA,
   pokedexSeen: 0x29CA,
+  unownDex: 0x29E7,
   daycare: 0x2A06,
   currentBoxCopy: 0x2D10,
   accumulatedChecksumEnd: 0x2AE2,
@@ -341,6 +361,7 @@ const KOR_GS_OFFSETS = {
   timePlayed: 0x204D,
   palette: 0x2065,
   money: 0x23D3,
+  momSavings: 0x23EE,
   coins: 0x23DA,
   johtoBadges: 0x23DC,
   tmHmPouch: 0x23DE,
@@ -356,10 +377,12 @@ const KOR_GS_OFFSETS = {
   eventFlags: 0x25F7,
   eventWork: 0x24F7,
   boxNames: 0x26FF,
+  phoneContacts: 0x2672,
   otherCurrentBox: 0x284C,
   party: 0x28CC,
   pokedexCaught: 0x2A8E,
   pokedexSeen: 0x2AAE,
+  unownDex: 0x2ACC,
   daycare: 0x2AEA,
   currentBoxCopy: 0x2DAE,
   accumulatedChecksumEnd: 0x2DAA,
