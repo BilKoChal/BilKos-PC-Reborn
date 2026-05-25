@@ -69,6 +69,14 @@ export function writeGen2PokemonStruct(
   data[offset + 27] = mon.friendship !== undefined ? mon.friendship : 70;
   data[offset + 28] = mon.pokerus !== undefined ? mon.pokerus : 0;
 
+  // 9b. Phase 3: Write CaughtData (Crystal only) — bytes 0x1D-0x1E
+  // Read caughtData from Gen2Extension if available, otherwise preserve raw bytes
+  const gen2Ext = mon.genExtension as import('../../canonicalModel').Gen2Extension | null;
+  if (gen2Ext && gen2Ext.generation === 2 && gen2Ext.caughtData !== undefined && gen2Ext.caughtData !== 0) {
+    data[offset + 0x1D] = (gen2Ext.caughtData >> 8) & 0xFF;
+    data[offset + 0x1E] = gen2Ext.caughtData & 0xFF;
+  }
+
   // 10. Level
   data[offset + 31] = mon.level;
 
@@ -341,6 +349,47 @@ function writeGen2MapData(data: Uint8Array, offsets: Gen2OffsetsConfig, mapData:
 }
 
 /**
+ * Write Crystal-specific save data back to the save file.
+ * This includes: Blue Card points, Mystery Gift data, and GS Ball event flag.
+ * These fields are only written for Crystal saves (offsets >= 0).
+ * For Gold/Silver, all offsets are -1 and no data is written.
+ */
+function writeGen2CrystalData(
+  data: Uint8Array,
+  offsets: Gen2OffsetsConfig,
+  gen2SaveExt: Gen2SaveExtension
+) {
+  // Blue Card Points (Crystal only)
+  if (offsets.blueCardPoints >= 0 && offsets.blueCardPoints < data.length) {
+    data[offsets.blueCardPoints] = gen2SaveExt.blueCardPoints >= 0
+      ? gen2SaveExt.blueCardPoints
+      : data[offsets.blueCardPoints]!; // Preserve original if not set
+  }
+
+  // Mystery Gift Unlocked (Crystal only)
+  if (offsets.mysteryGiftUnlocked >= 0 && offsets.mysteryGiftUnlocked < data.length) {
+    if (gen2SaveExt.mysteryGiftUnlocked >= 0) {
+      data[offsets.mysteryGiftUnlocked] = gen2SaveExt.mysteryGiftUnlocked;
+    }
+  }
+
+  // Mystery Gift Item (Crystal only)
+  if (offsets.mysteryGiftItem >= 0 && offsets.mysteryGiftItem < data.length) {
+    data[offsets.mysteryGiftItem] = gen2SaveExt.mysteryGiftItem;
+  }
+
+  // GS Ball Event (Crystal only)
+  if (gen2SaveExt.gsBallEventEnabled && offsets.gsBallEventPrimary >= 0) {
+    if (offsets.gsBallEventPrimary < data.length) {
+      data[offsets.gsBallEventPrimary] = 0x0B;
+    }
+    if (offsets.gsBallEventBackup >= 0 && offsets.gsBallEventBackup < data.length) {
+      data[offsets.gsBallEventBackup] = 0x0B;
+    }
+  }
+}
+
+/**
  * Main Gen 2 save writer.
  * Uses centralized offset system for version/region-aware writing.
  * Phase 2 adds: rival name, event flags, daycare, box names, TM/HM pocket, map data.
@@ -512,6 +561,9 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
 
   // ── Phase 2: Write Map Data ──
   writeGen2MapData(data, offsets, save.map);
+
+  // ── Phase 3: Write Crystal-Specific Data ──
+  writeGen2CrystalData(data, offsets, gen2SaveExt);
 
   // ── Write PC Boxes ──
   const activeBoxId = save.currentBoxId || 0;

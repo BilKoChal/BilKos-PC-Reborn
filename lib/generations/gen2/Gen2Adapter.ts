@@ -423,4 +423,87 @@ export class Gen2Adapter implements IGenerationAdapter {
     if (ext) return { currentMapId: ext.currentMapId, x: ext.mapX, y: ext.mapY };
     return { currentMapId: 0, x: 0, y: 0 };
   }
+
+  // ── Phase 3: Crystal-Specific Convenience Methods ──
+
+  /**
+   * Check whether the save is a Crystal save.
+   * Crystal saves have unique features like gender selection, Blue Card,
+   * Mystery Gift, GS Ball event, and Move Tutors that Gold/Silver lack.
+   */
+  isCrystal(save: ParsedSave): boolean {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    return ext?.gameVersion === 'Crystal';
+  }
+
+  /**
+   * Get Blue Card points from a Crystal save.
+   * Returns -1 for Gold/Silver saves (no Blue Card), or the point count for Crystal.
+   * The Blue Card tracks Battle Tower wins and can be exchanged for prizes.
+   */
+  getBlueCardPoints(save: ParsedSave): number {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    return ext?.blueCardPoints ?? -1;
+  }
+
+  /**
+   * Get Mystery Gift status from a Crystal save.
+   * Returns { unlocked: number, item: number } or null for Gold/Silver saves.
+   * Mystery Gift is an infrared communication feature exclusive to Crystal
+   * that allows players to receive items from other players or special events.
+   */
+  getMysteryGiftStatus(save: ParsedSave): { unlocked: number; item: number } | null {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    if (!ext || ext.mysteryGiftUnlocked < 0) return null;
+    return { unlocked: ext.mysteryGiftUnlocked, item: ext.mysteryGiftItem };
+  }
+
+  /**
+   * Check whether the GS Ball event is enabled in a Crystal save.
+   * The GS Ball event enables the Ilex Forest Celebi encounter. It was
+   * originally available via the Mobile System GB in Japan and later via
+   * Virtual Console releases. Returns false for Gold/Silver saves.
+   */
+  isGSBallEventEnabled(save: ParsedSave): boolean {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    return ext?.gsBallEventEnabled ?? false;
+  }
+
+  /**
+   * Get Move Tutor usage flags from a Crystal save.
+   * Returns an array of 3 booleans indicating whether each Move Tutor
+   * has been used (true = used, false = still available). The three
+   * tutors teach Flamethrower, Thunderbolt, and Ice Beam respectively.
+   * Returns an empty array for Gold/Silver saves (no Move Tutors).
+   */
+  getMoveTutorFlags(save: ParsedSave): boolean[] {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    return ext?.moveTutorFlags ?? [];
+  }
+
+  /**
+   * Get CaughtData (met location/level/time/OT gender) for a specific Pokemon.
+   * Returns null if the Pokemon has no CaughtData (Gold/Silver origin or
+   * empty field). The CaughtData is only present in Crystal saves and
+   * records where and when a Pokemon was obtained.
+   */
+  getPokemonCaughtData(mon: PokemonStats): {
+    timeOfDay: string;
+    metLevel: number;
+    otGender: string;
+    metLocation: number;
+    raw: number;
+  } | null {
+    const ext = mon.genExtension;
+    if (!ext || ext.generation !== 2) return null;
+    const gen2Ext = ext as import('../../canonicalModel').Gen2Extension;
+    if (gen2Ext.caughtData === 0) return null;
+    return {
+      timeOfDay: gen2Ext.metTimeOfDay,
+      metLevel: gen2Ext.metLevel,
+      otGender: gen2Ext.caughtOtGender,
+      metLocation: gen2Ext.metLocation,
+      raw: gen2Ext.caughtData,
+    };
+  }
 }

@@ -118,6 +118,18 @@ export class Gen2Extension implements IGenExtension {
   friendship = 0;                // Base friendship / happiness
   breedingCompatibility = "Unknown";
   eggCycles = 0;
+
+  // ── Phase 3: Crystal-Specific CaughtData ──
+  /** Raw 2-byte CaughtData value from Pokemon struct bytes 0x1D-0x1E (Crystal only, 0 for GS) */
+  caughtData: number = 0;
+  /** Met location ID (0-127, Crystal only) */
+  metLocation: number = 0;
+  /** Met level (0-63, Crystal only) */
+  metLevel: number = 0;
+  /** Time of day when caught: 'Morning' | 'Day' | 'Night' | 'Unknown' (Crystal only) */
+  metTimeOfDay: string = 'Unknown';
+  /** Original Trainer gender from CaughtData (Crystal only) */
+  caughtOtGender: string = 'Male';
 }
 
 /**
@@ -317,6 +329,18 @@ export class Gen2SaveExtension implements ISaveExtension {
   eventFlagsOffset: number = 0;
   /** Byte offset where event work variables start (for writer) */
   eventWorkOffset: number = 0;
+
+  // ── Phase 3: Crystal-Specific Data ──
+  /** Blue Card points (Crystal only, -1 for GS) */
+  blueCardPoints: number = -1;
+  /** Mystery Gift unlocked status (Crystal only, -1 for GS) */
+  mysteryGiftUnlocked: number = -1;
+  /** Mystery Gift item ID (Crystal only, 0 for GS) */
+  mysteryGiftItem: number = 0;
+  /** Whether the GS Ball event is enabled (Crystal only) */
+  gsBallEventEnabled: boolean = false;
+  /** Move Tutor flags — which move tutors have been used (Crystal only, derived from event flags) */
+  moveTutorFlags: boolean[] = [];
 }
 
 // ============================================================================

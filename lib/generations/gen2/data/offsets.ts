@@ -88,6 +88,12 @@ export interface Gen2OffsetsConfig {
   blueCardPoints: number;
   mysteryGiftUnlocked: number;
   mysteryGiftItem: number;
+  gsBallEventPrimary: number;     // GS Ball event flag primary offset (-1 for GS)
+  gsBallEventBackup: number;     // GS Ball event flag backup offset (-1 for GS)
+
+  // ── Move Tutor Event Flag Indices (Crystal) ──
+  // These are bit indices into the event flags array
+  moveTutorFlagIndices: number[]; // Empty array for GS, [index1, index2, index3] for Crystal
 
   // ── RTC ──
   rtcFlags: number;
@@ -195,6 +201,9 @@ const INT_GS_OFFSETS = {
   blueCardPoints: -1,
   mysteryGiftUnlocked: -1,
   mysteryGiftItem: -1,
+  gsBallEventPrimary: -1,
+  gsBallEventBackup: -1,
+  moveTutorFlagIndices: [],
 };
 
 const INT_CRYSTAL_OFFSETS = {
@@ -234,6 +243,9 @@ const INT_CRYSTAL_OFFSETS = {
   blueCardPoints: 0x27D9,
   mysteryGiftUnlocked: 0xBE3,
   mysteryGiftItem: 0xBE4,
+  gsBallEventPrimary: 0x3E3C,
+  gsBallEventBackup: 0x3E44,
+  moveTutorFlagIndices: [0x038, 0x039, 0x03A], // Crystal move tutor event flag indices
 };
 
 const JPN_GS_OFFSETS = {
@@ -273,6 +285,9 @@ const JPN_GS_OFFSETS = {
   blueCardPoints: -1,
   mysteryGiftUnlocked: -1,
   mysteryGiftItem: -1,
+  gsBallEventPrimary: -1,
+  gsBallEventBackup: -1,
+  moveTutorFlagIndices: [],
 };
 
 const JPN_CRYSTAL_OFFSETS = {
@@ -312,6 +327,9 @@ const JPN_CRYSTAL_OFFSETS = {
   blueCardPoints: 0x278E,
   mysteryGiftUnlocked: 0xB51,
   mysteryGiftItem: 0xB52,
+  gsBallEventPrimary: 0xA000,
+  gsBallEventBackup: 0xA083,
+  moveTutorFlagIndices: [0x038, 0x039, 0x03A], // Crystal move tutor event flag indices
 };
 
 const KOR_GS_OFFSETS = {
@@ -351,6 +369,9 @@ const KOR_GS_OFFSETS = {
   blueCardPoints: -1,
   mysteryGiftUnlocked: -1,
   mysteryGiftItem: -1,
+  gsBallEventPrimary: -1,
+  gsBallEventBackup: -1,
+  moveTutorFlagIndices: [],
 };
 
 // ── Factory Function ──

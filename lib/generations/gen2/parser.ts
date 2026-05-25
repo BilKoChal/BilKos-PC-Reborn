@@ -25,6 +25,89 @@ import {
   type Gen2Version 
 } from './data/offsets';
 
+// ============================================================================
+// Phase 3: Crystal-Specific Parsing Utilities
+// ============================================================================
+
+/**
+ * Parse CaughtData from a Crystal Pokemon's struct bytes 0x1D-0x1E.
+ *
+ * The CaughtData is a 16-bit value present only in Crystal saves that records
+ * the circumstances under which a Pokemon was obtained. It encodes four pieces
+ * of information in a packed bitfield:
+ *
+ *   Bit 15-14: Met Time of Day (0=Morning, 1=Day, 2=Night, 3=Unused)
+ *   Bit 13:    Unused
+ *   Bit 12-8:  Met Level (0-63, the level at which the Pokemon was caught)
+ *   Bit 7:     OT Gender (0=Male, 1=Female — the original trainer's gender)
+ *   Bit 6-0:   Met Location (0-127, an index into the game's location table)
+ *
+ * When a Pokemon originates from Gold or Silver (traded into Crystal), the
+ * CaughtData field is typically 0, which this function returns as null to
+ * indicate that no met data is available. This distinction is important for
+ * the UI because it allows displaying "Met at ???" for GS-origin Pokemon
+ * rather than showing misleading default values.
+ *
+ * The met location IDs map to specific in-game locations. The complete mapping
+ * is locale-dependent but common ones include:
+ *   1=New Bark Town, 2=Cherrygrove City, 3=Violet City, etc.
+ * The full list is available in PKHeX's Gen2 location tables.
+ */
+export function parseGen2CaughtData(caughtData: number): {
+  timeOfDay: 'Morning' | 'Day' | 'Night' | 'Unknown';
+  metLevel: number;
+  otGender: 'Male' | 'Female';
+  metLocation: number;
+} | null {
+  if (caughtData === 0) return null; // Not caught in Crystal (from GS trade)
+
+  const tod = (caughtData >> 14) & 0x3;
+  const metLevel = (caughtData >> 8) & 0x3F;
+  const otGender = (caughtData >> 7) & 0x1;
+  const metLocation = caughtData & 0x7F;
+
+  return {
+    timeOfDay: tod === 0 ? 'Morning' : tod === 1 ? 'Day' : tod === 2 ? 'Night' : 'Unknown',
+    metLevel,
+    otGender: otGender === 1 ? 'Female' : 'Male',
+    metLocation,
+  };
+}
+
+/**
+ * Check whether the GS Ball mobile event is enabled in a Crystal save.
+ *
+ * The GS Ball event is a special mobile event from the Japanese Crystal version
+ * that was later made available in the Virtual Console release of Crystal. When
+ * enabled, the player can obtain the GS Ball from the Goldenrod Pokemon Center,
+ * which leads to the Ilex Forest Celebi event. The flag is stored at two
+ * locations in the save file (primary and backup), and the value 0x0B at the
+ * primary location indicates the event is active. This function checks the
+ * primary offset based on the detected region of the save.
+ */
+export function isGSBallEventEnabled(data: Uint8Array, offsets: Gen2OffsetsConfig): boolean {
+  if (offsets.gsBallEventPrimary < 0) return false;
+  if (offsets.gsBallEventPrimary >= data.length) return false;
+  return data[offsets.gsBallEventPrimary] === 0x0B;
+}
+
+/**
+ * Derive Move Tutor flags from the event flags array for Crystal saves.
+ *
+ * Crystal introduced three Move Tutors who teach special moves:
+ *   - Tutor 1: Flamethrower (event flag index 0x038 for INT Crystal)
+ *   - Tutor 2: Thunderbolt (event flag index 0x039)
+ *   - Tutor 3: Ice Beam (event flag index 0x03A)
+ *
+ * When a Move Tutor has been used, the corresponding event flag is set.
+ * This function reads those flags from the parsed event flags boolean array.
+ * For Gold/Silver saves, there are no Move Tutors, so an empty array is returned.
+ */
+export function deriveMoveTutorFlags(eventFlags: boolean[], offsets: Gen2OffsetsConfig): boolean[] {
+  if (offsets.moveTutorFlagIndices.length === 0) return [];
+  return offsets.moveTutorFlagIndices.map(idx => idx < eventFlags.length ? eventFlags[idx]! : false);
+}
+
 // Checksum formula for Generation 2: 16-bit additive sum (stored little-endian)
 export function calculateGen2Checksum(data: Uint8Array, start: number, end: number): number {
   let sum = 0;
@@ -204,6 +287,7 @@ export function parseGen2PokemonStruct(
 
   const friendship = view[offset + 27]!;
   const pokerus = view[offset + 28]!;
+  const caughtDataRaw = (view[offset + 0x1D]! << 8) | view[offset + 0x1E]!;
   const level = view[offset + 31]!;
 
   const baseStats = getGen2BaseStats(dexId);
@@ -258,6 +342,18 @@ export function parseGen2PokemonStruct(
   gen2Ext.spAtk = spAtk;
   gen2Ext.spDef = spDef;
   gen2Ext.friendship = friendship;
+
+  // ── Phase 3: Parse CaughtData (Crystal only) ──
+  // The CaughtData is a 16-bit value at bytes 0x1D-0x1E in the Pokemon struct.
+  // It is only meaningful for Crystal saves; for Gold/Silver, it is always 0.
+  gen2Ext.caughtData = caughtDataRaw;
+  const caughtInfo = parseGen2CaughtData(caughtDataRaw);
+  if (caughtInfo) {
+    gen2Ext.metLocation = caughtInfo.metLocation;
+    gen2Ext.metLevel = caughtInfo.metLevel;
+    gen2Ext.metTimeOfDay = caughtInfo.timeOfDay;
+    gen2Ext.caughtOtGender = caughtInfo.otGender;
+  }
 
   return {
     speciesId,
@@ -993,6 +1089,26 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   gen2SaveExt.hallOfFameOffset = 0x0C6C; // Default for INT GS, computed above for others
   gen2SaveExt.eventFlagsOffset = offsets.eventFlags;
   gen2SaveExt.eventWorkOffset = offsets.eventWork;
+
+  // ── Phase 3: Crystal-Specific Save Data ──
+  // Blue Card Points (Crystal only)
+  if (offsets.blueCardPoints >= 0 && offsets.blueCardPoints < data.length) {
+    gen2SaveExt.blueCardPoints = data[offsets.blueCardPoints]!;
+  }
+
+  // Mystery Gift (Crystal only)
+  if (offsets.mysteryGiftUnlocked >= 0 && offsets.mysteryGiftUnlocked < data.length) {
+    gen2SaveExt.mysteryGiftUnlocked = data[offsets.mysteryGiftUnlocked]!;
+  }
+  if (offsets.mysteryGiftItem >= 0 && offsets.mysteryGiftItem < data.length) {
+    gen2SaveExt.mysteryGiftItem = data[offsets.mysteryGiftItem]!;
+  }
+
+  // GS Ball Event (Crystal only)
+  gen2SaveExt.gsBallEventEnabled = isGSBallEventEnabled(data, offsets);
+
+  // Move Tutor Flags (Crystal only — derived from event flags)
+  gen2SaveExt.moveTutorFlags = deriveMoveTutorFlags(eventFlags, offsets);
 
   return {
     generation: 2,
