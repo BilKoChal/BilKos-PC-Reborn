@@ -1,4 +1,4 @@
-import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension } from '../../parser/types';
+import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension, HallOfFameTeam, HallOfFamePokemon, Gen2TmHmEntry } from '../../parser/types';
 import { getPokemonTypes, TYPE_MAP } from '../gen1/data/pokemonTypes';
 import { 
   getUInt16BigEndian, 
@@ -374,9 +374,375 @@ export function parsePCBoxGen2(view: Uint8Array, offset: number, offsets: Gen2Of
   return list;
 }
 
+// ============================================================================
+// Phase 2: Missing Save Section Parsers
+// ============================================================================
+
+/**
+ * Parse the rival's name from the save file.
+ * The rival name is stored at offsets.rivalName using the standard
+ * Game Boy text encoding with stringLength bytes available.
+ *
+ * The rival's name is a fixed string that is set at the start of the game
+ * when Professor Oak asks "What's his name?" — it cannot be changed in-game
+ * afterward without editing the save file. This parser allows editors to
+ * read and modify the rival's name for save file editing purposes.
+ */
+export function parseGen2RivalName(data: Uint8Array, offsets: Gen2OffsetsConfig): string {
+  if (data.length <= offsets.rivalName + offsets.stringLength) return '';
+  const raw = data.slice(offsets.rivalName, offsets.rivalName + offsets.stringLength);
+  return decodeText(raw, 0, offsets.maxTrainerNameLen);
+}
+
+/**
+ * Parse event flags from the save file.
+ *
+ * Event flags in Gen 2 are a dense bitfield spanning 2000 individual flags
+ * (250 bytes), controlling every story event, NPC interaction, item pickup,
+ * door unlock, and cutscene trigger in the game. They are critical for
+ * save editors because they determine game progress state. Alongside the
+ * flags are 256 bytes of "event work" variables that store dynamic values
+ * like the current step count for the Day-Care Lady, the state of puzzles,
+ * and other scripted counters.
+ *
+ * The flags and work variables live at offsets.eventFlags and offsets.eventWork
+ * respectively. The layout is region/version-dependent, which is why they
+ * are centralized in the offset system rather than hardcoded.
+ */
+export function parseGen2EventFlags(data: Uint8Array, offset: number, count: number): boolean[] {
+  const flags: boolean[] = [];
+  for (let i = 0; i < count; i++) {
+    const byteIdx = offset + Math.floor(i / 8);
+    if (byteIdx >= data.length) {
+      flags.push(false);
+      continue;
+    }
+    const byte = data[byteIdx]!;
+    flags.push(((byte >> (i % 8)) & 1) === 1);
+  }
+  return flags;
+}
+
+/**
+ * Parse Hall of Fame data from SRAM Bank 0.
+ *
+ * The Hall of Fame stores up to 50 teams (one per Elite Four champion run).
+ * Each team consists of up to 6 Pokemon entries stored in a compact format.
+ * Each entry contains:
+ *   - 1 byte: Species ID (internal index, matches National Dex for Gen 2)
+ *   - 1 byte: Level at time of victory
+ *   - stringLength bytes: Nickname
+ *
+ * Entries with species ID 0xFF or 0x00 indicate empty slots. A team with
+ * all empty entries signals the end of the Hall of Fame data. The data is
+ * stored in SRAM Bank 0 at offset 0x0C6C for International saves (varies
+ * by version/region). The writer should preserve this data as-is since it
+ * is read-only in most save editors.
+ */
+export function parseGen2HallOfFame(
+  data: Uint8Array,
+  offsets: Gen2OffsetsConfig
+): HallOfFameTeam[] {
+  const teams: HallOfFameTeam[] = [];
+  const strLen = offsets.stringLength;
+  const entrySize = 2 + strLen; // species + level + nickname
+
+  // Hall of Fame is stored in SRAM Bank 0, starting at 0x0C6C for INT GS
+  // The exact offset varies by version/region; use a computed offset
+  const isJapanese = offsets.stringLength === 6;
+  const isCrystal = offsets.gender >= 0;
+  let hofOffset: number;
+
+  if (isJapanese) {
+    hofOffset = isCrystal ? 0x0C86 : 0x0C6C;
+  } else {
+    hofOffset = isCrystal ? 0x0C86 : 0x0C6C;
+  }
+
+  // Safety: don't parse beyond buffer
+  if (hofOffset + (50 * entrySize * 6) > data.length) {
+    return teams;
+  }
+
+  for (let team = 0; team < 50; team++) {
+    const teamOffset = hofOffset + (team * entrySize * 6);
+    const pokemon: HallOfFamePokemon[] = [];
+
+    for (let slot = 0; slot < 6; slot++) {
+      const entryOffset = teamOffset + (slot * entrySize);
+
+      if (entryOffset + entrySize > data.length) break;
+
+      const speciesId = data[entryOffset]!;
+      if (speciesId === 0xFF || speciesId === 0) break; // No more entries in this team
+
+      const level = data[entryOffset + 1]!;
+      const nickRaw = data.slice(entryOffset + 2, entryOffset + 2 + strLen);
+      const nickname = decodeText(nickRaw, 0, strLen);
+
+      // Use GEN2_POKEMON_NAMES for species name (species ID = National Dex in Gen 2)
+      const speciesName = GEN2_POKEMON_NAMES[speciesId] || `Species ${speciesId}`;
+
+      // Get type info from the adapter's type table
+      const parsedTypes = getPokemonTypes(speciesId, 2);
+      const types = parsedTypes.length > 0 ? parsedTypes : ['Normal'];
+
+      pokemon.push({
+        speciesId,
+        dexId: speciesId,
+        speciesName,
+        nickname,
+        level,
+        types,
+      });
+    }
+
+    if (pokemon.length > 0) {
+      teams.push({ id: team, pokemon });
+    } else {
+      // No more teams with data
+      break;
+    }
+  }
+
+  return teams;
+}
+
+/**
+ * Parse daycare data from the save file.
+ *
+ * The Route 34 Day-Care in Gold/Silver/Crystal stores up to 2 Pokemon
+ * (parents) that can breed. The data is stored in NOB format:
+ *   - Nickname (stringLength bytes)
+ *   - OT Name (stringLength bytes)
+ *   - Body (32 bytes — the standard Gen 2 Pokemon structure without party stats)
+ *
+ * After the two parent entries, there are metadata bytes:
+ *   - Daycare step counter / breeding status byte
+ *   - Steps until egg byte
+ *
+ * This is different from the regular PokeList format used for party and boxes,
+ * which stores all nicknames and OT names together after all bodies. The daycare
+ * interleaves name and body data for each parent sequentially.
+ */
+export function parseGen2Daycare(
+  data: Uint8Array,
+  offsets: Gen2OffsetsConfig
+): { parent1: PokemonStats | null; parent2: PokemonStats | null; breedingStatus: number; stepsUntilEgg: number } {
+  const strLen = offsets.stringLength;
+  const SIZE_2STORED = 32;
+  const offset = offsets.daycare;
+
+  // Parent 1: Nickname + OT + Body (interleaved NOB format)
+  let parent1: PokemonStats | null = null;
+  const nick1Start = offset;
+  const ot1Start = offset + strLen;
+  const body1Start = offset + (strLen * 2);
+
+  if (body1Start + SIZE_2STORED <= data.length) {
+    const body1Species = data[body1Start]!;
+    if (body1Species !== 0 && body1Species !== 0xFF) {
+      const nick1Raw = data.slice(nick1Start, nick1Start + strLen);
+      const ot1Raw = data.slice(ot1Start, ot1Start + strLen);
+      const nick1 = decodeText(nick1Raw, 0, strLen);
+      const ot1 = decodeText(ot1Raw, 0, strLen);
+      parent1 = parseGen2PokemonStruct(data, body1Start, false, nick1, ot1, nick1Raw, ot1Raw);
+    }
+  }
+
+  // Parent 2: same NOB format, offset after parent 1
+  let parent2: PokemonStats | null = null;
+  const parent2Offset = offset + (strLen * 2) + SIZE_2STORED;
+  const nick2Start = parent2Offset;
+  const ot2Start = parent2Offset + strLen;
+  const body2Start = parent2Offset + (strLen * 2);
+
+  if (body2Start + SIZE_2STORED <= data.length) {
+    const body2Species = data[body2Start]!;
+    if (body2Species !== 0 && body2Species !== 0xFF) {
+      const nick2Raw = data.slice(nick2Start, nick2Start + strLen);
+      const ot2Raw = data.slice(ot2Start, ot2Start + strLen);
+      const nick2 = decodeText(nick2Raw, 0, strLen);
+      const ot2 = decodeText(ot2Raw, 0, strLen);
+      parent2 = parseGen2PokemonStruct(data, body2Start, false, nick2, ot2, nick2Raw, ot2Raw);
+    }
+  }
+
+  // Daycare metadata: breeding status and steps until egg
+  // These bytes follow the two parent entries
+  const metadataOffset = parent2Offset + (strLen * 2) + SIZE_2STORED;
+  let breedingStatus = 0;
+  let stepsUntilEgg = 0;
+
+  if (metadataOffset + 1 < data.length) {
+    breedingStatus = data[metadataOffset]!;
+    stepsUntilEgg = data[metadataOffset + 1]!;
+  }
+
+  return { parent1, parent2, breedingStatus, stepsUntilEgg };
+}
+
+/**
+ * Parse box names from the save file.
+ *
+ * Each PC box has a custom name (up to 9 characters for INT/JPN, 17 for Korean)
+ * stored at offsets.boxNames. The names are stored sequentially with each
+ * entry using boxNameEntrySize bytes. Box names default to the game's built-in
+ * names ("BOX 1", "BOX 2", etc.) but can be customized by the player in the PC
+ * interface. This parser extracts those custom names for display in the editor.
+ */
+export function parseGen2BoxNames(
+  data: Uint8Array,
+  offsets: Gen2OffsetsConfig
+): string[] {
+  const names: string[] = [];
+  const offset = offsets.boxNames;
+  const entrySize = offsets.boxNameEntrySize;
+  // The usable name length is entrySize minus 1 for the terminator, 
+  // but we decode the full entrySize bytes and let decodeText handle termination
+  const nameDecodeLen = entrySize - 1;
+
+  for (let i = 0; i < offsets.boxCount; i++) {
+    const nameOffset = offset + (i * entrySize);
+    if (nameOffset + entrySize > data.length) {
+      names.push(`BOX ${i + 1}`);
+      continue;
+    }
+    const raw = data.slice(nameOffset, nameOffset + entrySize);
+    const decoded = decodeText(raw, 0, nameDecodeLen);
+    // If the decoded name is empty or just terminators, use the default
+    names.push(decoded.trim() || `BOX ${i + 1}`);
+  }
+
+  return names;
+}
+
+/**
+ * Parse the TM/HM pocket from the save file.
+ *
+ * Gen 2 stores TMs and HMs differently from regular items. The TM/HM pocket
+ * uses a direct byte array where the array index maps to the TM/HM number,
+ * and the value is the quantity (0 = not owned, 1-99 for TMs, always 1 for HMs).
+ * There are 50 TMs and 7 HMs, totaling 57 slots stored contiguously.
+ *
+ * TM/HM item IDs in Gen 2:
+ *   TM01 = item ID 0xC5+1 = 0xC6 (198) ... TM50 = 0xC5+50 = 0xF7 (247)
+ *   HM01 = item ID 0xC5+51 = 0xF8 (248) ... HM07 = 0xC5+57 = 0xFE (254)
+ *
+ * The move taught by TM#i is move ID (i + 0), since TMs directly map to
+ * move IDs (TM01 = move 1, etc.). However, the actual mapping is more complex
+ * — Gen 2 TM numbers don't match move IDs sequentially. We use the known
+ * Gen 2 TM/HM-to-move mapping table.
+ */
+export function parseGen2TmHmPocket(data: Uint8Array, offsets: Gen2OffsetsConfig): Item[] {
+  const items: Item[] = [];
+  const offset = offsets.tmHmPouch;
+
+  // Gen 2 TM/HM to move ID mapping
+  // TM01-TM50 move IDs and HM01-HM07 move IDs
+  const TM_HM_MOVES: number[] = [
+    // TM01 - TM10
+    189, 8, 245, 34, 69, 37, 249, 129, 3, 236,
+    // TM11 - TM20
+    92, 253, 68, 60, 219, 115, 188, 202, 242, 36,
+    // TM21 - TM30
+    216, 82, 161, 6, 130, 153, 248, 89, 87, 129,
+    // TM31 - TM40
+    24, 116, 185, 97, 99, 227, 63, 234, 156, 213,
+    // TM41 - TM50
+    28, 16, 168, 247, 55, 57, 196, 201, 218, 97,
+    // HM01 - HM07
+    15, 19, 57, 148, 70, 91, 250,
+  ];
+
+  for (let i = 0; i < 57; i++) {
+    if (offset + i >= data.length) break;
+    const qty = data[offset + i]!;
+    if (qty > 0) {
+      const isHm = i >= 50;
+      const tmHmNum = isHm ? (i - 50 + 1) : (i + 1);
+      const itemId = 0xC5 + i + 1; // Item ID for this TM/HM
+      const moveId = TM_HM_MOVES[i] || 0;
+      const moveName = GEN2_MOVES_LIST[moveId] || '-';
+      const name = isHm
+        ? `HM${String(tmHmNum).padStart(2, '0')} - ${moveName}`
+        : `TM${String(tmHmNum).padStart(2, '0')} - ${moveName}`;
+
+      items.push({
+        id: itemId,
+        name,
+        count: qty,
+        pocket: 5, // TM/HM pocket
+      });
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Parse map/position data from the save file.
+ *
+ * The player's current position on the overworld map is stored in the save
+ * file at fixed offsets within the SRAM Bank 1 data region. This includes
+ * the current map ID (a 16-bit value encoding map group and map number),
+ * and the player's X/Y tile coordinates within that map. These values are
+ * useful for save editors that want to teleport the player or verify their
+ * current location. The exact offsets vary between Gold/Silver and Crystal
+ * due to the slightly different save layouts, so they are computed from the
+ * offset configuration.
+ */
+export function parseGen2MapData(data: Uint8Array, offsets: Gen2OffsetsConfig): MapData {
+  // Map data offsets are relative to the trainer block start.
+  // INT GS: map group+number at 0x2311, X at 0x2313, Y at 0x2314
+  // INT Crystal: map group+number at 0x2312, X at 0x2314, Y at 0x2315
+  // These are offset from the trainer block start (0x2009), so:
+  // GS: 0x2311 - 0x2009 = 0x308 relative
+  // Crystal: 0x2312 - 0x2009 = 0x309 relative
+  const isCrystal = offsets.gender >= 0;
+  const isJapanese = offsets.stringLength === 6;
+  const isKorean = offsets.boxNameEntrySize === 17;
+
+  let mapGroupOffset: number;
+  let mapXOffset: number;
+  let mapYOffset: number;
+
+  if (isJapanese) {
+    // JP offsets are slightly different
+    mapGroupOffset = offsets.trainer1 + 0x2F8;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  } else if (isKorean) {
+    mapGroupOffset = offsets.trainer1 + 0x2FA;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  } else if (isCrystal) {
+    mapGroupOffset = offsets.trainer1 + 0x309;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  } else {
+    // INT GS
+    mapGroupOffset = offsets.trainer1 + 0x308;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  }
+
+  if (mapGroupOffset + 3 >= data.length) {
+    return { currentMapId: 0, x: 0, y: 0 };
+  }
+
+  const currentMapId = data[mapGroupOffset]! | (data[mapGroupOffset + 1]! << 8);
+  const x = data[mapXOffset]!;
+  const y = data[mapYOffset]!;
+
+  return { currentMapId, x, y };
+}
+
 /**
  * Main Gen 2 save parser.
  * Uses centralized offset system for version/region-aware parsing.
+ * Phase 2 adds: rival name, hall of fame, event flags, daycare, box names,
+ * TM/HM pocket, and map/position data.
  */
 export function parseGen2Save(data: Uint8Array, originalFilename: string = "save.sav"): ParsedSave {
   if (data.length < 32768) {
@@ -486,6 +852,9 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     ? (data[offsets.gender] === 1 ? 'Female' : 'Male')
     : 'Male';
 
+  // ── Phase 2: Parse Rival Name ──
+  const rivalName = parseGen2RivalName(data, offsets);
+
   const trainer: TrainerInfo = {
     name: trainerName,
     id: tid.toString().padStart(5, '0'),
@@ -494,6 +863,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     playTime,
     badges,
     gender: trainerGender,
+    rivalName,
   };
 
   // ── Parse Party Pokémon ──
@@ -535,6 +905,9 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   const keyItems = parseItemsPocketGen2(data, offsets.keyItemPouchStart, offsets.keyItemPouchCount, 1, offsets.pouchKeySlots);
   const balls = parseItemsPocketGen2(data, offsets.ballPouchStart, offsets.ballPouchCount, 2, offsets.pouchBallSlots);
   const pcItems = parseItemsPocketGen2(data, offsets.pcItemPouchStart, offsets.pcItemPouchCount, 2, offsets.pouchPcSlots);
+
+  // ── Phase 2: Parse TM/HM Pocket ──
+  const tms = parseGen2TmHmPocket(data, offsets);
 
   // ── Parse Pokedex ──
   const pokedexOwnedChecked = getPokedexFlagsGen2(data, offsets.pokedexCaught);
@@ -583,10 +956,41 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     sound: gscSound
   };
 
+  // ── Phase 2: Parse Hall of Fame ──
+  const hallOfFame = parseGen2HallOfFame(data, offsets);
+
+  // ── Phase 2: Parse Event Flags ──
+  // 2000 event flags (250 bytes) — covers all story progress, NPC interactions, items, etc.
+  const eventFlags = parseGen2EventFlags(data, offsets.eventFlags, 2000);
+
+  // ── Phase 2: Parse Daycare ──
+  const daycareData = parseGen2Daycare(data, offsets);
+  const daycare: PokemonStats[] = [];
+  if (daycareData.parent1) daycare.push(daycareData.parent1);
+  if (daycareData.parent2) daycare.push(daycareData.parent2);
+
+  // ── Phase 2: Parse Box Names ──
+  const boxNames = parseGen2BoxNames(data, offsets);
+
+  // ── Phase 2: Parse Map Data ──
+  const mapData = parseGen2MapData(data, offsets);
+
   // ── Build Gen2SaveExtension ──
   const gen2SaveExt = new Gen2SaveExtension();
   gen2SaveExt.region = region;
   gen2SaveExt.gameVersion = gameVersion;
+  gen2SaveExt.rivalName = rivalName;
+  gen2SaveExt.boxNames = boxNames;
+  gen2SaveExt.daycareParent1 = daycareData.parent1;
+  gen2SaveExt.daycareParent2 = daycareData.parent2;
+  gen2SaveExt.daycareStepsUntilEgg = daycareData.stepsUntilEgg;
+  gen2SaveExt.daycareBreedingStatus = daycareData.breedingStatus;
+  gen2SaveExt.currentMapId = mapData.currentMapId;
+  gen2SaveExt.mapX = mapData.x;
+  gen2SaveExt.mapY = mapData.y;
+  gen2SaveExt.hallOfFameOffset = 0x0C6C; // Default for INT GS, computed above for others
+  gen2SaveExt.eventFlagsOffset = offsets.eventFlags;
+  gen2SaveExt.eventWorkOffset = offsets.eventWork;
 
   return {
     generation: 2,
@@ -596,12 +1000,14 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     isValid: isChecksumValid,
     trainer,
     options,
+    map: mapData,
     partyCount,
     party: partyList,
     items: pocketItems,
     keyItems,
     balls,
     pcItems,
+    tms,
     pokedexOwned,
     pokedexSeen,
     pokedexOwnedFlags: pokedexOwnedChecked,
@@ -610,8 +1016,9 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     currentBoxCount,
     currentBoxPokemon,
     pcBoxes,
-    hallOfFame: [],
-    eventFlags: [],
+    hallOfFame,
+    eventFlags,
+    daycare: daycare.length > 0 ? daycare : undefined,
     rawData: data,
     genExtension: gen2SaveExt
   };

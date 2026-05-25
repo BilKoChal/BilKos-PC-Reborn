@@ -263,6 +263,42 @@ export class Gen2SaveExtension implements ISaveExtension {
   region: string = 'international';
   /** Detected game version: 'Gold', 'Silver', or 'Crystal' */
   gameVersion: string = 'Gold';
+
+  // ── Phase 2: Rival Name ──
+  /** Rival's trainer name, decoded from the save file */
+  rivalName: string = '';
+
+  // ── Phase 2: Box Names ──
+  /** Names for each PC box (14 for INT/KOR, 9 for JPN) */
+  boxNames: string[] = [];
+
+  // ── Phase 2: Daycare Data ──
+  /** Daycare parent 1 (null if no Pokemon at daycare) */
+  daycareParent1: CanonicalPokemon | null = null;
+  /** Daycare parent 2 (null if no second Pokemon — usually Ditto) */
+  daycareParent2: CanonicalPokemon | null = null;
+  /** Number of steps until an egg is produced (0 = no egg pending) */
+  daycareStepsUntilEgg: number = 0;
+  /** Daycare breeding status byte */
+  daycareBreedingStatus: number = 0;
+
+  // ── Phase 2: Map/Position Data ──
+  /** Current map group + number (combined as 16-bit) */
+  currentMapId: number = 0;
+  /** Player X position on the current map */
+  mapX: number = 0;
+  /** Player Y position on the current map */
+  mapY: number = 0;
+
+  // ── Phase 2: Hall of Fame ──
+  /** Byte offset where Hall of Fame data starts in the save (for writer preservation) */
+  hallOfFameOffset: number = 0;
+
+  // ── Phase 2: Event Flags ──
+  /** Byte offset where event flags start (for writer) */
+  eventFlagsOffset: number = 0;
+  /** Byte offset where event work variables start (for writer) */
+  eventWorkOffset: number = 0;
 }
 
 // ============================================================================

@@ -370,4 +370,57 @@ export class Gen2Adapter implements IGenerationAdapter {
   encodeText(text: string, length: number, terminator: number = 0x50): Uint8Array {
     return encodeGameBoyText(text, length, terminator);
   }
+
+  // ── Phase 2: Convenience Methods for Save-Level Data ──
+
+  /**
+   * Get box names from a parsed Gen 2 save.
+   * Returns an array of box names (14 for INT/KOR, 9 for JPN).
+   * Falls back to default "BOX N" names if the extension is not available.
+   */
+  getBoxNames(save: ParsedSave): string[] {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    if (ext && ext.boxNames && ext.boxNames.length > 0) {
+      return ext.boxNames;
+    }
+    // Fallback: generate default names
+    const count = save.pcBoxes?.length || 14;
+    return Array.from({ length: count }, (_, i) => `BOX ${i + 1}`);
+  }
+
+  /**
+   * Get rival name from a parsed Gen 2 save.
+   * Returns the rival's name, or empty string if not available.
+   */
+  getRivalName(save: ParsedSave): string {
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    if (ext && ext.rivalName) return ext.rivalName;
+    return save.trainer.rivalName || '';
+  }
+
+  /**
+   * Get daycare Pokemon from a parsed Gen 2 save.
+   * Returns up to 2 daycare parents.
+   */
+  getDaycarePokemon(save: ParsedSave): PokemonStats[] {
+    return save.daycare || [];
+  }
+
+  /**
+   * Get the number of event flags in a Gen 2 save.
+   * GSC always has 2000 event flags.
+   */
+  getEventFlagCount(): number {
+    return 2000;
+  }
+
+  /**
+   * Get map/position data from a parsed Gen 2 save.
+   */
+  getMapData(save: ParsedSave): { currentMapId: number; x: number; y: number } {
+    if (save.map) return save.map;
+    const ext = save.genExtension as Gen2SaveExtension | null;
+    if (ext) return { currentMapId: ext.currentMapId, x: ext.mapX, y: ext.mapY };
+    return { currentMapId: 0, x: 0, y: 0 };
+  }
 }

@@ -132,6 +132,52 @@ export interface MapData {
     warpedFromMap?: number;
 }
 
+// ============================================================================
+// Gen 2 Daycare Data
+// ============================================================================
+
+/**
+ * Gen 2 Daycare data structure.
+ * The Route 34 daycare stores up to 2 parents in NOB format
+ * (Nickname + OT Name + Body), plus breeding metadata.
+ */
+export interface Gen2DaycareData {
+    /** Parent 1 Pokemon (null if no Pokemon deposited) */
+    parent1: PokemonStats | null;
+    /** Parent 2 Pokemon (null if no second parent, usually a Ditto) */
+    parent2: PokemonStats | null;
+    /** Byte offset of the daycare data in the save file */
+    offset: number;
+    /** Breeding status byte (0 = no egg, non-zero = egg being produced) */
+    breedingStatus: number;
+    /** Steps remaining until an egg is produced */
+    stepsUntilEgg: number;
+}
+
+// ============================================================================
+// Gen 2 TM/HM Pocket Item
+// ============================================================================
+
+/**
+ * A single TM or HM entry in the Gen 2 TM/HM pocket.
+ * Unlike regular items, TMs/HMs are stored as a direct byte array
+ * where index = TM/HM number and value = quantity.
+ */
+export interface Gen2TmHmEntry {
+    /** TM/HM index (0-49 for TMs, 50-56 for HMs) */
+    index: number;
+    /** Item ID in the game's item table */
+    itemId: number;
+    /** Display name (e.g. "TM01", "HM01") */
+    name: string;
+    /** Quantity owned (0 = not owned, 1-99 for TMs, always 1 for HMs) */
+    count: number;
+    /** Which move this TM/HM teaches */
+    moveId: number;
+    /** Name of the move this TM/HM teaches */
+    moveName: string;
+}
+
 export interface ParserResult {
   success: boolean;
   data?: ParsedSave;

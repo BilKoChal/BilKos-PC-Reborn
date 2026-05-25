@@ -14,6 +14,7 @@ import {
   type Gen2Version, 
   type Gen2Region 
 } from './data/offsets';
+import { GEN2_MOVES_LIST } from './data/constants';
 
 export function writeGen2PokemonStruct(
   data: Uint8Array, 
@@ -165,9 +166,184 @@ export function writePCBoxGen2(data: Uint8Array, offset: number, pokemonList: Po
   }
 }
 
+// ============================================================================
+// Phase 2: Missing Save Section Writers
+// ============================================================================
+
+/**
+ * Write the rival's name back to the save file.
+ * The rival name is stored at offsets.rivalName using standard Game Boy
+ * text encoding. We only write if the trainer info has a rivalName set.
+ */
+function writeGen2RivalName(data: Uint8Array, offsets: Gen2OffsetsConfig, rivalName: string | undefined) {
+  if (!rivalName) return;
+  const rivalBuf = encodeGameBoyText(rivalName, offsets.stringLength, 0x50);
+  data.set(rivalBuf, offsets.rivalName);
+}
+
+/**
+ * Write event flags back to the save file.
+ * Each flag is a single bit in a dense byte array. We pack the boolean
+ * array back into bytes, setting each bit according to the flag value.
+ * Only writes flags that are within the valid range (0-1999 for Gen 2).
+ */
+function writeGen2EventFlags(data: Uint8Array, offset: number, flags: boolean[], count: number) {
+  const byteCount = Math.ceil(count / 8);
+  // First, zero out the flag region
+  for (let i = 0; i < byteCount; i++) {
+    if (offset + i < data.length) {
+      data[offset + i] = 0;
+    }
+  }
+  // Set individual flag bits
+  for (let i = 0; i < count && i < flags.length; i++) {
+    if (flags[i]) {
+      const byteIdx = offset + Math.floor(i / 8);
+      if (byteIdx < data.length) {
+        data[byteIdx] = data[byteIdx]! | (1 << (i % 8));
+      }
+    }
+  }
+}
+
+/**
+ * Write daycare data back to the save file.
+ * The daycare uses NOB (Nickname-OT-Body) interleaved format for each parent.
+ * We write the Pokemon structures back and update the breeding metadata.
+ */
+function writeGen2Daycare(
+  data: Uint8Array, 
+  offsets: Gen2OffsetsConfig, 
+  gen2SaveExt: Gen2SaveExtension
+) {
+  const strLen = offsets.stringLength;
+  const offset = offsets.daycare;
+
+  // Write Parent 1
+  if (gen2SaveExt.daycareParent1) {
+    const mon = gen2SaveExt.daycareParent1;
+    const nick1Start = offset;
+    const ot1Start = offset + strLen;
+    const body1Start = offset + (strLen * 2);
+
+    writeGen2PokemonStruct(data, body1Start, mon, false);
+    const nickBuf = encodeGameBoyText(mon.nickname || "", strLen, 0x50);
+    const otBuf = encodeGameBoyText(mon.originalTrainerName || "", strLen, 0x50);
+    data.set(nickBuf, nick1Start);
+    data.set(otBuf, ot1Start);
+  }
+
+  // Write Parent 2
+  if (gen2SaveExt.daycareParent2) {
+    const mon = gen2SaveExt.daycareParent2;
+    const parent2Offset = offset + (strLen * 2) + 32;
+    const nick2Start = parent2Offset;
+    const ot2Start = parent2Offset + strLen;
+    const body2Start = parent2Offset + (strLen * 2);
+
+    writeGen2PokemonStruct(data, body2Start, mon, false);
+    const nickBuf = encodeGameBoyText(mon.nickname || "", strLen, 0x50);
+    const otBuf = encodeGameBoyText(mon.originalTrainerName || "", strLen, 0x50);
+    data.set(nickBuf, nick2Start);
+    data.set(otBuf, ot2Start);
+  }
+
+  // Write daycare metadata
+  const metadataOffset = offset + ((strLen * 2) + 32) * 2;
+  if (metadataOffset + 1 < data.length) {
+    data[metadataOffset] = gen2SaveExt.daycareBreedingStatus;
+    data[metadataOffset + 1] = gen2SaveExt.daycareStepsUntilEgg;
+  }
+}
+
+/**
+ * Write box names back to the save file.
+ * Each box name is encoded into boxNameEntrySize bytes at the boxNames offset.
+ */
+function writeGen2BoxNames(data: Uint8Array, offsets: Gen2OffsetsConfig, boxNames: string[]) {
+  const offset = offsets.boxNames;
+  const entrySize = offsets.boxNameEntrySize;
+
+  for (let i = 0; i < offsets.boxCount && i < boxNames.length; i++) {
+    const nameOffset = offset + (i * entrySize);
+    const nameBuf = encodeGameBoyText(boxNames[i]!, entrySize, 0x50);
+    data.set(nameBuf, nameOffset);
+  }
+}
+
+/**
+ * Write TM/HM pocket data back to the save file.
+ * The TM/HM pocket is a direct byte array where index = TM/HM number
+ * and value = quantity. TMs can have count 0-99, HMs are always 0 or 1.
+ */
+function writeGen2TmHmPocket(data: Uint8Array, offsets: Gen2OffsetsConfig, tms: Item[]) {
+  const offset = offsets.tmHmPouch;
+
+  // Clear the entire TM/HM pocket first (57 bytes)
+  for (let i = 0; i < 57; i++) {
+    if (offset + i < data.length) {
+      data[offset + i] = 0;
+    }
+  }
+
+  // Write each TM/HM entry
+  for (const item of tms) {
+    // Convert item ID back to TM/HM index
+    // TM item IDs: 0xC6 (198) to 0xF7 (247) → index 0-49
+    // HM item IDs: 0xF8 (248) to 0xFE (254) → index 50-56
+    const idx = item.id - 0xC5 - 1; // Convert item ID to 0-based index
+    if (idx >= 0 && idx < 57 && offset + idx < data.length) {
+      // HMs can only be 0 or 1, TMs can be 0-99
+      data[offset + idx] = idx >= 50 ? Math.min(item.count, 1) : Math.min(item.count, 99);
+    }
+  }
+}
+
+/**
+ * Write map/position data back to the save file.
+ * Updates the player's current map ID and X/Y coordinates.
+ */
+function writeGen2MapData(data: Uint8Array, offsets: Gen2OffsetsConfig, mapData: { currentMapId: number; x: number; y: number } | undefined) {
+  if (!mapData) return;
+
+  const isCrystal = offsets.gender >= 0;
+  const isJapanese = offsets.stringLength === 6;
+  const isKorean = offsets.boxNameEntrySize === 17;
+
+  let mapGroupOffset: number;
+  let mapXOffset: number;
+  let mapYOffset: number;
+
+  if (isJapanese) {
+    mapGroupOffset = offsets.trainer1 + 0x2F8;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  } else if (isKorean) {
+    mapGroupOffset = offsets.trainer1 + 0x2FA;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  } else if (isCrystal) {
+    mapGroupOffset = offsets.trainer1 + 0x309;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  } else {
+    mapGroupOffset = offsets.trainer1 + 0x308;
+    mapXOffset = mapGroupOffset + 2;
+    mapYOffset = mapGroupOffset + 3;
+  }
+
+  if (mapGroupOffset + 3 < data.length) {
+    data[mapGroupOffset] = mapData.currentMapId & 0xFF;
+    data[mapGroupOffset + 1] = (mapData.currentMapId >> 8) & 0xFF;
+    data[mapXOffset] = mapData.x;
+    data[mapYOffset] = mapData.y;
+  }
+}
+
 /**
  * Main Gen 2 save writer.
  * Uses centralized offset system for version/region-aware writing.
+ * Phase 2 adds: rival name, event flags, daycare, box names, TM/HM pocket, map data.
  */
 export function writeGen2Save(save: ParsedSave): Uint8Array {
   const data = new Uint8Array(save.rawData);
@@ -187,6 +363,9 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
 
   const offsets = getGen2Offsets(gameVersion, region);
   const strLen = offsets.stringLength;
+
+  // Get Gen2SaveExtension for Phase 2 data
+  const gen2SaveExt = (save.genExtension as Gen2SaveExtension) || new Gen2SaveExtension();
 
   // ── Write Game Options ──
   if (save.options) {
@@ -266,6 +445,9 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
     data[offsets.gender] = save.trainer.gender === 'Female' ? 1 : 0;
   }
 
+  // ── Phase 2: Write Rival Name ──
+  writeGen2RivalName(data, offsets, save.trainer.rivalName);
+
   // ── Write Party Pokémon ──
   const partyCount = Math.min(save.party.length, 6);
   data[offsets.party] = partyCount;
@@ -309,6 +491,27 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   if (save.pcItems) {
     writeInventoryPocketGen2(data, offsets.pcItemPouchCount, offsets.pcItemPouchStart, 2, offsets.pouchPcSlots, save.pcItems);
   }
+
+  // ── Phase 2: Write TM/HM Pocket ──
+  if (save.tms && save.tms.length > 0) {
+    writeGen2TmHmPocket(data, offsets, save.tms);
+  }
+
+  // ── Phase 2: Write Event Flags ──
+  if (save.eventFlags && save.eventFlags.length > 0) {
+    writeGen2EventFlags(data, offsets.eventFlags, save.eventFlags, 2000);
+  }
+
+  // ── Phase 2: Write Box Names ──
+  if (gen2SaveExt.boxNames && gen2SaveExt.boxNames.length > 0) {
+    writeGen2BoxNames(data, offsets, gen2SaveExt.boxNames);
+  }
+
+  // ── Phase 2: Write Daycare Data ──
+  writeGen2Daycare(data, offsets, gen2SaveExt);
+
+  // ── Phase 2: Write Map Data ──
+  writeGen2MapData(data, offsets, save.map);
 
   // ── Write PC Boxes ──
   const activeBoxId = save.currentBoxId || 0;
