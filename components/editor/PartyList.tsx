@@ -2,7 +2,7 @@ import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 import { PokemonStats, Generation, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
-import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses } from '../../lib/sprites';
+import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter } from '../../lib/sprites';
 import { PokemonSpriteWithOverlays } from '../ui/PokemonSpriteWithOverlays';
 import { Heart, Ban, MousePointer2, CheckSquare, Square, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
@@ -264,6 +264,7 @@ const PokemonSlot = memo<{
                         imgClassName={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain')}
                         draggable={false}
                         style={{ pointerEvents: 'none' }}
+                        form={getUnownFormLetter(mon.dexId, mon.iv)}
                     />
                  </div>
              </div>

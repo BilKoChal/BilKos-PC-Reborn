@@ -12,7 +12,7 @@ import { sanitizePokemonText } from '../../../lib/utils/textValidator';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 import { IGenerationAdapter } from '../../../lib/interfaces';
 import { useSpriteMode } from '../../../context/SpriteContext';
-import { getPokemonSpriteUrl, ITEM_SPRITE_FALLBACK, getSpriteImgClasses } from '../../../lib/sprites';
+import { getPokemonSpriteUrl, ITEM_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter } from '../../../lib/sprites';
 
 interface PokemonInfoPanelProps {
     mon: PokemonStats;
@@ -91,6 +91,7 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                         gameVersion={ctx?.data?.gameVersion}
                         className="w-48 h-48 z-10"
                         imgClassName="w-48 h-48 object-contain drop-shadow-2xl transition-transform hover:scale-110 duration-500"
+                        form={getUnownFormLetter(mon.dexId, mon.iv)}
                     />
                     {/* Type Badges — hidden for eggs */}
                     {!mon.isEgg && (

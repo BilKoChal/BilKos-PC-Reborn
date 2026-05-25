@@ -172,7 +172,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                                         <PokemonSpriteWithOverlays
                                             dexId={evt.previewDexId}
                                             isShiny={evt.tags.includes('shiny')}
-                                            isEgg={false}
+                                            isEgg={evt.tags.includes('egg')}
                                             speciesName={evt.title}
                                             spriteMode={spriteMode}
                                             gameVersion={data.gameVersion}

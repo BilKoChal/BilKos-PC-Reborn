@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { PokemonStats, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
-import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses } from '../../lib/sprites';
+import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter } from '../../lib/sprites';
 import { PokemonSpriteWithOverlays } from '../ui/PokemonSpriteWithOverlays';
 import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, CheckSquare, Square, Move, Shuffle, Power, Download, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
@@ -279,6 +279,7 @@ const BoxSlot = memo<{
                                 imgClassName="w-20 h-20 object-contain drop-shadow-md transition-transform group-hover:scale-110"
                                 draggable={false}
                                 style={{ pointerEvents: 'none' }}
+                                form={getUnownFormLetter(mon.dexId, mon.iv)}
                             />
                         </div>
                         <div className="flex-grow min-w-0 pr-4 flex flex-col justify-center h-full">
@@ -392,6 +393,7 @@ const BoxSlot = memo<{
                         loading="lazy"
                         draggable={false}
                         style={{ pointerEvents: 'none' }}
+                        form={getUnownFormLetter(mon.dexId, mon.iv)}
                     />
                     
                     <div className="w-full text-center relative z-10">

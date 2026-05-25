@@ -15,10 +15,41 @@
  * - Master shiny:  /sprites/pokemon/shiny/{id}.png
  * - Game-specific shiny (Gen 2+): /sprites/pokemon/versions/generation-ii/{game}/shiny/{id}.png
  * - Game-specific shiny (Gen 1): NOT available on PokeAPI — falls back to master shiny
+ *
+ * Unown form support:
+ * - Unown (species 201) has 28 forms (A-Z, !, ?) with individual sprites
+ * - Form sprites use format: /pokemon/{dexId}-{form}.png (master)
+ * - Game-specific: /pokemon/versions/generation-ii/{game}/transparent/{dexId}-{form}.png
+ *
+ * Gen 2 shiny sprite sizing:
+ * - Gen 2 game-specific shiny sprites from PokeAPI are 40x40px (half the 80x80 regular size)
+ * - The PokemonSpriteWithOverlays component handles Canvas padding to normalize sizing
  */
 
 import { SpriteMode } from '../context/SpriteContext';
 import { GameVersion } from './parser/types';
+
+// ─── Unown Form Helper ──────────────────────────────────────────────────────
+
+/**
+ * Computes the Unown form letter from Gen 2 IVs (DVs).
+ *
+ * In Gen 2, Unown's letter form is derived from the Pokemon's IVs.
+ * The formula combines the middle bits of each DV to produce a value 0-25,
+ * mapping to letters A-Z:
+ *   combined = ((atkIv & 0x6) << 5) | ((defIv & 0x6) << 3) |
+ *              ((spdIv & 0x6) << 1) | ((spcIv & 0x6) >> 1)
+ *   letter_index = combined % 26
+ *
+ * @returns Lowercase letter ('a'-'z') for Unown, or undefined for other species
+ */
+export function getUnownFormLetter(dexId: number, iv: { attack: number; defense: number; speed: number; special: number }): string | undefined {
+  if (dexId !== 201) return undefined;
+  const combined = ((iv.attack & 0x6) << 5) | ((iv.defense & 0x6) << 3) |
+                   ((iv.speed & 0x6) << 1) | ((iv.special & 0x6) >> 1);
+  const letterIndex = combined % 26;
+  return String.fromCharCode(97 + letterIndex); // 'a' to 'z'
+}
 
 // ─── Base URL Constants ──────────────────────────────────────────────────────
 
@@ -29,21 +60,30 @@ const TRAINERS_BASE = 'https://play.pokemonshowdown.com/sprites/trainers';
 
 /**
  * Returns the URL for a Pokemon sprite based on the current sprite mode,
- * the game version, the Pokemon's National Dex ID, and shiny state.
+ * the game version, the Pokemon's National Dex ID, shiny state, and form.
  *
- * @param dexId        National Dex ID (e.g. 25 for Pikachu)
+ * @param dexId        National Dex ID (e.g. 25 for Pikachu, 201 for Unown)
  * @param mode         Current sprite mode
  * @param gameVersion  Active game version string (e.g. 'Red', 'Crystal')
  * @param isShiny      Whether the Pokemon is shiny (default: false)
+ * @param form         Form identifier for species with multiple forms
+ *                    (e.g. 'a'-'z','!','?' for Unown). Currently only
+ *                    Unown (dexId 201) uses form sprites.
  */
 export function getPokemonSpriteUrl(
   dexId: number,
   mode: SpriteMode,
   gameVersion?: GameVersion,
-  isShiny: boolean = false
+  isShiny: boolean = false,
+  form?: string
 ): string {
+  // Unown form sprites: species 201 with a form letter
+  if (dexId === 201 && form && !isShiny) {
+    return getUnownFormSpriteUrl(form, mode, gameVersion);
+  }
+
   if (isShiny) {
-    return getShinyPokemonSpriteUrl(dexId, mode, gameVersion);
+    return getShinyPokemonSpriteUrl(dexId, mode, gameVersion, form);
   }
 
   switch (mode) {
@@ -70,7 +110,8 @@ export function getPokemonSpriteUrl(
 function getShinyPokemonSpriteUrl(
   dexId: number,
   mode: SpriteMode,
-  gameVersion?: GameVersion
+  gameVersion?: GameVersion,
+  form?: string
 ): string {
   switch (mode) {
     case 'game-specific':
@@ -354,4 +395,64 @@ export function getEffectiveSpriteMode(
     return 'master';
   }
   return mode;
+}
+
+// ─── Unown Form Sprites ────────────────────────────────────────────────────
+
+/**
+ * Returns the sprite URL for a specific Unown form.
+ * Unown (species 201) has 28 forms: A-Z (26), !, ?.
+ * PokeAPI serves form sprites as /pokemon/201-{letter}.png
+ * and game-specific as /pokemon/versions/generation-ii/{game}/transparent/201-{letter}.png
+ *
+ * @param form        The form letter (lowercase: 'a'-'z', '!', '?')
+ * @param mode        Current sprite mode
+ * @param gameVersion Active game version
+ */
+function getUnownFormSpriteUrl(form: string, mode: SpriteMode, gameVersion?: GameVersion): string {
+  const f = form.toLowerCase();
+  switch (mode) {
+    case 'game-specific':
+      switch (gameVersion) {
+        case 'Red':
+        case 'Blue':
+          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-i/red-blue/transparent/201-${f}.png`;
+        case 'Yellow':
+          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-i/yellow/transparent/201-${f}.png`;
+        case 'Gold':
+          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/gold/transparent/201-${f}.png`;
+        case 'Silver':
+          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/silver/transparent/201-${f}.png`;
+        case 'Crystal':
+          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/crystal/transparent/201-${f}.png`;
+        default:
+          return `${POKEAPI_SPRITES_BASE}/pokemon/201-${f}.png`;
+      }
+    case 'artwork':
+      // No artwork per-form — fall back to default Unown artwork
+      return `${POKEAPI_SPRITES_BASE}/pokemon/other/official-artwork/201.png`;
+    case 'master':
+    default:
+      return `${POKEAPI_SPRITES_BASE}/pokemon/201-${f}.png`;
+  }
+}
+
+// ─── Gen 2 Shiny Sprite Detection ─────────────────────────────────────────
+
+/**
+ * Returns true if the given sprite configuration would produce a Gen 2
+ * game-specific shiny sprite URL. These sprites are 40x40px (half the
+ * 80x80 regular size) and need Canvas padding to normalize sizing.
+ *
+ * @param mode        Current sprite mode
+ * @param gameVersion Active game version
+ * @param isShiny     Whether the Pokemon is shiny
+ */
+export function isGen2GameSpecificShiny(
+  mode: SpriteMode,
+  gameVersion?: GameVersion,
+  isShiny: boolean = false
+): boolean {
+  if (!isShiny || mode !== 'game-specific') return false;
+  return gameVersion === 'Gold' || gameVersion === 'Silver' || gameVersion === 'Crystal';
 }

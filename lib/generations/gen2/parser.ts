@@ -136,6 +136,26 @@ export function isGen2Shiny(atkIv: number, defIv: number, spdIv: number, spcIv: 
   return [2, 3, 6, 7, 10, 11, 14, 15].includes(atkIv);
 }
 
+/**
+ * Determine the Unown form letter from Gen 2 IVs (DVs).
+ *
+ * In Generation II, Unown's letter form is derived from the Pokemon's
+ * Determinant Values (DVs, equivalent to IVs). The formula combines
+ * the middle bits of each DV to produce a value 0-25, mapping to
+ * letters A-Z:
+ *
+ *   combined = ((atkIv & 0x6) << 5) | ((defIv & 0x6) << 3) |
+ *              ((spdIv & 0x6) << 1) | ((spcIv & 0x6) >> 1)
+ *   letter_index = combined % 26
+ *
+ * Returns the lowercase letter ('a'-'z') or undefined if not applicable.
+ */
+export function getGen2UnownFormLetter(atkIv: number, defIv: number, spdIv: number, spcIv: number): string | undefined {
+  const combined = ((atkIv & 0x6) << 5) | ((defIv & 0x6) << 3) | ((spdIv & 0x6) << 1) | ((spcIv & 0x6) >> 1);
+  const letterIndex = combined % 26;
+  return String.fromCharCode(97 + letterIndex); // 'a' to 'z'
+}
+
 // Estimate gender based on Attack DV (used if real gender ratio is unknown)
 // GSC gender is determined by comparing the Attack DV against a species-specific
 // threshold. The threshold depends on the species' gender ratio:
@@ -416,6 +436,14 @@ export function parseGen2PokemonStruct(
  *   Bytes 51-61: OT Name (11 bytes)
  *   Bytes 62-72: Nickname (11 bytes)
  */
+/**
+ * Gen 2 Egg species ID. In PokeList2 format, the header species byte
+ * is 0xFD (253) when the Pokemon is an egg. However, the struct body
+ * contains the actual hatched species (e.g. 173 = Cleffa). We use the
+ * header species to determine egg status.
+ */
+const EGG_SPECIES_ID = 0xFD; // 253
+
 export function parsePk2(buffer: Uint8Array): PokemonStats | null {
   const SIZE_2PARTY = 48;
 
@@ -425,7 +453,8 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     if (count !== 1) {
       console.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
     }
-    const speciesId = buffer[1]!;
+    const headerSpeciesId = buffer[1]!;
+    const isEggFromHeader = headerSpeciesId === EGG_SPECIES_ID;
 
     const monData = buffer.slice(3, 3 + SIZE_2PARTY);
     const otRaw = buffer.slice(3 + SIZE_2PARTY, 3 + SIZE_2PARTY + 11);
@@ -436,6 +465,13 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
 
     const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
 
+    // Fix isEgg: In PKHeX's .pk2 format, the PokeList2 header species is 0xFD (253)
+    // for eggs, but the struct body contains the actual hatched species. The parser
+    // only checks the struct body species, so we must override isEgg from the header.
+    if (mon && isEggFromHeader) {
+      mon.isEgg = true;
+    }
+
     return mon;
   }
 
@@ -445,6 +481,8 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     if (count !== 1) {
       console.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
     }
+    const headerSpeciesId = buffer[1]!;
+    const isEggFromHeader = headerSpeciesId === EGG_SPECIES_ID;
 
     const monData = buffer.slice(3, 3 + SIZE_2PARTY);
     const otRaw = buffer.slice(3 + SIZE_2PARTY, 3 + SIZE_2PARTY + 6);
@@ -454,6 +492,10 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     const nickname = decodeText(nickRaw, 0, 6, true);
 
     const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
+
+    if (mon && isEggFromHeader) {
+      mon.isEgg = true;
+    }
 
     return mon;
   }
@@ -468,7 +510,10 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     const otRaw = buffer.slice(otNameOffset, otNameOffset + 11);
     const nickRaw = buffer.slice(nickOffset, nickOffset + 11);
 
-    return parseGen2PokemonStruct(buffer, 0, true, nickname, otName, nickRaw, otRaw);
+    const mon = parseGen2PokemonStruct(buffer, 0, true, nickname, otName, nickRaw, otRaw);
+    // Legacy format: check struct body species for egg (no PokeList header)
+    // parseGen2PokemonStruct already handles this via speciesId === 253
+    return mon;
   }
 
   // Raw party struct only (48 bytes)
