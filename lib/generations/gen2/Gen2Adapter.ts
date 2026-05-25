@@ -1,5 +1,5 @@
 import { IGenerationAdapter, BaseStats } from '../../interfaces';
-import { ParsedSave, PokemonStats } from '../../parser/types';
+import { ParsedSave, PokemonStats, Gen2SaveExtension } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny } from './parser';
 import { writeGen2Save } from './writer';
 import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
@@ -10,6 +10,13 @@ import {
 } from './data/constants';
 import { GEN2_BASE_STATS, getGen2BaseStats } from './data/baseStats';
 import { GEN2_MOVES_PP, GEN2_MOVES_TYPE } from './data/moveData';
+import { 
+  getGen2Offsets, 
+  detectGen2Region, 
+  type Gen2OffsetsConfig,
+  type Gen2Region,
+  type Gen2Version
+} from './data/offsets';
 import { decodeText } from '../../utils/textDecoder';
 import { encodeGameBoyText } from '../../utils/textCodec';
 import { getPokemonTypes } from '../gen1/data/pokemonTypes';
@@ -78,10 +85,10 @@ const GSC_SPECIES_TYPES: Record<number, string[]> = {
   240: ['Fire'], 
   241: ['Normal'], 
   242: ['Normal'], 
-  243: ['Electric'], 244: ['Fire'], 245: ['Water'], 
+  243: ['Electric'], 244: ['Fire'], 245: ['Water'],
   246: ['Rock', 'Ground'], 247: ['Rock', 'Ground'], 248: ['Rock', 'Dark'], 
   249: ['Psychic', 'Flying'], 
-  250: ['Fire', 'Flying'], 
+  250: ['Fire', 'Flying'],
   251: ['Grass', 'Psychic']
 };
 
@@ -140,61 +147,81 @@ export class Gen2Adapter implements IGenerationAdapter {
 
   detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string; ambiguous?: boolean } {
     const size = buffer.length;
-    // Standard GSC save file is 32768 bytes
-    if (size === 32768 || size === 32768 + 16 || size === 65536) {
-      // Compute GSC Checksums to see if they match GS or Crystal ranges
-      const gsSumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2D68);
-      const gsSumStored = buffer[0x2D69]! | (buffer[0x2D6A]! << 8);
+    
+    // Detect region first
+    const region = detectGen2Region(buffer);
+    
+    // Japanese saves are 64KB, International/Korean are 32KB
+    if (region === 'japanese' ? (size < 0x10000) : (size < 0x8000)) {
+      return { detected: false };
+    }
+    
+    // Allow 32KB + 16 bytes (some emulators add a header)
+    const expectedSize = region === 'japanese' ? 0x10000 : 0x8000;
+    if (size !== expectedSize && size !== expectedSize + 16 && !(region === 'international' && size === 0x10000)) {
+      return { detected: false };
+    }
 
-      const crySumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2B82);
-      const crySumStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
+    // Compute checksums for version detection
+    // Use region-appropriate offsets for Crystal detection
+    const gsSumComputed = calculateGen2Checksum(buffer, 0x2009, region === 'japanese' ? 0x2C8B : 0x2D68);
+    const gsChecksumOffset = region === 'korean' ? 0x2DAB : 0x2D69;
+    const gsSumStored = buffer[gsChecksumOffset]! | (buffer[gsChecksumOffset + 1]! << 8);
 
-      const lowerFile = filename.toLowerCase();
+    const cryEnd = region === 'japanese' ? 0x2AE2 : 0x2B82;
+    const crySumComputed = calculateGen2Checksum(buffer, 0x2009, cryEnd);
+    // Crystal checksum is always at 0x2D0D for all regions
+    const crySumStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
 
-      // Checksum validation flags — at least one checksum must be valid to accept the save
-      const gsValid = gsSumComputed === gsSumStored && gsSumStored !== 0;
-      const cryValid = crySumComputed === crySumStored && crySumStored !== 0;
+    const lowerFile = filename.toLowerCase();
 
-      // If neither checksum validates, use lenient fallback based on filename hints
-      if (!gsValid && !cryValid) {
-        if (lowerFile.includes('crystal')) {
-          return { detected: true, gameVersion: 'Crystal', ambiguous: false };
-        } else if (lowerFile.includes('silver')) {
-          return { detected: true, gameVersion: 'Silver', ambiguous: true };
-        } else if (lowerFile.includes('gold')) {
-          return { detected: true, gameVersion: 'Gold', ambiguous: true };
-        }
-        return { detected: false };
+    // Checksum validation flags
+    const gsValid = gsSumComputed === gsSumStored && gsSumStored !== 0;
+    const cryValid = crySumComputed === crySumStored && crySumStored !== 0;
+
+    // Korean saves don't have Crystal
+    if (region === 'korean') {
+      if (gsValid) {
+        return { detected: true, gameVersion: lowerFile.includes('silver') ? 'Silver' : 'Gold', ambiguous: true };
       }
-
-      // Both checksums valid — determine game version from filename hints + checksums
-      if (cryValid && gsValid) {
-        // Both checksums match. Use filename to disambiguate, or default to Crystal
-        // since Crystal's checksum range is a subset of GS's range.
-        if (lowerFile.includes('crystal')) {
-          return { detected: true, gameVersion: 'Crystal', ambiguous: false };
-        } else if (lowerFile.includes('silver')) {
-          return { detected: true, gameVersion: 'Silver', ambiguous: true };
-        } else if (lowerFile.includes('gold')) {
-          return { detected: true, gameVersion: 'Gold', ambiguous: true };
-        }
-        // Default to Crystal when both checksums match and no filename hint
-        return { detected: true, gameVersion: 'Crystal', ambiguous: false };
-      }
-
-      // Only Crystal checksum valid
-      if (cryValid) {
-        return { detected: true, gameVersion: 'Crystal', ambiguous: false };
-      }
-
-      // Only GS checksum valid — Gold and Silver share the same format, ambiguous
-      if (lowerFile.includes('silver')) {
-        return { detected: true, gameVersion: 'Silver', ambiguous: true };
-      }
-      // Default to Gold when GS checksum matches
+      // Even if checksum fails, if it's the right size for Korean, try
       return { detected: true, gameVersion: 'Gold', ambiguous: true };
     }
-    return { detected: false };
+
+    // If neither checksum validates, use filename hints
+    if (!gsValid && !cryValid) {
+      if (lowerFile.includes('crystal')) {
+        return { detected: true, gameVersion: 'Crystal', ambiguous: false };
+      } else if (lowerFile.includes('silver')) {
+        return { detected: true, gameVersion: 'Silver', ambiguous: true };
+      } else if (lowerFile.includes('gold')) {
+        return { detected: true, gameVersion: 'Gold', ambiguous: true };
+      }
+      return { detected: false };
+    }
+
+    // Both checksums valid — disambiguate
+    if (cryValid && gsValid) {
+      if (lowerFile.includes('crystal')) {
+        return { detected: true, gameVersion: 'Crystal', ambiguous: false };
+      } else if (lowerFile.includes('silver')) {
+        return { detected: true, gameVersion: 'Silver', ambiguous: true };
+      } else if (lowerFile.includes('gold')) {
+        return { detected: true, gameVersion: 'Gold', ambiguous: true };
+      }
+      return { detected: true, gameVersion: 'Crystal', ambiguous: false };
+    }
+
+    // Only Crystal checksum valid
+    if (cryValid) {
+      return { detected: true, gameVersion: 'Crystal', ambiguous: false };
+    }
+
+    // Only GS checksum valid
+    if (lowerFile.includes('silver')) {
+      return { detected: true, gameVersion: 'Silver', ambiguous: true };
+    }
+    return { detected: true, gameVersion: 'Gold', ambiguous: true };
   }
 
   parseSave(buffer: Uint8Array, filename: string): ParsedSave {
@@ -206,20 +233,38 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   validateSave(buffer: Uint8Array): boolean {
-    const gsSumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2D68);
-    const gsSumStored = buffer[0x2D69]! | (buffer[0x2D6A]! << 8);
+    const region = detectGen2Region(buffer);
+    
+    // Try all checksum variants for the region
+    if (region === 'japanese') {
+      const gsSum = calculateGen2Checksum(buffer, 0x2009, 0x2C8B);
+      const gsStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
+      if (gsSum === gsStored && gsStored !== 0) return true;
 
-    const crySumComputed = calculateGen2Checksum(buffer, 0x2009, 0x2B82);
-    const crySumStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
+      const crySum = calculateGen2Checksum(buffer, 0x2009, 0x2AE2);
+      return crySum === gsStored && gsStored !== 0;
+    }
+    
+    if (region === 'korean') {
+      const korSum = calculateGen2Checksum(buffer, 0x2009, 0x2DAA);
+      const korStored = buffer[0x2DAB]! | (buffer[0x2DAC]! << 8);
+      return korSum === korStored && korStored !== 0;
+    }
 
-    return (crySumComputed === crySumStored && crySumStored !== 0) || 
-           (gsSumComputed === gsSumStored && gsSumStored !== 0);
+    // International
+    const gsSum = calculateGen2Checksum(buffer, 0x2009, 0x2D68);
+    const gsStored = buffer[0x2D69]! | (buffer[0x2D6A]! << 8);
+
+    const crySum = calculateGen2Checksum(buffer, 0x2009, 0x2B82);
+    const cryStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
+
+    return (crySum === cryStored && cryStored !== 0) || 
+           (gsSum === gsStored && gsStored !== 0);
   }
 
   supportsStandalone = false;
 
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
-    // Graceful fallback dummy since GSC doesn't strictly focus on loose standalone files
     throw new Error("GSC Standalone Pokemon files (.pk2) parsing not explicitly requested.");
   }
 
@@ -232,20 +277,14 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   recalculateStats(mon: PokemonStats, baseStats: BaseStats): PokemonStats {
-    // Delegate to the correct Gen 2 recalculation which properly derives HP IV
-    // from Attack, Defense, Speed, and Special DVs (Gen 2 HP IV formula).
     const result = recalculateGen2Stats(mon, baseStats);
-
-    // Recalculate shiny status based on edited DVs
     result.isShiny = isGen2Shiny(result.iv.attack, result.iv.defense, result.iv.speed, result.iv.special);
-
     return result;
   }
 
   getBaseStats(dexId: number): BaseStats | undefined {
     const raw = getGen2BaseStats(dexId);
     if (!raw || raw.hp === 0) return undefined;
-    // Map Gen 2 naming convention (atk/def/spe/spa/spd) to unified BaseStats (attack/defense/speed/spAtk/spDef)
     return {
       hp: raw.hp,
       attack: raw.atk,

@@ -375,24 +375,27 @@ describe('Gen 2 Round-Trip', () => {
     expect(reparsed.trainer.id).toBe(parsed.trainer.id);
   });
 
-  it('should have backup checksum independently computed (not copied)', () => {
+  it('should have correct second checksum copy (checksum2)', () => {
     const original = createMinimalGen2Save();
     const parsed = parseGen2Save(original, 'gold.sav');
     const written = writeGen2Save(parsed);
 
-    // Backup checksum should be computed over backup data range
-    const backupChecksum = calculateGen2Checksum(written, 0x3009, 0x3D68);
-    const backupStored = written[0x3D69]! | (written[0x3D6A]! << 8);
-    expect(backupChecksum).toBe(backupStored);
+    // INT GS second checksum copy at 0x7E6D should match primary at 0x2D69
+    const primaryChecksum = written[0x2D69]! | (written[0x2D6A]! << 8);
+    const checksum2 = written[0x7E6D]! | (written[0x7E6E]! << 8);
+    expect(primaryChecksum).toBe(checksum2);
   });
 
-  it('should write backup options to both 0x2000 and 0x3000', () => {
+  it('should mirror trainer data to scattered backup regions', () => {
     const original = createMinimalGen2Save();
     const parsed = parseGen2Save(original, 'gold.sav');
     const written = writeGen2Save(parsed);
 
-    // Options should be mirrored to backup offset
-    expect(written[0x2000]).toBe(written[0x3000]);
+    // INT GS uses PKHeX scattered backup:
+    // Mirror region 1: 0x2009..0x222F → 0x15C7
+    // Verify the trainer ID is mirrored correctly
+    expect(written[0x15C7]).toBe(written[0x2009]);
+    expect(written[0x15C8]).toBe(written[0x200A]);
   });
 });
 

@@ -257,7 +257,12 @@ export class Gen1SaveExtension implements ISaveExtension {
  */
 export class Gen2SaveExtension implements ISaveExtension {
   generation = 2;
-  // Future: phoneContacts, momSavings, etc.
+
+  // ── Region & Version ──
+  /** Detected save region: 'international', 'japanese', or 'korean' */
+  region: string = 'international';
+  /** Detected game version: 'Gold', 'Silver', or 'Crystal' */
+  gameVersion: string = 'Gold';
 }
 
 // ============================================================================

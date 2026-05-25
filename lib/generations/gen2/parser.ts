@@ -15,6 +15,15 @@ import {
 } from './data/constants';
 import { getGen2BaseStats } from './data/baseStats';
 import { calculateGen2Stat } from './statCalculator';
+import { 
+  getGen2Offsets, 
+  getBoxOffset, 
+  detectGen2Region, 
+  computeBoxChecksum,
+  type Gen2OffsetsConfig, 
+  type Gen2Region, 
+  type Gen2Version 
+} from './data/offsets';
 
 // Checksum formula for Generation 2: 16-bit additive sum (stored little-endian)
 export function calculateGen2Checksum(data: Uint8Array, start: number, end: number): number {
@@ -30,7 +39,6 @@ export function getPokedexFlagsGen2(data: Uint8Array, offset: number): boolean[]
   const flags: boolean[] = [];
   // GSC Pokedex uses 32 bytes per flag set (256 bits).
   // This covers all 251 species with 5 bits of padding at the end.
-  // Previously used 200 bits (25 bytes) which missed species #201-251.
   const POKEDEX_FLAG_BITS = 256;
   for (let i = 0; i < POKEDEX_FLAG_BITS; i++) {
     const byte = data[offset + Math.floor(i / 8)]!;
@@ -74,7 +82,6 @@ export function getGen2Gender(speciesId: number, atkIv: number): string {
   if (alwaysMale.includes(speciesId)) return 'Male';
 
   // ── 87.5% Male / 12.5% Female → Female if atkIv ≤ 1 (32 species) ──
-  // Starters (Kanto + Johto), Eevee family, Fossils, Snorlax, Togepi line
   const male87 = [
     1, 2, 3, 4, 5, 6, 7, 8, 9,                     // Kanto starters
     133, 134, 135, 136, 196, 197,                     // Eevee family
@@ -322,27 +329,36 @@ export function parseItemsPocketGen2(view: Uint8Array, start: number, countIdx: 
   return items;
 }
 
-export function parsePCBoxGen2(view: Uint8Array, offset: number): PokemonStats[] {
+/**
+ * Parse a PC box using the offset system.
+ * The box layout is:
+ *   [count:1] [speciesList:boxSlotCount+1] [bodies:boxSlotCount*32] [otNames:boxSlotCount*strLen] [nicknames:boxSlotCount*strLen]
+ *   Followed by a 2-byte checksum.
+ */
+export function parsePCBoxGen2(view: Uint8Array, offset: number, offsets: Gen2OffsetsConfig): PokemonStats[] {
   const count = view[offset]!;
   const list: PokemonStats[] = [];
-  if (count === 0 || count > 20) return list;
+  const slotCount = offsets.boxSlotCount;
+  const strLen = offsets.stringLength;
+
+  if (count === 0 || count > slotCount) return list;
 
   const speciesListOffset = offset + 1;
-  const pokemonStructStart = offset + 22; // 1 (count) + 21 (species list + 0xFF terminator)
+  const pokemonStructStart = offset + 1 + (slotCount + 1); // count + species list + 0xFF terminator
 
   for (let i = 0; i < count; i++) {
     const speciesId = view[speciesListOffset + i]!;
     if (speciesId === 0xFF) break;
 
     const structOffset = pokemonStructStart + (i * 32);
-    const otNamesStart = pokemonStructStart + (20 * 32) + (i * 11);
-    const nicknamesStart = pokemonStructStart + (20 * 32) + (20 * 11) + (i * 11);
+    const otNamesStart = pokemonStructStart + (slotCount * 32) + (i * strLen);
+    const nicknamesStart = pokemonStructStart + (slotCount * 32) + (slotCount * strLen) + (i * strLen);
 
-    const nicknameRaw = view.slice(nicknamesStart, nicknamesStart + 11);
-    const otNameRaw = view.slice(otNamesStart, otNamesStart + 11);
+    const nicknameRaw = view.slice(nicknamesStart, nicknamesStart + strLen);
+    const otNameRaw = view.slice(otNamesStart, otNamesStart + strLen);
 
-    const nickname = decodeText(nicknameRaw, 0, 11);
-    const otName = decodeText(otNameRaw, 0, 11);
+    const nickname = decodeText(nicknameRaw, 0, strLen);
+    const otName = decodeText(otNameRaw, 0, strLen);
 
     list.push(parseGen2PokemonStruct(
       view,
@@ -358,28 +374,51 @@ export function parsePCBoxGen2(view: Uint8Array, offset: number): PokemonStats[]
   return list;
 }
 
+/**
+ * Main Gen 2 save parser.
+ * Uses centralized offset system for version/region-aware parsing.
+ */
 export function parseGen2Save(data: Uint8Array, originalFilename: string = "save.sav"): ParsedSave {
   if (data.length < 32768) {
     throw new Error(`Invalid save file size: ${data.length} bytes. Gen 2 saves must be at least 32KB.`);
   }
 
-  // Detect GSC format version using primary checksums
+  // ── Detect Region ──
+  const region = detectGen2Region(data);
+
+  // ── Detect Game Version ──
+  // We need to try both GS and Crystal checksums to determine version.
+  // Use temporary offsets for checksum detection before we know the version.
   const gsSumComputed = calculateGen2Checksum(data, 0x2009, 0x2D68);
   const gsSumStored = data[0x2D69]! | (data[0x2D6A]! << 8);
 
   const crySumComputed = calculateGen2Checksum(data, 0x2009, 0x2B82);
   const crySumStored = data[0x2D0D]! | (data[0x2D0E]! << 8);
 
-  let gameVersion: 'Gold' | 'Silver' | 'Crystal' = 'Gold';
+  // For Japanese saves, the Crystal checksum range is different
+  let crySumComputedJpn = 0;
+  let crySumStoredJpn = 0;
+  if (region === 'japanese') {
+    crySumComputedJpn = calculateGen2Checksum(data, 0x2009, 0x2AE2);
+    crySumStoredJpn = data[0x2D0D]! | (data[0x2D0E]! << 8);
+  }
+
+  let gameVersion: Gen2Version = 'Gold';
   let isChecksumValid = false;
 
   const lowerFilename = originalFilename.toLowerCase();
 
+  // Version detection logic using region-appropriate checksums
+  const gsValid = gsSumComputed === gsSumStored && gsSumStored !== 0;
+  const cryValid = region === 'japanese'
+    ? (crySumComputedJpn === crySumStoredJpn && crySumStoredJpn !== 0)
+    : (crySumComputed === crySumStored && crySumStored !== 0);
+
   if (lowerFilename.includes('crystal')) {
-    if (crySumComputed === crySumStored && crySumStored !== 0) {
+    if (cryValid) {
       gameVersion = 'Crystal';
       isChecksumValid = true;
-    } else if (gsSumComputed === gsSumStored && gsSumStored !== 0) {
+    } else if (gsValid) {
       gameVersion = 'Gold';
       isChecksumValid = true;
     } else {
@@ -388,52 +427,64 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     }
   } else if (lowerFilename.includes('silver')) {
     gameVersion = 'Silver';
-    if (gsSumComputed === gsSumStored && gsSumStored !== 0) {
+    if (gsValid) {
       isChecksumValid = true;
-    } else if (crySumComputed === crySumStored && crySumStored !== 0) {
+    } else if (cryValid) {
       gameVersion = 'Crystal';
       isChecksumValid = true;
     }
   } else if (lowerFilename.includes('gold')) {
     gameVersion = 'Gold';
-    if (gsSumComputed === gsSumStored && gsSumStored !== 0) {
+    if (gsValid) {
       isChecksumValid = true;
-    } else if (crySumComputed === crySumStored && crySumStored !== 0) {
+    } else if (cryValid) {
       gameVersion = 'Crystal';
       isChecksumValid = true;
     }
   } else {
     // No clear filename indicator. Trust checksums.
-    if (gsSumComputed === gsSumStored && gsSumStored !== 0) {
+    if (gsValid) {
       gameVersion = 'Gold';
       isChecksumValid = true;
-    } else if (crySumComputed === crySumStored && crySumStored !== 0) {
+    } else if (cryValid) {
       gameVersion = 'Crystal';
       isChecksumValid = true;
     } else {
-      // Neither checksum validates — do not default to a version
-      // Return as invalid rather than guessing a corrupted file's game version
       gameVersion = 'Gold';
       isChecksumValid = false;
     }
   }
 
-  // --- Parse Trainer Info ---
-  const tid = getUInt16BigEndian(data, 0x2009);
-  const trainerNameRaw = data.slice(0x200B, 0x2013);
-  const trainerName = decodeText(trainerNameRaw, 0, 8);
+  // Korean saves don't have Crystal
+  if (region === 'korean' && gameVersion === 'Crystal') {
+    gameVersion = 'Gold'; // Fallback
+  }
 
-  const money = parseBCD(data, 0x23DB, 3);
-  const coins = parseBCD(data, 0x23E1, 2);
-  const badges = data[0x23E4]! | (data[0x23E5]! << 8);
+  // ── Get Offsets for this version/region ──
+  const offsets = getGen2Offsets(gameVersion, region);
 
-  const hours = (data[0x2051]! << 8) | data[0x2052]!;
-  const minutes = data[0x2053]! || 0;
-  const seconds = data[0x2054]! || 0;
+  // ── Parse Trainer Info ──
+  const tid = getUInt16BigEndian(data, offsets.trainer1);
+  // Trainer name starts at trainer1 + 2 (after 2-byte TID)
+  const trainerNameStart = offsets.trainer1 + 2;
+  const trainerNameRaw = data.slice(trainerNameStart, trainerNameStart + offsets.stringLength);
+  const trainerName = decodeText(trainerNameRaw, 0, offsets.maxTrainerNameLen);
+
+  const money = parseBCD(data, offsets.money, 3);
+  const coins = parseBCD(data, offsets.coins, 2);
+  const badges = data[offsets.johtoBadges]! | (data[offsets.johtoBadges + 1]! << 8);
+
+  // Play time: hours(2 bytes BE) + minutes(1 byte) + seconds(1 byte)
+  const timeOffset = offsets.timePlayed;
+  const hours = (data[timeOffset]! << 8) | data[timeOffset + 1]!;
+  const minutes = data[timeOffset + 2]! || 0;
+  const seconds = data[timeOffset + 3]! || 0;
   const playTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-  const genderByte = data[0x3E3D]! || 0;
-  const trainerGender: 'Male' | 'Female' = genderByte === 1 ? 'Female' : 'Male';
+  // Gender: Crystal only (offset >= 0), GS always Male
+  const trainerGender: 'Male' | 'Female' = offsets.gender >= 0
+    ? (data[offsets.gender] === 1 ? 'Female' : 'Male')
+    : 'Male';
 
   const trainer: TrainerInfo = {
     name: trainerName,
@@ -445,20 +496,28 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     gender: trainerGender,
   };
 
-  // --- Parse Party Pokémon ---
-  const partyCount = data[0x288A]!;
+  // ── Parse Party Pokémon ──
+  const partyCount = data[offsets.party]!;
   const partyList: PokemonStats[] = [];
+  const strLen = offsets.stringLength;
+
+  // Party list layout:
+  // [count:1] [species:6] [0xFF:1] [bodies:6*48] [otNames:6*strLen] [nicknames:6*strLen]
+  const partySpeciesStart = offsets.party + 1;
+  const partyBodiesStart = offsets.party + 1 + 6 + 1; // count + 6 species + 0xFF
+  const partyOtNamesStart = partyBodiesStart + (6 * 48);
+  const partyNicknamesStart = partyOtNamesStart + (6 * strLen);
 
   for (let i = 0; i < partyCount && i < 6; i++) {
-    const structOffset = 0x2892 + (i * 48);
-    const otNamesStart = 0x29B2 + (i * 11);
-    const nicknamesStart = 0x29F4 + (i * 11);
+    const structOffset = partyBodiesStart + (i * 48);
+    const otNamesOffset = partyOtNamesStart + (i * strLen);
+    const nicknamesOffset = partyNicknamesStart + (i * strLen);
 
-    const nicknameRaw = data.slice(nicknamesStart, nicknamesStart + 11);
-    const otNameRaw = data.slice(otNamesStart, otNamesStart + 11);
+    const nicknameRaw = data.slice(nicknamesOffset, nicknamesOffset + strLen);
+    const otNameRaw = data.slice(otNamesOffset, otNamesOffset + strLen);
 
-    const nickname = decodeText(nicknameRaw, 0, 11);
-    const otName = decodeText(otNameRaw, 0, 11);
+    const nickname = decodeText(nicknameRaw, 0, strLen);
+    const otName = decodeText(otNameRaw, 0, strLen);
 
     partyList.push(parseGen2PokemonStruct(
       data,
@@ -471,39 +530,36 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     ));
   }
 
-  // --- Parse Inventory ---
-  const pocketItems = parseItemsPocketGen2(data, 0x23E7, 0x23E6, 2, 20); // Normal items count at 0x23E6
-  const keyItems = parseItemsPocketGen2(data, 0x2412, 0x2411, 1, 25);   // Key items (no quantity byte)
-  const balls = parseItemsPocketGen2(data, 0x242E, 0x242C, 2, 12);       // Poké Balls count at 0x242C
-  const pcItems = parseItemsPocketGen2(data, 0x24AD, 0x24AC, 2, 50);     // PC items
+  // ── Parse Inventory ──
+  const pocketItems = parseItemsPocketGen2(data, offsets.itemPouchStart, offsets.itemPouchCount, 2, offsets.pouchItemSlots);
+  const keyItems = parseItemsPocketGen2(data, offsets.keyItemPouchStart, offsets.keyItemPouchCount, 1, offsets.pouchKeySlots);
+  const balls = parseItemsPocketGen2(data, offsets.ballPouchStart, offsets.ballPouchCount, 2, offsets.pouchBallSlots);
+  const pcItems = parseItemsPocketGen2(data, offsets.pcItemPouchStart, offsets.pcItemPouchCount, 2, offsets.pouchPcSlots);
 
-  // --- Parse Pokedex ---
-  const pokedexOwnedChecked = getPokedexFlagsGen2(data, 0x2A14);
-  const pokedexSeenChecked = getPokedexFlagsGen2(data, 0x2A3C);
+  // ── Parse Pokedex ──
+  const pokedexOwnedChecked = getPokedexFlagsGen2(data, offsets.pokedexCaught);
+  const pokedexSeenChecked = getPokedexFlagsGen2(data, offsets.pokedexSeen);
   
   const pokedexOwned = pokedexOwnedChecked.filter(Boolean).length;
   const pokedexSeen = pokedexSeenChecked.filter(Boolean).length;
 
-  // --- Parse PC Boxes ---
-  // Bank 2 (0x4000) holds boxes 1-7, Bank 3 (0x6000) holds boxes 8-14
+  // ── Parse PC Boxes ──
+  // Uses the corrected box stride calculation (sizeBoxList + 2 for per-box checksum)
   const pcBoxes: PokemonStats[][] = [];
-  for (let boxIdx = 0; boxIdx < 14; boxIdx++) {
-    const boxOffset = boxIdx < 7
-      ? 0x4000 + (boxIdx * 1102)
-      : 0x6000 + ((boxIdx - 7) * 1102);
-
-    pcBoxes.push(parsePCBoxGen2(data, boxOffset));
+  for (let boxIdx = 0; boxIdx < offsets.boxCount; boxIdx++) {
+    const boxOffset = getBoxOffset(boxIdx, offsets);
+    pcBoxes.push(parsePCBoxGen2(data, boxOffset, offsets));
   }
 
-  // Active PC box ID (starts at 1 in some fields, let's standardise 0-13 indices)
-  const currentBoxIdValue = data[0x2724] !== undefined ? (data[0x2724]! & 0x7F) : 0;
-  const currentBoxId = Math.max(0, Math.min(13, currentBoxIdValue));
+  // Active PC box ID
+  const currentBoxIdValue = data[offsets.currentBoxIndex] !== undefined ? (data[offsets.currentBoxIndex]! & 0x7F) : 0;
+  const currentBoxId = Math.max(0, Math.min(offsets.boxCount - 1, currentBoxIdValue));
 
   const currentBoxCount = pcBoxes[currentBoxId]?.length || 0;
   const currentBoxPokemon = pcBoxes[currentBoxId] || [];
 
   // Option parsing for GSC
-  const optionsByte = data[0x2000]!;
+  const optionsByte = data[offsets.options]!;
   const gscBattleAnimation = (optionsByte & 0x80) ? 'Off' : 'On';
   const gscBattleStyle = (optionsByte & 0x40) ? 'Set' : 'Shift';
   const gscSpeedBits = optionsByte & 0x7;
@@ -526,6 +582,11 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     battleStyle: gscBattleStyle,
     sound: gscSound
   };
+
+  // ── Build Gen2SaveExtension ──
+  const gen2SaveExt = new Gen2SaveExtension();
+  gen2SaveExt.region = region;
+  gen2SaveExt.gameVersion = gameVersion;
 
   return {
     generation: 2,
@@ -552,6 +613,6 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     hallOfFame: [],
     eventFlags: [],
     rawData: data,
-    genExtension: new Gen2SaveExtension()
+    genExtension: gen2SaveExt
   };
 }
