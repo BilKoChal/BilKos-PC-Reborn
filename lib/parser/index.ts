@@ -15,7 +15,7 @@ export const detectAndParseSave = async (file: File): Promise<ParserResult> => {
 
     const result = registry.detectAndParse(view, filename);
     if (result.success && result.data) {
-      return { success: true, data: result.data };
+      return { success: true, data: result.data, ambiguous: result.ambiguous };
     }
 
     return { 

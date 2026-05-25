@@ -28,9 +28,11 @@ export function calculateGen2Checksum(data: Uint8Array, start: number, end: numb
 // Parses Pokedex bitflags in Gen 2 saves
 export function getPokedexFlagsGen2(data: Uint8Array, offset: number): boolean[] {
   const flags: boolean[] = [];
-  // GSC Pokedex uses 25 bytes per flag set (199 bits + extra padding?)
-  // Using 200 bits as a safe bet for GSC (25 * 8 = 200)
-  for (let i = 0; i < 200; i++) {
+  // GSC Pokedex uses 32 bytes per flag set (256 bits).
+  // This covers all 251 species with 5 bits of padding at the end.
+  // Previously used 200 bits (25 bytes) which missed species #201-251.
+  const POKEDEX_FLAG_BITS = 256;
+  for (let i = 0; i < POKEDEX_FLAG_BITS; i++) {
     const byte = data[offset + Math.floor(i / 8)];
     flags.push(((byte >> (i % 8)) & 1) === 1);
   }

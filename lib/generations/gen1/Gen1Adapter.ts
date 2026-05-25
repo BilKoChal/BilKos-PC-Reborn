@@ -79,14 +79,19 @@ export class Gen1Adapter implements IGenerationAdapter {
     [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2]
   ];
 
-  detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string } {
+  detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string; ambiguous?: boolean } {
     const size = buffer.length;
     if (size === 32768 || size === 32768 + 16) {
       const isValid = validateGen1Checksum(buffer);
       if (isValid) {
+        const version = detectGameVersion(buffer, filename);
+        // Yellow has a unique checksum/layout — unambiguous.
+        // Red and Blue share the same format — ambiguous unless filename disambiguates.
+        const isAmbiguous = version !== 'Yellow';
         return {
           detected: true,
-          gameVersion: detectGameVersion(buffer, filename)
+          gameVersion: version,
+          ambiguous: isAmbiguous
         };
       }
     }

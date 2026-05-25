@@ -278,21 +278,33 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   const isCrystal = save.gameVersion === 'Crystal';
 
   if (isCrystal) {
+    // Primary checksum
     const sum = calculateGen2Checksum(data, 0x2009, 0x2B82);
     data[0x2D0D] = sum & 0xFF;
     data[0x2D0E] = (sum >> 8) & 0xFF;
 
-    // Crystal duplicate to backup BANK area (copy data through checksum bytes)
-    const crystalBlock = data.slice(0x2009, 0x2D0F);
-    data.set(crystalBlock, 0x3009);
+    // Copy primary DATA (excluding checksum) to backup bank
+    const crystalDataBlock = data.slice(0x2009, 0x2D0D);
+    data.set(crystalDataBlock, 0x3009);
+
+    // Independently compute and write the backup checksum over the backup data range
+    const backupSum = calculateGen2Checksum(data, 0x3009, 0x3B82);
+    data[0x3D0D] = backupSum & 0xFF;
+    data[0x3D0E] = (backupSum >> 8) & 0xFF;
   } else {
+    // Primary checksum
     const sum = calculateGen2Checksum(data, 0x2009, 0x2D68);
     data[0x2D69] = sum & 0xFF;
     data[0x2D6A] = (sum >> 8) & 0xFF;
 
-    // GS copy to backup bank area (copy data through checksum bytes)
-    const gsBlock = data.slice(0x2009, 0x2D6B);
-    data.set(gsBlock, 0x3009);
+    // Copy primary DATA (excluding checksum) to backup bank
+    const gsDataBlock = data.slice(0x2009, 0x2D69);
+    data.set(gsDataBlock, 0x3009);
+
+    // Independently compute and write the backup checksum over the backup data range
+    const backupSum = calculateGen2Checksum(data, 0x3009, 0x3D68);
+    data[0x3D69] = backupSum & 0xFF;
+    data[0x3D6A] = (backupSum >> 8) & 0xFF;
   }
 
   return data;

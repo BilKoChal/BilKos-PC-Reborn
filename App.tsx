@@ -124,7 +124,11 @@ const App: React.FC = () => {
                   const data = result.data;
                   const versionStr = data.gameVersion || 'Red';
 
-                  if (versionStr === 'Yellow' || versionStr === 'Crystal') {
+                  // Use the adapter-driven ambiguity flag instead of a hardcoded
+                  // version name allowlist. Unambiguous versions (Yellow, Crystal)
+                  // skip the disambiguation modal; ambiguous versions (Red/Blue,
+                  // Gold/Silver) show it so the user can pick the right one.
+                  if (!result.ambiguous) {
                       createNewTab(data, versionStr);
                       setFileQueue(prev => prev.slice(1));
                   } else {

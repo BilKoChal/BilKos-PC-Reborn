@@ -87,7 +87,7 @@ export interface IGenerationMetadata {
  * Handles reading/writing save files and standalone Pokemon binary formats.
  */
 export interface IGenerationBinaryOps {
-  detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string };
+  detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string; ambiguous?: boolean };
   parseSave(buffer: Uint8Array, filename: string): ParsedSave;
   writeSave(save: ParsedSave): Uint8Array;
   validateSave(buffer: Uint8Array): boolean;

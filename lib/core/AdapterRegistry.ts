@@ -36,7 +36,7 @@ export class AdapterRegistry {
    * Run the auto-detection cascade across all registered adapters to detect and parse the save.
    * If one adapter detects but fails to parse, the cascade continues to the next adapter.
    */
-  detectAndParse(buffer: Uint8Array, filename: string): { success: boolean; generation?: number; data?: ParsedSave; error?: string } {
+  detectAndParse(buffer: Uint8Array, filename: string): { success: boolean; generation?: number; data?: ParsedSave; error?: string; ambiguous?: boolean } {
     let lastError: string | undefined;
     for (const [gen, adapter] of this._adapters.entries()) {
       const detectResult = adapter.detectSave(buffer, filename);
@@ -46,7 +46,8 @@ export class AdapterRegistry {
           return {
             success: true,
             generation: gen,
-            data: parsed
+            data: parsed,
+            ambiguous: detectResult.ambiguous
           };
         } catch (err: unknown) {
           // Parse failed for this adapter, but try the next one

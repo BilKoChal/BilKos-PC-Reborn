@@ -138,7 +138,7 @@ export class Gen2Adapter implements IGenerationAdapter {
     /* Dark */      [1,   1,   1,   1,   1,   1, 0.5,   1,   1,   1,   2,   1,   1,   2,   1, 0.5, 0.5],
   ];
 
-  detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string } {
+  detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string; ambiguous?: boolean } {
     const size = buffer.length;
     // Standard GSC save file is 32768 bytes
     if (size === 32768 || size === 32768 + 16 || size === 65536) {
@@ -158,11 +158,11 @@ export class Gen2Adapter implements IGenerationAdapter {
       // If neither checksum validates, use lenient fallback based on filename hints
       if (!gsValid && !cryValid) {
         if (lowerFile.includes('crystal')) {
-          return { detected: true, gameVersion: 'Crystal' };
+          return { detected: true, gameVersion: 'Crystal', ambiguous: false };
         } else if (lowerFile.includes('silver')) {
-          return { detected: true, gameVersion: 'Silver' };
+          return { detected: true, gameVersion: 'Silver', ambiguous: true };
         } else if (lowerFile.includes('gold')) {
-          return { detected: true, gameVersion: 'Gold' };
+          return { detected: true, gameVersion: 'Gold', ambiguous: true };
         }
         return { detected: false };
       }
@@ -172,27 +172,27 @@ export class Gen2Adapter implements IGenerationAdapter {
         // Both checksums match. Use filename to disambiguate, or default to Crystal
         // since Crystal's checksum range is a subset of GS's range.
         if (lowerFile.includes('crystal')) {
-          return { detected: true, gameVersion: 'Crystal' };
+          return { detected: true, gameVersion: 'Crystal', ambiguous: false };
         } else if (lowerFile.includes('silver')) {
-          return { detected: true, gameVersion: 'Silver' };
+          return { detected: true, gameVersion: 'Silver', ambiguous: true };
         } else if (lowerFile.includes('gold')) {
-          return { detected: true, gameVersion: 'Gold' };
+          return { detected: true, gameVersion: 'Gold', ambiguous: true };
         }
         // Default to Crystal when both checksums match and no filename hint
-        return { detected: true, gameVersion: 'Crystal' };
+        return { detected: true, gameVersion: 'Crystal', ambiguous: false };
       }
 
       // Only Crystal checksum valid
       if (cryValid) {
-        return { detected: true, gameVersion: 'Crystal' };
+        return { detected: true, gameVersion: 'Crystal', ambiguous: false };
       }
 
-      // Only GS checksum valid — use filename to distinguish Gold vs Silver
+      // Only GS checksum valid — Gold and Silver share the same format, ambiguous
       if (lowerFile.includes('silver')) {
-        return { detected: true, gameVersion: 'Silver' };
+        return { detected: true, gameVersion: 'Silver', ambiguous: true };
       }
       // Default to Gold when GS checksum matches
-      return { detected: true, gameVersion: 'Gold' };
+      return { detected: true, gameVersion: 'Gold', ambiguous: true };
     }
     return { detected: false };
   }

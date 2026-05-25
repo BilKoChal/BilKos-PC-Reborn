@@ -136,4 +136,9 @@ export interface ParserResult {
   success: boolean;
   data?: ParsedSave;
   error?: string;
+  /** Whether the detected game version is ambiguous (e.g. Red/Blue, Gold/Silver
+   *  share checksums). When true, the app should show a version-picker modal
+   *  instead of auto-confirming. When false/undefined, the version is certain
+   *  (e.g. Yellow, Crystal) and can be opened directly. */
+  ambiguous?: boolean;
 }
