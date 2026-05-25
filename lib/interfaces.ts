@@ -149,6 +149,9 @@ export interface IGenerationDataAccess {
   /** Base PP for a given move ID. Returns 0 if unknown. */
   getMoveBasePp(moveId: number): number;
 
+  /** Type name for a given move ID (e.g. 'Fire', 'Water'). Returns 'Normal' if unknown. */
+  getMoveType(moveId: number): string;
+
   /** All valid item names for the generation (for autocomplete). */
   getAllItemNames(): string[];
 }

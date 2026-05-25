@@ -11,9 +11,9 @@ import { decodeText } from '../../utils/textDecoder';
 import { 
   GEN2_POKEMON_NAMES, 
   GEN2_MOVES_LIST, 
-  getGen2ItemName, 
-  getGen2BaseStats 
+  getGen2ItemName
 } from './data/constants';
+import { getGen2BaseStats } from './data/baseStats';
 import { calculateGen2Stat } from './statCalculator';
 
 // Checksum formula for Generation 2: 16-bit additive sum (stored little-endian)

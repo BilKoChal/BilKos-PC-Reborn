@@ -3,11 +3,7 @@ import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { Sparkles } from 'lucide-react';
 import { Autocomplete } from '../../ui/Autocomplete';
 import { TypeBadge } from '../../ui/PokemonBadges';
-// Adapter-driven: move data is now accessed via adapter.getAllMoveNames() and
-// adapter.getMoveBasePp() instead of direct Gen1 data imports.
-// Move type display still uses the Gen1 MOVES_TYPE array as a temporary measure
-// until getMoveType() is added to IGenerationDataAccess.
-import { MOVES_TYPE } from '../../../lib/generations/gen1/data/moves';
+// Move type is now accessed via adapter.getMoveType() — no more direct Gen1 import.
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 import { IGenerationAdapter } from '../../../lib/interfaces';
@@ -44,7 +40,7 @@ export const PokemonMovesPanel: React.FC<PokemonMovesPanelProps> = ({
                     const ppUps = mon.movePpUps[i] || 0;
                     // Max PP Formula: Base * (1 + 0.2 * Ups)
                     const maxPP = Math.floor(basePP * (1 + 0.2 * ppUps));
-                    const moveType = MOVES_TYPE[moveId] || 'Normal';
+                    const moveType = adapter?.getMoveType(moveId) || 'Normal';
 
                     return (
                         <div key={i} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-3 border border-gray-100 dark:border-gray-800 transition-all hover:border-blue-300 dark:hover:border-blue-700 group">

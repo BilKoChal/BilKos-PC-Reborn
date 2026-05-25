@@ -4,7 +4,7 @@ import { detectGameVersion, validateGen1Checksum, parseGen1Save, parsePk1 } from
 import { writeGen1Save, createPk1Binary } from './writer';
 import { calculateGen1Stat, recalculateStats } from '../../utils/statCalculator';
 import { getPokemonName, POKEMON_NAMES } from './data/pokemonNames';
-import { getMoveName, MOVES_LIST, MOVES_PP } from './data/moves';
+import { getMoveName, MOVES_LIST, MOVES_PP, MOVES_TYPE } from './data/moves';
 import { getItemName } from './data/items';
 import { getPokemonTypes } from './data/pokemonTypes';
 import { GEN1_BASE_STATS } from './data/baseStats';
@@ -187,6 +187,10 @@ export class Gen1Adapter implements IGenerationAdapter {
 
   getMoveBasePp(moveId: number): number {
     return MOVES_PP[moveId] || 0;
+  }
+
+  getMoveType(moveId: number): string {
+    return MOVES_TYPE[moveId] || 'Normal';
   }
 
   getAllItemNames(): string[] {

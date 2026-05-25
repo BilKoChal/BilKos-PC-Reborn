@@ -6,13 +6,13 @@ import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
 import { 
   GEN2_POKEMON_NAMES, 
   GEN2_MOVES_LIST, 
-  getGen2ItemName, 
-  getGen2BaseStats 
+  getGen2ItemName
 } from './data/constants';
+import { GEN2_BASE_STATS, getGen2BaseStats } from './data/baseStats';
+import { GEN2_MOVES_PP, GEN2_MOVES_TYPE } from './data/moveData';
 import { decodeText } from '../../utils/textDecoder';
 import { encodeGameBoyText } from '../../utils/textCodec';
 import { getPokemonTypes } from '../gen1/data/pokemonTypes';
-import { MOVES_PP } from '../gen1/data/moves';
 import './extensions';
 
 // Specific GSC typings incorporating Dark (16) and Steel (15/8) types
@@ -244,7 +244,7 @@ export class Gen2Adapter implements IGenerationAdapter {
 
   getBaseStats(dexId: number): BaseStats | undefined {
     const raw = getGen2BaseStats(dexId);
-    if (!raw) return undefined;
+    if (!raw || raw.hp === 0) return undefined;
     // Map Gen 2 naming convention (atk/def/spe/spa/spd) to unified BaseStats (attack/defense/speed/spAtk/spDef)
     return {
       hp: raw.hp,
@@ -296,14 +296,12 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   getMoveBasePp(moveId: number): number {
-    // Gen 2 shares base PP with Gen 1 for moves 0-165.
-    // For Gen 2-exclusive moves (166+), default to a conservative 10 if unknown.
-    // When a dedicated Gen2 MOVES_PP array is created, this should use it.
-    const pp = MOVES_PP[moveId];
-    if (pp !== undefined && pp > 0) return pp;
-    // Gen 2 move IDs 166-251 don't exist in Gen1's MOVES_PP;
-    // return a safe default. Real PP values should be added to a Gen2 PP table.
-    return 10;
+    const pp = GEN2_MOVES_PP[moveId];
+    return pp !== undefined ? pp : 0;
+  }
+
+  getMoveType(moveId: number): string {
+    return GEN2_MOVES_TYPE[moveId] || 'Normal';
   }
 
   getAllItemNames(): string[] {
