@@ -5,7 +5,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { SaveProvider, useSaveContextSafe } from '../../context/SaveContext';
 import { EditorTools } from './EditorTools';
 import { PokemonEditorModal } from './pokemon/PokemonEditorModal'; 
-import { LayoutGrid, Book, Trophy, Map, Home, Database, Swords } from 'lucide-react'; // Added Swords Icon
+import { LayoutGrid, Book, Trophy, Map, Home, Database, Swords, Mail } from 'lucide-react'; // Added Swords Icon, Mail
 import { MoveLocation } from '../../lib/utils/manipulation';
 import { SortScope, SortCriteria, SortDirection } from '../../lib/utils/sortManager';
 import { SortSettingsModal } from './SortSettingsModal';
@@ -20,8 +20,9 @@ import { PokedexTab } from './tabs/PokedexTab';
 import { BattleTab } from './tabs/BattleTab';
 import { EventsTab } from './tabs/EventsTab';
 import { HallOfFameTab } from './tabs/HallOfFameTab';
+import { MailboxTab } from './tabs/MailboxTab';
 
-export type DashboardTab = 'home' | 'storage' | 'pokedex' | 'battle' | 'events' | 'hof' | 'encounters';
+export type DashboardTab = 'home' | 'storage' | 'pokedex' | 'battle' | 'events' | 'hof' | 'encounters' | 'mailbox';
 
 interface EditorDashboardProps {
     data: ParsedSave;
@@ -335,8 +336,9 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                     <TabButton id="encounters" icon={Database} label="Encounters" />
                     <TabButton id="pokedex" icon={Book} label="Pokédex" />
                     <TabButton id="battle" icon={Swords} label="Battle Guide" /> {/* Updated Icon */}
-                    <TabButton id="events" icon={Map} label="Events" />
-                    <TabButton id="hof" icon={Trophy} label="Hall of Fame" />
+                    <TabButton id="events" icon={Map} label="Events & Extras" />
+                    {data.generation === 1 && <TabButton id="hof" icon={Trophy} label="Hall of Fame" />}
+                    {data.generation === 2 && <TabButton id="mailbox" icon={Mail} label="Mailbox" />}
                 </div>
             </div>
 
@@ -394,11 +396,18 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                             <EventsTab
                                 data={data}
                                 handleEventFlagsUpdate={handleEventFlagsUpdate}
+                                handleOptionsUpdate={handleOptionsUpdate}
                             />
                         )}
 
                         {activeTab === 'hof' && (
                             <HallOfFameTab
+                                data={data}
+                            />
+                        )}
+
+                        {activeTab === 'mailbox' && (
+                            <MailboxTab
                                 data={data}
                             />
                         )}

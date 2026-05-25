@@ -957,7 +957,9 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   };
 
   // ── Phase 2: Parse Hall of Fame ──
-  const hallOfFame = parseGen2HallOfFame(data, offsets);
+  // Gen 2 Hall of Fame not supported (PKHeX excludes SAV2 from HoF editor)
+  // The tab is hidden for Gen 2 saves; data is set to empty to avoid garbage display.
+  const hallOfFame: HallOfFameTeam[] = []; // Gen 2 Hall of Fame not supported (PKHeX excludes SAV2 from HoF editor)
 
   // ── Phase 2: Parse Event Flags ──
   // 2000 event flags (250 bytes) — covers all story progress, NPC interactions, items, etc.

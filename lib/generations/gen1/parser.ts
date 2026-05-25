@@ -9,7 +9,7 @@ import {
     decodeStatus,
     getAsciiString
 } from '../../utils/byteHelpers';
-import { GEN1_OFFSETS, GEN1_INTERNAL_TO_DEX } from './data/offsets';
+import { GEN1_INTERNAL_TO_DEX, getGen1Offsets, detectGen1Region, Gen1Region, Gen1OffsetsConfig } from './data/offsets';
 import { getPokemonName } from './data/pokemonNames';
 import { getTypeName } from './data/pokemonTypes';
 import { getMoveName } from './data/moves';
@@ -20,104 +20,16 @@ import { calculateGen1Stat } from '../../utils/statCalculator';
 
 // --- Gen 1 Parsing Logic (Consolidated with Japanese support) ---
 
-export const OFFSETS_INT = {
-  PLAYER_NAME:     0x2598,
-  RIVAL_NAME:      0x25F6,
-  PLAYER_ID:       0x2605,
-  MONEY:           0x25F3,
-  CASINO_COINS:    0x2850,
-  BADGES:          0x2602,
-  PLAY_TIME:       0x2CED,
-  OPTIONS:         0x2601,
-  PIKACHU_FRIENDSHIP: 0x271C,
-  PLAYER_STARTER:  0x29C3,
-  RIVAL_STARTER:   0x29C1,
-  POKEDEX_OWNED:   0x25A3,
-  POKEDEX_SEEN:    0x25B6,
-  ITEM_BAG:        0x25C9,
-  PC_ITEMS:        0x27E6,
-  CURRENT_BOX_ID:  0x284C,
-  PARTY_DATA:      0x2F2C,
-  PARTY_MON_SIZE:  44,
-  BOX_MON_SIZE:    33,
-  CURRENT_BOX_DATA:0x30C0,
-  CHECKSUM:        0x3523,
-  PC_BANK_2_START: 0x4000,
-  PC_BANK_3_START: 0x6000,
-  BOX_STRUCT_SIZE: 0x462,
-  MISSABLE_OBJECTS: 0x2852,
-  DAYCARE_IN_USE:  0x2CF4,
-  DAYCARE_NAME:    0x2CF5,
-  DAYCARE_OT:      0x2D00,
-  DAYCARE_MON:     0x2D0B,
-  PIKACHU_SURF_RECORD: 0x2741, // Yellow Only (Surfing Pikachu mini-game high score)
-  STR_LEN:         11,
-  BOX_MON_COUNT:   20,
-  PARTY_OT_NAMES:  0x303C,
-  PARTY_NICKNAMES: 0x307E,
-  CURRENT_MAP:     0x260A,
-  Y_COORD:         0x260D,
-  X_COORD:         0x260E,
-  LAST_MAP:        0x2611,
-  WARPED_FROM_MAP: 0x29E8,
-};
+// Re-exports from data/offsets for backward compatibility
+export { getGen1Offsets, detectGen1Region } from './data/offsets';
+export type { Gen1Region, Gen1OffsetsConfig } from './data/offsets';
 
-export const OFFSETS_JPN = {
-  PLAYER_NAME:     0x2598,
-  RIVAL_NAME:      0x25F3,
-  PLAYER_ID:       0x2601,
-  MONEY:           0x25EF,
-  CASINO_COINS:    0x2850,
-  BADGES:          0x25FE,
-  PLAY_TIME:       0x2CED,
-  OPTIONS:         0x25FD,
-  PIKACHU_FRIENDSHIP: 0x271C,
-  PLAYER_STARTER:  0x29C3,
-  RIVAL_STARTER:   0x29C1,
-  POKEDEX_OWNED:   0x25A3,
-  POKEDEX_SEEN:    0x25B6,
-  ITEM_BAG:        0x25C9,
-  PC_ITEMS:        0x27E6,
-  CURRENT_BOX_ID:  0x284C,
-  PARTY_DATA:      0x2ED5,
-  PARTY_MON_SIZE:  44,
-  BOX_MON_SIZE:    33,
-  CURRENT_BOX_DATA:0x307C,
-  CHECKSUM:        0x3523,
-  PC_BANK_2_START: 0x4000,
-  PC_BANK_3_START: 0x6000,
-  BOX_STRUCT_SIZE: 0x566,
-  MISSABLE_OBJECTS: 0x2852,
-  DAYCARE_IN_USE:  0x2CF4,
-  DAYCARE_NAME:    0x2CF5,
-  DAYCARE_OT:      0x2CFB,
-  DAYCARE_MON:     0x2D06,
-  PIKACHU_SURF_RECORD: 0x2741, // Yellow Only (Surfing Pikachu mini-game high score)
-  STR_LEN:         6,
-  BOX_MON_COUNT:   30,
-  PARTY_OT_NAMES:  0x302D,
-  PARTY_NICKNAMES: 0x3053,
-  CURRENT_MAP:     0x260A,
-  Y_COORD:         0x260D,
-  X_COORD:         0x260E,
-  LAST_MAP:        0x2611,
-  WARPED_FROM_MAP: 0x29E8,
-};
-
+/**
+ * Backward-compatible wrapper for detectGen1Region.
+ * Returns true if the save is Japanese.
+ */
 export function isSaveJapanese(view: Uint8Array): boolean {
-  if (view.byteLength < 0x3524) return false;
-  const intPartyCount = view[0x2F2C]!;
-  const intFirstSpecies = view[0x2F2D]!;
-  const jpnPartyCount = view[0x2ED5]!;
-  const jpnFirstSpecies = view[0x2ED6]!;
-  
-  const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
-  const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
-  
-  if (jpnPartyValid && !intPartyValid) {
-    return true;
-  }
-  return false;
+  return detectGen1Region(view) === 'japanese';
 }
 
 function getPokedexFlags(data: Uint8Array, start: number): boolean[] {
@@ -341,7 +253,7 @@ function parsePokemonStruct(
   };
 }
 
-function parseBox(view: Uint8Array, boxStart: number, offsets: typeof OFFSETS_INT, isJapanese: boolean): PokemonStats[] {
+function parseBox(view: Uint8Array, boxStart: number, offsets: Gen1OffsetsConfig, isJapanese: boolean): PokemonStats[] {
     const boxPokemon: PokemonStats[] = [];
     const boxCount = view[boxStart]!;
     const monCount = offsets.BOX_MON_COUNT;
@@ -371,7 +283,7 @@ function parseBox(view: Uint8Array, boxStart: number, offsets: typeof OFFSETS_IN
     return boxPokemon;
 }
 
-function parseDaycare(view: Uint8Array, offsets: typeof OFFSETS_INT, isJapanese: boolean): PokemonStats | undefined {
+function parseDaycare(view: Uint8Array, offsets: Gen1OffsetsConfig, isJapanese: boolean): PokemonStats | undefined {
     const inUse = view[offsets.DAYCARE_IN_USE]!;
     if (inUse === 0) return undefined;
 
@@ -391,7 +303,7 @@ function parseDaycare(view: Uint8Array, offsets: typeof OFFSETS_INT, isJapanese:
     );
 }
 
-function parseOptions(view: Uint8Array, offsets: typeof OFFSETS_INT): GameOptions {
+function parseOptions(view: Uint8Array, offsets: Gen1OffsetsConfig): GameOptions {
     const byte = view[offsets.OPTIONS]!;
     const battleAnimation = (byte & 0x80) ? 'Off' : 'On';
     const battleStyle = (byte & 0x40) ? 'Set' : 'Shift';
@@ -414,9 +326,9 @@ function parseOptions(view: Uint8Array, offsets: typeof OFFSETS_INT): GameOption
     return { textSpeed, battleAnimation, battleStyle, sound };
 }
 
-function parseHallOfFame(view: Uint8Array, offsets: typeof OFFSETS_INT, isJapanese: boolean): HallOfFameTeam[] {
+function parseHallOfFame(view: Uint8Array, offsets: Gen1OffsetsConfig, isJapanese: boolean): HallOfFameTeam[] {
     const teams: HallOfFameTeam[] = [];
-    const hofStart = 0x0598;  // Hall of Fame data offset (SRAM bank 0)
+    const hofStart = offsets.HOF_DATA;
     const structSize = 16;
     const monsPerTeam = 6;
     const maxTeams = 50;
@@ -461,10 +373,10 @@ export function detectGameVersion(view: Uint8Array, filename?: string): GameVers
       }
   }
   // Safe pikachu friendship offset fallback
-  const isJP = isSaveJapanese(view);
-  const pikaOffset = isJP ? OFFSETS_JPN.PIKACHU_FRIENDSHIP : OFFSETS_INT.PIKACHU_FRIENDSHIP;
-  if (view.byteLength > pikaOffset) {
-    const pikachuFriendship = view[pikaOffset]!;
+  const region = detectGen1Region(view);
+  const offsets = getGen1Offsets(region);
+  if (view.byteLength > offsets.PIKACHU_FRIENDSHIP) {
+    const pikachuFriendship = view[offsets.PIKACHU_FRIENDSHIP]!;
     if (pikachuFriendship > 0) return 'Yellow';
   }
   if (filename) {
@@ -476,9 +388,9 @@ export function detectGameVersion(view: Uint8Array, filename?: string): GameVers
   return 'Red';
 }
 
-export function validateGen1Checksum(view: Uint8Array, customOffsets?: Record<string, number>): boolean {
-    const isJP = isSaveJapanese(view);
-    const offsets = customOffsets || (isJP ? OFFSETS_JPN : OFFSETS_INT);
+export function validateGen1Checksum(view: Uint8Array, customOffsets?: Gen1OffsetsConfig): boolean {
+    const region = detectGen1Region(view);
+    const offsets = customOffsets || getGen1Offsets(region);
     let sum = 0;
     for (let i = offsets.PLAYER_NAME; i <= 0x3522; i++) {
         sum += view[i]!;
@@ -490,8 +402,9 @@ export function validateGen1Checksum(view: Uint8Array, customOffsets?: Record<st
 
 export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav"): ParsedSave {
   const view = buffer; 
-  const isJapanese = isSaveJapanese(view);
-  const offsets = isJapanese ? OFFSETS_JPN : OFFSETS_INT;
+  const region = detectGen1Region(view);
+  const offsets = getGen1Offsets(region);
+  const isJapanese = region === 'japanese';
   const gameVersion = detectGameVersion(view, filename);
 
   const isValid = validateGen1Checksum(view, offsets);
@@ -559,18 +472,13 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
     party.push(parsePokemonStruct(view, currentStruct, true, nickname, otName, nicknameRaw, otNameRaw));
   }
 
-  const maxBoxes = isJapanese ? 8 : 12;
+  const maxBoxes = offsets.boxCount;
   const currentBoxId = view[offsets.CURRENT_BOX_ID]! & 0x7F; 
   const allBoxes: PokemonStats[][] = [];
   for (let i = 0; i < maxBoxes; i++) {
       let boxOffset = 0;
-      if (isJapanese) {
-          if (i < 4) boxOffset = offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE);
-          else boxOffset = offsets.PC_BANK_3_START + ((i - 4) * offsets.BOX_STRUCT_SIZE);
-      } else {
-          if (i < 6) boxOffset = offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE);
-          else boxOffset = offsets.PC_BANK_3_START + ((i - 6) * offsets.BOX_STRUCT_SIZE);
-      }
+      if (i < offsets.boxSplitIndex) boxOffset = offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE);
+      else boxOffset = offsets.PC_BANK_3_START + ((i - offsets.boxSplitIndex) * offsets.BOX_STRUCT_SIZE);
       allBoxes.push(parseBox(view, boxOffset, offsets, isJapanese));
   }
   

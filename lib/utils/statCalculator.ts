@@ -44,15 +44,27 @@ export function deriveBaseStats(mon: PokemonStats, generation: Generation): Base
 export function recalculateStats(mon: PokemonStats, baseStats: BaseStats, generation: Generation): PokemonStats {
     const newMon = { ...mon };
 
-    // Gen 1 Logic Only
-    newMon.maxHp = calculateGen1Stat(baseStats.hp, mon.iv.hp, mon.ev.hp, mon.level, true);
-    newMon.hp = newMon.maxHp; // Auto heal on edit
-    newMon.attack = calculateGen1Stat(baseStats.attack, mon.iv.attack, mon.ev.attack, mon.level, false);
-    newMon.defense = calculateGen1Stat(baseStats.defense, mon.iv.defense, mon.ev.defense, mon.level, false);
-    newMon.speed = calculateGen1Stat(baseStats.speed, mon.iv.speed, mon.ev.speed, mon.level, false);
-    newMon.special = calculateGen1Stat(baseStats.spAtk, mon.iv.special, mon.ev.special, mon.level, false);
-    newMon.spAtk = newMon.special;
-    newMon.spDef = newMon.special;
+    if (generation >= 2) {
+      // Gen 2+: Use split SpAtk/SpDef
+      newMon.maxHp = calculateGen1Stat(baseStats.hp, mon.iv.hp, mon.ev.hp, mon.level, true); // Same formula
+      newMon.hp = newMon.maxHp;
+      newMon.attack = calculateGen1Stat(baseStats.attack, mon.iv.attack, mon.ev.attack, mon.level, false);
+      newMon.defense = calculateGen1Stat(baseStats.defense, mon.iv.defense, mon.ev.defense, mon.level, false);
+      newMon.speed = calculateGen1Stat(baseStats.speed, mon.iv.speed, mon.ev.speed, mon.level, false);
+      newMon.spAtk = calculateGen1Stat(baseStats.spAtk, mon.iv.special, mon.ev.special, mon.level, false);
+      newMon.spDef = calculateGen1Stat(baseStats.spDef, mon.iv.special, mon.ev.special, mon.level, false);
+      newMon.special = newMon.spAtk; // Mirror for compatibility
+    } else {
+      // Gen 1: unified Special
+      newMon.maxHp = calculateGen1Stat(baseStats.hp, mon.iv.hp, mon.ev.hp, mon.level, true);
+      newMon.hp = newMon.maxHp;
+      newMon.attack = calculateGen1Stat(baseStats.attack, mon.iv.attack, mon.ev.attack, mon.level, false);
+      newMon.defense = calculateGen1Stat(baseStats.defense, mon.iv.defense, mon.ev.defense, mon.level, false);
+      newMon.speed = calculateGen1Stat(baseStats.speed, mon.iv.speed, mon.ev.speed, mon.level, false);
+      newMon.special = calculateGen1Stat(baseStats.spAtk, mon.iv.special, mon.ev.special, mon.level, false);
+      newMon.spAtk = newMon.special;
+      newMon.spDef = newMon.special;
+    }
 
     return newMon;
 }

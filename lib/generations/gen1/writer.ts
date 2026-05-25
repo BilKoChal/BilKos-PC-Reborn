@@ -1,7 +1,6 @@
 import { ParsedSave, PokemonStats, Item } from '../../parser/types';
-import { GEN1_INTERNAL_TO_DEX } from './data/offsets';
+import { GEN1_INTERNAL_TO_DEX, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig } from './data/offsets';
 import { BinaryWriter } from '../../utils/io';
-import { OFFSETS_INT, OFFSETS_JPN, isSaveJapanese } from './parser';
 
 // Reverse map: National Dex ID -> Internal ID
 const DEX_TO_INTERNAL: Record<number, number> = {};
@@ -110,8 +109,8 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
 }
 
 // Helper: Write a full Box
-function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Record<string, number>, isJapanese: boolean) {
-    const monCount = offsets.BOX_MON_COUNT!;
+function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Gen1OffsetsConfig, isJapanese: boolean) {
+    const monCount = offsets.BOX_MON_COUNT;
 
     // 1. Count
     writer.u8(boxPokemon.length);
@@ -141,18 +140,18 @@ function writeBox(writer: BinaryWriter, boxPokemon: PokemonStats[], offsets: Rec
     // 4. OT Names (STR_LEN bytes * monCount)
     for (let i = 0; i < monCount; i++) {
         if (i < boxPokemon.length) {
-            writer.string(boxPokemon[i]!.originalTrainerName, offsets.STR_LEN!, 0x50, isJapanese);
+            writer.string(boxPokemon[i]!.originalTrainerName, offsets.STR_LEN, 0x50, isJapanese);
         } else {
-            for (let j = 0; j < offsets.STR_LEN!; j++) writer.u8(0x50);
+            for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
         }
     }
 
     // 5. Nicknames (STR_LEN bytes * monCount)
     for (let i = 0; i < monCount; i++) {
         if (i < boxPokemon.length) {
-            writer.string(boxPokemon[i]!.nickname, offsets.STR_LEN!, 0x50, isJapanese);
+            writer.string(boxPokemon[i]!.nickname, offsets.STR_LEN, 0x50, isJapanese);
         } else {
-            for (let j = 0; j < offsets.STR_LEN!; j++) writer.u8(0x50);
+            for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
         }
     }
 }
@@ -194,8 +193,9 @@ export function createPk1Binary(mon: PokemonStats): Uint8Array {
 export function writeGen1Save(save: ParsedSave): Uint8Array {
     // Clone raw data
     const writer = new BinaryWriter(new Uint8Array(save.rawData));
-    const isJapanese = isSaveJapanese(save.rawData);
-    const offsets = isJapanese ? OFFSETS_JPN : OFFSETS_INT;
+    const region = detectGen1Region(save.rawData);
+    const offsets = getGen1Offsets(region);
+    const isJapanese = region === 'japanese';
 
     // --- MAIN DATA BANK (Bank 1) ---
 
@@ -356,7 +356,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     writer.seek(offsets.PARTY_OT_NAMES);
     for (let i = 0; i < 6; i++) {
         if (i < save.party.length) {
-            writer.string(save.party[i]!.originalTrainerName, offsets.STR_LEN!, 0x50, isJapanese);
+            writer.string(save.party[i]!.originalTrainerName, offsets.STR_LEN, 0x50, isJapanese);
         } else {
             for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
         }
@@ -366,7 +366,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     writer.seek(offsets.PARTY_NICKNAMES);
     for (let i = 0; i < 6; i++) {
         if (i < save.party.length) {
-            writer.string(save.party[i]!.nickname, offsets.STR_LEN!, 0x50, isJapanese);
+            writer.string(save.party[i]!.nickname, offsets.STR_LEN, 0x50, isJapanese);
         } else {
             for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
         }
@@ -386,21 +386,15 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     const BANK3_END_DATA = isJapanese ? 0x7D32 : 0x7A52;
 
     const buffer = writer.getBuffer();
-    const maxBoxes = isJapanese ? 8 : 12;
+    const maxBoxes = offsets.boxCount;
 
     for (let i = 0; i < maxBoxes; i++) {
         let boxOffset = 0;
         let isBank2 = false;
         
-        if (isJapanese) {
-            isBank2 = i < 4;
-            if (isBank2) boxOffset = offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE);
-            else boxOffset = offsets.PC_BANK_3_START + ((i - 4) * offsets.BOX_STRUCT_SIZE);
-        } else {
-            isBank2 = i < 6;
-            if (isBank2) boxOffset = offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE);
-            else boxOffset = offsets.PC_BANK_3_START + ((i - 6) * offsets.BOX_STRUCT_SIZE);
-        }
+        isBank2 = i < offsets.boxSplitIndex;
+        if (isBank2) boxOffset = offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE);
+        else boxOffset = offsets.PC_BANK_3_START + ((i - offsets.boxSplitIndex) * offsets.BOX_STRUCT_SIZE);
         
         const boxMons = save.pcBoxes[i] || [];
         
@@ -417,11 +411,11 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
         const boxChecksum = calculateChecksum(buffer, boxOffset, boxOffset + offsets.BOX_STRUCT_SIZE - 1);
         
         if (isBank2) {
-            const idxOffset = isJapanese ? (i) : (i);
+            const idxOffset = i;
             writer.seek(BANK2_CHKSUM_INDIV + idxOffset);
             writer.u8(boxChecksum);
         } else {
-            const idxOffset = isJapanese ? (i - 4) : (i - 6);
+            const idxOffset = i - offsets.boxSplitIndex;
             writer.seek(BANK3_CHKSUM_INDIV + idxOffset);
             writer.u8(boxChecksum);
         }

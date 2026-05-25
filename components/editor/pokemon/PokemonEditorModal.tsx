@@ -171,19 +171,38 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
 
     const handleExportPk1 = () => {
         try {
-            const binary = createPk1Binary(mon);
-            const blob = new Blob([binary], { type: "application/octet-stream" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${mon.nickname || mon.speciesName}.pk1`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            if (adapter && !adapter.supportsStandalone) {
+                alert(`Standalone .pk${generation} export is not yet supported for Generation ${generation}.`);
+                return;
+            }
+            if (generation === 1) {
+                const binary = createPk1Binary(mon);
+                const blob = new Blob([binary], { type: "application/octet-stream" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${mon.nickname || mon.speciesName}.pk1`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else if (adapter?.supportsStandalone) {
+                const binary = adapter.createStandalonePokemon(mon);
+                const blob = new Blob([binary], { type: "application/octet-stream" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${mon.nickname || mon.speciesName}.pk${generation}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } else {
+                alert(`Standalone .pk${generation} export is not yet supported for Generation ${generation}.`);
+            }
         } catch (e) {
-            console.error("Failed to export pk1", e);
-            alert("Failed to export .pk1 file");
+            console.error("Failed to export pokemon file", e);
+            alert("Failed to export pokemon file.");
         }
     };
 
@@ -255,7 +274,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                             <button 
                                 onClick={handleExportPk1}
                                 className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-                                title="Export .pk1"
+                                title={`Export .pk${generation}`}
                             >
                                 <Download size={20} />
                             </button>

@@ -35,13 +35,15 @@ export const HeldItemSection: ISectionExtension = {
             const heldItemId = matchingIdStr ? Number(matchingIdStr) : 0;
             const heldItemName = heldItemId > 0 ? GEN2_ITEMS[heldItemId]! : 'None';
 
-            // Update both flat fields (for O(1) UI access) and genExtension (canonical source)
+            // Update flat fields via context
             context.onChange('heldItemId', heldItemId as unknown);
             context.onChange('heldItemName', heldItemName as unknown);
-            // Also update the genExtension if it exists
+            
+            // Update genExtension immutably — create new object instead of mutating
             if (isGen2Extension(mon.genExtension)) {
-              mon.genExtension.heldItemId = heldItemId;
-              mon.genExtension.heldItemName = heldItemName;
+              const updatedExtension = { ...mon.genExtension, heldItemId, heldItemName };
+              // We need to propagate this through onChange as well
+              context.onChange('genExtension', updatedExtension as unknown);
             }
           }}
           placeholder="No Held Item"

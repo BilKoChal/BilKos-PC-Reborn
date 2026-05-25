@@ -1,51 +1,226 @@
+/**
+ * Gen 1 Save File Offset Configuration
+ *
+ * All byte offsets are centralized here to support:
+ * - International vs Japanese region differences
+ *
+ * Design: A factory function returns the correct offset map
+ * based on region, making parser/writer code region-agnostic.
+ *
+ * Mirrors the Gen 2 offset system (data/offsets.ts with factory pattern,
+ * TypeScript interfaces, region configs).
+ *
+ * Offsets sourced from PKHeX SAV1Offsets.cs and SAV1.cs
+ */
 
-export const GEN1_OFFSETS = {
-    // Bank 1 (Main Data)
-    PLAYER_NAME: 0x2598,
-    POKEDEX_OWNED: 0x25A3,
-    POKEDEX_SEEN: 0x25B6,
-    ITEM_BAG: 0x25C9,
-    MONEY: 0x25F3,
-    RIVAL_NAME: 0x25F6,
-    OPTIONS: 0x2601,
-    BADGES: 0x2602,
-    PLAYER_ID: 0x2605,
-    CURRENT_MAP: 0x260A,
-    Y_COORD: 0x260D,
-    X_COORD: 0x260E,
-    LAST_MAP: 0x2611,
-    PIKACHU_FRIENDSHIP: 0x271C, // Yellow Only
-    PIKACHU_SURF_RECORD: 0x2741, // Yellow Only (Surfing Pikachu mini-game high score)
-    PC_ITEMS: 0x27E6,
-    // Missable Objects (Event Flags for Sprites) starts after Coins?
-    // Based on PkHex and RAM maps: 0x2852 (Red/Blue/Yellow)
-    MISSABLE_OBJECTS: 0x2852, 
-    CURRENT_BOX_ID: 0x284C,
-    CASINO_COINS: 0x2850,
-    DAYCARE_IN_USE: 0x2CF4,
-    DAYCARE_NAME: 0x2CF5,
-    DAYCARE_OT: 0x2D00,
-    DAYCARE_MON: 0x2D0B,
-    RIVAL_STARTER: 0x29C1,
-    PLAYER_STARTER: 0x29C3,
-    WARPED_FROM_MAP: 0x29E8,
-    PLAY_TIME: 0x2CED, // 0x2CED=Hours, 0x2CEE=Maxed, 0x2CEF=Min, 0x2CF0=Sec, 0x2CF1=Frames
-    HOF_DATA: 0x0598,          // Hall of Fame data start offset
-    PARTY_DATA: 0x2F2C,
-    CURRENT_BOX_DATA: 0x30C0,
-    CHECKSUM: 0x3523,
+// ── Region Type ──
 
-    // Banks
-    PC_BANK_2_START: 0x4000, // Boxes 1-6
-    PC_BANK_3_START: 0x6000, // Boxes 7-12
-    
-    // Structure Sizes
-    BOX_STRUCT_SIZE: 0x462,  // 1122 bytes per box
-    PARTY_MON_SIZE: 44,
-    BOX_MON_SIZE: 33
+export type Gen1Region = 'international' | 'japanese';
+
+// ── Region Configuration Interface ──
+
+export interface Gen1RegionConfig {
+  stringLength: number;       // 11 (INT) or 6 (JPN)
+  boxSlotCount: number;       // 20 (INT) or 30 (JPN)
+  boxCount: number;           // 12 (INT) or 8 (JPN)
+  boxSplitIndex: number;      // 6 (INT) or 4 (JPN)
+  maxTrainerNameLen: number;  // 7 (INT) or 5 (JPN)
+  maxNicknameLen: number;     // 10 (INT) or 5 (JPN)
+  saveSize: number;           // 0x8000 (INT) or 0x10000 (JPN)
+}
+
+// ── Offset Configuration Interface ──
+
+export interface Gen1OffsetsConfig extends Gen1RegionConfig {
+  // ── SRAM Bank 1 Offsets ──
+  PLAYER_NAME: number;
+  RIVAL_NAME: number;
+  PLAYER_ID: number;
+  MONEY: number;
+  CASINO_COINS: number;
+  BADGES: number;
+  PLAY_TIME: number;
+  OPTIONS: number;
+  PIKACHU_FRIENDSHIP: number;
+  PLAYER_STARTER: number;
+  RIVAL_STARTER: number;
+  POKEDEX_OWNED: number;
+  POKEDEX_SEEN: number;
+  ITEM_BAG: number;
+  PC_ITEMS: number;
+  CURRENT_BOX_ID: number;
+  PARTY_DATA: number;
+  PARTY_MON_SIZE: number;    // 44
+  BOX_MON_SIZE: number;      // 33
+  CURRENT_BOX_DATA: number;
+  CHECKSUM: number;
+  PC_BANK_2_START: number;   // 0x4000
+  PC_BANK_3_START: number;   // 0x6000
+  BOX_STRUCT_SIZE: number;
+  MISSABLE_OBJECTS: number;
+  DAYCARE_IN_USE: number;
+  DAYCARE_NAME: number;
+  DAYCARE_OT: number;
+  DAYCARE_MON: number;
+  PIKACHU_SURF_RECORD: number;
+  STR_LEN: number;
+  BOX_MON_COUNT: number;
+  PARTY_OT_NAMES: number;
+  PARTY_NICKNAMES: number;
+  CURRENT_MAP: number;
+  Y_COORD: number;
+  X_COORD: number;
+  LAST_MAP: number;
+  WARPED_FROM_MAP: number;
+  HOF_DATA: number;
+}
+
+// ── Region Config Constants ──
+
+const INT_REGION_CONFIG: Gen1RegionConfig = {
+  stringLength: 11,
+  boxSlotCount: 20,
+  boxCount: 12,
+  boxSplitIndex: 6,
+  maxTrainerNameLen: 7,
+  maxNicknameLen: 10,
+  saveSize: 0x8000,
 };
 
-// Internal Index to National Dex ID
+const JPN_REGION_CONFIG: Gen1RegionConfig = {
+  stringLength: 6,
+  boxSlotCount: 30,
+  boxCount: 8,
+  boxSplitIndex: 4,
+  maxTrainerNameLen: 5,
+  maxNicknameLen: 5,
+  saveSize: 0x10000,
+};
+
+// ── Region-Specific Offset Tables ──
+
+const INT_OFFSETS = {
+  PLAYER_NAME:     0x2598,
+  RIVAL_NAME:      0x25F6,
+  PLAYER_ID:       0x2605,
+  MONEY:           0x25F3,
+  CASINO_COINS:    0x2850,
+  BADGES:          0x2602,
+  PLAY_TIME:       0x2CED,
+  OPTIONS:         0x2601,
+  PIKACHU_FRIENDSHIP: 0x271C,
+  PLAYER_STARTER:  0x29C3,
+  RIVAL_STARTER:   0x29C1,
+  POKEDEX_OWNED:   0x25A3,
+  POKEDEX_SEEN:    0x25B6,
+  ITEM_BAG:        0x25C9,
+  PC_ITEMS:        0x27E6,
+  CURRENT_BOX_ID:  0x284C,
+  PARTY_DATA:      0x2F2C,
+  PARTY_MON_SIZE:  44,
+  BOX_MON_SIZE:    33,
+  CURRENT_BOX_DATA:0x30C0,
+  CHECKSUM:        0x3523,
+  PC_BANK_2_START: 0x4000,
+  PC_BANK_3_START: 0x6000,
+  BOX_STRUCT_SIZE: 0x462,
+  MISSABLE_OBJECTS: 0x2852,
+  DAYCARE_IN_USE:  0x2CF4,
+  DAYCARE_NAME:    0x2CF5,
+  DAYCARE_OT:      0x2D00,
+  DAYCARE_MON:     0x2D0B,
+  PIKACHU_SURF_RECORD: 0x2741, // Yellow Only (Surfing Pikachu mini-game high score)
+  STR_LEN:         11,
+  BOX_MON_COUNT:   20,
+  PARTY_OT_NAMES:  0x303C,
+  PARTY_NICKNAMES: 0x307E,
+  CURRENT_MAP:     0x260A,
+  Y_COORD:         0x260D,
+  X_COORD:         0x260E,
+  LAST_MAP:        0x2611,
+  WARPED_FROM_MAP: 0x29E8,
+  HOF_DATA:        0x0598,
+};
+
+const JPN_OFFSETS = {
+  PLAYER_NAME:     0x2598,
+  RIVAL_NAME:      0x25F3,
+  PLAYER_ID:       0x2601,
+  MONEY:           0x25EF,
+  CASINO_COINS:    0x2850,
+  BADGES:          0x25FE,
+  PLAY_TIME:       0x2CED,
+  OPTIONS:         0x25FD,
+  PIKACHU_FRIENDSHIP: 0x271C,
+  PLAYER_STARTER:  0x29C3,
+  RIVAL_STARTER:   0x29C1,
+  POKEDEX_OWNED:   0x25A3,
+  POKEDEX_SEEN:    0x25B6,
+  ITEM_BAG:        0x25C9,
+  PC_ITEMS:        0x27E6,
+  CURRENT_BOX_ID:  0x284C,
+  PARTY_DATA:      0x2ED5,
+  PARTY_MON_SIZE:  44,
+  BOX_MON_SIZE:    33,
+  CURRENT_BOX_DATA:0x307C,
+  CHECKSUM:        0x3523,
+  PC_BANK_2_START: 0x4000,
+  PC_BANK_3_START: 0x6000,
+  BOX_STRUCT_SIZE: 0x566,
+  MISSABLE_OBJECTS: 0x2852,
+  DAYCARE_IN_USE:  0x2CF4,
+  DAYCARE_NAME:    0x2CF5,
+  DAYCARE_OT:      0x2CFB,
+  DAYCARE_MON:     0x2D06,
+  PIKACHU_SURF_RECORD: 0x2741, // Yellow Only (Surfing Pikachu mini-game high score)
+  STR_LEN:         6,
+  BOX_MON_COUNT:   30,
+  PARTY_OT_NAMES:  0x302D,
+  PARTY_NICKNAMES: 0x3053,
+  CURRENT_MAP:     0x260A,
+  Y_COORD:         0x260D,
+  X_COORD:         0x260E,
+  LAST_MAP:        0x2611,
+  WARPED_FROM_MAP: 0x29E8,
+  HOF_DATA:        0x0598,
+};
+
+// ── Factory Function ──
+
+/**
+ * Returns the correct offset configuration for a given Gen 1 region.
+ * This is the single source of truth for all byte offsets in Gen 1 parsing/writing.
+ */
+export function getGen1Offsets(region: Gen1Region = 'international'): Gen1OffsetsConfig {
+  const regionConfig = region === 'japanese' ? JPN_REGION_CONFIG : INT_REGION_CONFIG;
+  const offsets = region === 'japanese' ? JPN_OFFSETS : INT_OFFSETS;
+  return { ...regionConfig, ...offsets };
+}
+
+// ── Region Detection ──
+
+/**
+ * Detects the region of a Gen 1 save file based on its size and data patterns.
+ *
+ * Detection logic:
+ * 1. Japanese saves are 64KB (0x10000), International are 32KB (0x8000)
+ * 2. If size alone is ambiguous, check party data validity at both region offsets
+ * 3. Default to International if no specific region is detected
+ */
+export function detectGen1Region(buffer: Uint8Array): Gen1Region {
+  if (buffer.length >= 0x10000) return 'japanese';
+  // Also check if JPN party offset makes sense (same heuristic as isSaveJapanese)
+  const intPartyCount = buffer[0x2F2C]!;
+  const intFirstSpecies = buffer[0x2F2D]!;
+  const jpnPartyCount = buffer[0x2ED5]!;
+  const jpnFirstSpecies = buffer[0x2ED6]!;
+  const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
+  const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
+  if (jpnPartyValid && !intPartyValid) return 'japanese';
+  return 'international';
+}
+
+// ── Internal Index to National Dex ID ──
 // Based on pokered constants/pokemon_constants.asm
 export const GEN1_INTERNAL_TO_DEX = [
     0,   // 0 (MissingNo)

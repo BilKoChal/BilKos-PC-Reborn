@@ -41,7 +41,7 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
     const extensions = extensionRegistry.getExtensions('pokemon-info', generation);
 
     // Dynamic species options based on adapter (replaces hardcoded generation branching)
-    const pokemonOptions = adapter?.getAllSpeciesNames().slice(0, (adapter?.nationalDexMax ?? 151) + 1) ?? [];
+    const pokemonOptions = (adapter?.getAllSpeciesNames() ?? []).slice(0, (adapter?.nationalDexMax ?? 151) + 1);
 
     return (
         <div className="flex flex-col gap-6 bg-white dark:bg-gray-900 h-full">

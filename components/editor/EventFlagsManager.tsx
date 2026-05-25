@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { GEN1_EVENTS, GameEvent } from '../../lib/generations/gen1/data/events';
 import { ParsedSave } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
-import { MapPin, Gift, Zap } from 'lucide-react';
+import { MapPin, Gift, Zap, Flag } from 'lucide-react';
 
 interface EventFlagsManagerProps {
     data: ParsedSave;
@@ -15,8 +15,11 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
     const theme = getGameTheme();
     const [flags, setFlags] = useState<boolean[]>([...data.eventFlags]);
 
+    // Select the correct event database based on generation
+    const eventsData: GameEvent[] = data.generation === 1 ? GEN1_EVENTS : [];
+
     // Group events by category
-    const groupedEvents = GEN1_EVENTS.reduce((acc, event) => {
+    const groupedEvents = eventsData.reduce((acc, event) => {
         if (!acc[event.category]) acc[event.category] = [];
         acc[event.category]!.push(event);
         return acc;
@@ -38,23 +41,29 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
         }
     };
 
-    return (
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col h-[600px] overflow-hidden">
-            {/* Header */}
-            <div 
-                className="p-4 flex items-center justify-between bg-theme-primary text-theme-text-on-primary"
-            >
-                <div className="flex items-center gap-3">
-                    <MapPin size={24} />
-                    <div>
-                        <h3 className="font-black uppercase tracking-wide">World Events</h3>
-                        <p className="text-xs text-white/80 font-medium">Manage Legendary encounters & hidden items</p>
+    // If no events data is available for this generation, show placeholder
+    if (eventsData.length === 0) {
+        return (
+            <div className="p-6 bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex flex-col items-center py-8 text-gray-500 dark:text-gray-400">
+                    <Flag size={36} className="mb-3 opacity-40" />
+                    <p className="text-sm text-center max-w-md">
+                        Event flag editing for Generation {data.generation} saves is not yet available. 
+                        This feature will be added in a future update.
+                    </p>
+                    <div className="mt-4 bg-amber-50 dark:bg-amber-900/10 rounded-xl p-3 border border-amber-100 dark:border-amber-800/30 w-full max-w-sm">
+                        <div className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Total Flags</div>
+                        <div className="text-lg font-black text-amber-700 dark:text-amber-300">{data.eventFlags.length}</div>
                     </div>
                 </div>
             </div>
+        );
+    }
 
+    return (
+        <div className="flex flex-col max-h-[500px] overflow-hidden">
             {/* Content */}
-            <div className="p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 flex-grow">
+            <div className="p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 flex-grow custom-scrollbar">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Object.entries(groupedEvents).map(([category, events]) => (
                         <div key={category} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm h-fit">

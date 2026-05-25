@@ -23,16 +23,19 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
     
     const [search, setSearch] = useState('');
 
-    // Filtered Events
+    // Filtered Events — generation-filtered so Gen 1 events don't appear for Gen 2 saves
     const filteredEvents = useMemo(() => {
         return EVENT_DISTRIBUTIONS.filter(evt => {
+            // Only show events for the current save's generation
+            if (evt.generation !== data.generation) return false;
+            
             const searchLower = search.toLowerCase();
             return (
                 evt.title.toLowerCase().includes(searchLower) ||
                 evt.tags.some(t => t.toLowerCase().includes(searchLower))
             );
         });
-    }, [search]);
+    }, [search, data.generation]);
 
     const handleAddEvent = (event: EventPokemonData) => {
         // Parse raw bytes from the event definition

@@ -26,7 +26,7 @@ export type PokemonStats = CanonicalPokemon;
 export type ParsedSave = CanonicalSave;
 
 // Re-export genExtension types and type guards for convenience
-export type { IGenExtension, ISaveExtension } from '../canonicalModel';
+export type { IGenExtension, ISaveExtension, Gen2Mail } from '../canonicalModel';
 export {
   isGen1Extension,
   isGen2Extension,

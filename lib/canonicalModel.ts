@@ -252,6 +252,20 @@ export class Gen1SaveExtension implements ISaveExtension {
 }
 
 /**
+ * Gen 2 Mail structure.
+ * Mail items stored in the mailbox and attached to party Pokemon.
+ */
+export interface Gen2Mail {
+  messageLine1: string;
+  messageLine2: string;
+  authorNationality: number;
+  authorName: string;
+  authorTid: number;
+  appearPokemon: number;
+  mailType: number;
+}
+
+/**
  * Generation 2 Specific save-level extension.
  * Can be extended with Gen2-only save data (e.g., phone contacts, mom savings).
  */
@@ -293,6 +307,10 @@ export class Gen2SaveExtension implements ISaveExtension {
   // ── Phase 2: Hall of Fame ──
   /** Byte offset where Hall of Fame data starts in the save (for writer preservation) */
   hallOfFameOffset: number = 0;
+
+  // ── Phase 2.5: Mailbox ──
+  /** Mailbox data (null if not yet parsed or not Gen 2) */
+  mailbox: { partyMail: (Gen2Mail | null)[]; mailboxMail: (Gen2Mail | null)[]; mailboxCount: number } | null = null;
 
   // ── Phase 2: Event Flags ──
   /** Byte offset where event flags start (for writer) */
