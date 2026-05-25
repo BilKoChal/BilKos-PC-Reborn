@@ -8,6 +8,7 @@ import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
 import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 import { parsePk1 } from '../../lib/generations/gen1/parser';
+import { useSaveContextSafe } from '../../context/SaveContext';
 import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
 import { startTouchDrag, moveTouchDrag, endTouchDrag, cancelTouchDrag, isTouchDragging } from '../../lib/hooks/touchDnD';
 
@@ -468,6 +469,9 @@ export const PCStorage: React.FC<PCStorageProps> = ({
         fileInputRef.current?.click();
     };
 
+    const saveCtx = useSaveContextSafe();
+    const adapter = saveCtx?.adapter;
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || !onImport) return;
         
@@ -475,13 +479,31 @@ export const PCStorage: React.FC<PCStorageProps> = ({
         let importedCount = 0;
 
         for (const file of files) {
-            if (!file.name.endsWith('.pk1')) continue;
+            const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+            if (extension !== '.pk1' && extension !== '.pk2') continue;
 
-            const buffer = await file.arrayBuffer();
-            const mon = parsePk1(new Uint8Array(buffer));
+            const buffer = new Uint8Array(await file.arrayBuffer());
+            let mon: PokemonStats | null = null;
+
+            try {
+                if (extension === '.pk2' && adapter && adapter.generation === 2 && adapter.supportsStandalone) {
+                    // Use Gen2Adapter for .pk2 files
+                    mon = adapter.parseStandalonePokemon(buffer);
+                } else if (extension === '.pk1' && adapter && adapter.generation === 1 && adapter.supportsStandalone) {
+                    // Use Gen1Adapter for .pk1 files
+                    mon = adapter.parseStandalonePokemon(buffer);
+                } else {
+                    // Fallback: try parsePk1 for .pk1 files with old parser
+                    mon = parsePk1(buffer);
+                }
+            } catch (err) {
+                console.error(`Error importing ${file.name}:`, err);
+                if (onToast) onToast(`Error: Invalid ${extension} file (${file.name})`);
+                continue;
+            }
 
             if (!mon) {
-                if (onToast) onToast(`Error: Invalid .pk1 file (${file.name})`);
+                if (onToast) onToast(`Error: Invalid ${extension} file (${file.name})`);
                 continue;
             }
 
@@ -525,7 +547,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
             <input 
                 type="file" 
                 multiple 
-                accept=".pk1" 
+                accept=".pk1,.pk2" 
                 ref={fileInputRef} 
                 className="hidden" 
                 onChange={handleFileChange}
@@ -547,7 +569,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                             <button 
                                 onClick={handleImportClick}
                                 className={`p-1 rounded-lg transition-colors border bg-current/10 hover:bg-current/20 border-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'}`}
-                                title="Import .pk1"
+                                title="Import .pk1 / .pk2"
                             >
                                 <Download size={16} />
                             </button>

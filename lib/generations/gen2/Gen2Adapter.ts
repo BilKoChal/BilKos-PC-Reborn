@@ -264,36 +264,103 @@ export class Gen2Adapter implements IGenerationAdapter {
 
   supportsStandalone = true;
 
+  /** The PKHeX-compatible file extension for this generation */
+  readonly standaloneExtension = '.pk2';
+
+  /**
+   * Parse a standalone .pk2 file into a PokemonStats object.
+   *
+   * Supports multiple .pk2 formats for maximum compatibility:
+   * - 73 bytes: PKHeX PokeList2 International (count + species + terminator + 48-byte party struct + 11-byte OT + 11-byte nick)
+   * - 63 bytes: PKHeX PokeList2 Japanese (count + species + terminator + 48-byte party struct + 6-byte OT + 6-byte nick)
+   * - 48 bytes: Raw party format (no wrapper, no OT/nickname)
+   * - 32 bytes: Raw box format (no wrapper, no OT/nickname)
+   */
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
-    // .pk2 format: 32 bytes (box format) or 48 bytes (party format)
-    const isParty = buffer.length >= 48;
-    const speciesId = buffer[0] || 0;
-    const speciesName = GEN2_POKEMON_NAMES[speciesId] || `Species ${speciesId}`;
+    const isJapanese = buffer.length === 63; // SIZE_2JLIST
+    const strLen = isJapanese ? 6 : 11;
 
-    // Standalone .pk2 files don't include OT name or nickname strings;
-    // use the species name as the default nickname and a generic OT name.
-    const defaultNickname = speciesName.toUpperCase();
-    const defaultOtName = '';
-    const emptyRaw = new Uint8Array(0);
+    let monData: Uint8Array;
+    let otRaw: Uint8Array;
+    let nickRaw: Uint8Array;
 
-    return parseGen2PokemonStruct(
-      buffer,
-      0,
-      isParty,
-      defaultNickname,
-      defaultOtName,
-      emptyRaw,
-      emptyRaw
-    );
+    if (buffer.length === 73 || buffer.length === 63) {
+      // PKHeX PokeList2 format (standard .pk2 file)
+      // Byte 0: Count (always 1)
+      // Byte 1: Species (National Dex ID in Gen 2)
+      // Byte 2: Terminator (0xFF)
+      // Bytes 3-50: Pokemon data (party format, 48 bytes = SIZE_2PARTY)
+      // Bytes 51-61: OT Name (11 bytes for INT, 6 for JPN)
+      // Bytes 62-72: Nickname (11 bytes for INT, 6 for JPN)
+      const count = buffer[0];
+      if (count !== 1) {
+        console.warn(`parseStandalonePokemon(.pk2): Unexpected count byte: ${count}. Expected 1.`);
+      }
+      monData = buffer.slice(3, 3 + 48);
+      otRaw = buffer.slice(3 + 48, 3 + 48 + strLen);
+      nickRaw = buffer.slice(3 + 48 + strLen, 3 + 48 + strLen * 2);
+    } else if (buffer.length === 48) {
+      // Raw party format (no wrapper)
+      monData = buffer;
+      otRaw = new Uint8Array(strLen).fill(0x50);
+      nickRaw = new Uint8Array(strLen).fill(0x50);
+    } else if (buffer.length === 32) {
+      // Raw box format (no wrapper)
+      monData = buffer;
+      otRaw = new Uint8Array(strLen).fill(0x50);
+      nickRaw = new Uint8Array(strLen).fill(0x50);
+    } else {
+      throw new Error(
+        `Invalid .pk2 file size: ${buffer.length}. Expected 73 (INT PokeList2), 63 (JPN PokeList2), 48 (party), or 32 (box).`
+      );
+    }
+
+    const otName = decodeText(otRaw, 0, strLen);
+    const nickName = decodeText(nickRaw, 0, strLen);
+    const isParty = monData.length >= 48;
+
+    return parseGen2PokemonStruct(monData, 0, isParty, nickName, otName, nickRaw, otRaw);
   }
 
+  /**
+   * Create a PKHeX-compatible .pk2 file from a PokemonStats object.
+   *
+   * Output format: PokeList2 single-entry (PKHeX standard)
+   * - International: 73 bytes (1 count + 1 species + 1 terminator + 48 party struct + 11 OT + 11 nick)
+   * - Japanese: 63 bytes (1 count + 1 species + 1 terminator + 48 party struct + 6 OT + 6 nick)
+   *
+   * The species byte in the PokeList2 header uses the National Dex ID
+   * (Gen 2 species IDs directly equal National Dex numbers).
+   * Pokemon data is ALWAYS in party format (48 bytes), even for box Pokemon.
+   */
   createStandalonePokemon(mon: PokemonStats): Uint8Array {
-    // .pk2 format: 32 bytes (box) or 48 bytes (party)
-    const isParty = mon.isParty;
-    const size = isParty ? 48 : 32;
-    const buffer = new Uint8Array(size);
+    // Default to International (11-byte strings). JPN support would require
+    // detecting the region from the save context, which is not available here.
+    const strLen = 11; // International default
+    const SIZE_2PARTY = 48;
+    const totalSize = 1 + 1 + 1 + SIZE_2PARTY + strLen + strLen; // = 73 for INT
+    const buffer = new Uint8Array(totalSize);
 
-    writeGen2PokemonStruct(buffer, 0, mon, isParty);
+    // Byte 0: Count (always 1)
+    buffer[0] = 0x01;
+
+    // Byte 1: Species (National Dex ID in Gen 2)
+    buffer[1] = mon.speciesId;
+
+    // Byte 2: Terminator
+    buffer[2] = 0xFF;
+
+    // Bytes 3-50: Pokemon data (party format, 48 bytes)
+    // Always use party format per PKHeX standard
+    writeGen2PokemonStruct(buffer, 3, mon, true);
+
+    // Bytes 51-61: OT Name (11 bytes for INT)
+    const otBuf = encodeGameBoyText(mon.originalTrainerName || '?????', strLen, 0x50);
+    buffer.set(otBuf, 3 + SIZE_2PARTY);
+
+    // Bytes 62-72: Nickname (11 bytes for INT)
+    const nickBuf = encodeGameBoyText(mon.nickname || mon.speciesName || '?????', strLen, 0x50);
+    buffer.set(nickBuf, 3 + SIZE_2PARTY + strLen);
 
     return buffer;
   }

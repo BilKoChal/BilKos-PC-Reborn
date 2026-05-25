@@ -420,15 +420,50 @@ describe('Gen 2 Adapter Detection', () => {
     expect(result.detected).toBe(false);
   });
 
-  it('should report supportsStandalone as false', () => {
-    expect(adapter.supportsStandalone).toBe(false);
+  it('should report supportsStandalone as true', () => {
+    expect(adapter.supportsStandalone).toBe(true);
   });
 
-  it('should throw on parseStandalonePokemon', () => {
-    expect(() => adapter.parseStandalonePokemon(new Uint8Array(32))).toThrow();
+  it('should parse 32-byte raw box .pk2 format', () => {
+    // 32-byte raw box format is valid for .pk2
+    const result = adapter.parseStandalonePokemon(new Uint8Array(32));
+    expect(result).toBeDefined();
+    expect(result.speciesId).toBe(0); // Empty buffer → species 0
   });
 
-  it('should throw on createStandalonePokemon', () => {
-    expect(() => adapter.createStandalonePokemon({} as any)).toThrow();
+  it('should throw on invalid .pk2 size', () => {
+    expect(() => adapter.parseStandalonePokemon(new Uint8Array(10))).toThrow();
+  });
+
+  it('should create 73-byte PKHeX-compatible .pk2 file', () => {
+    // Create a minimal mock Pokemon for Gen 2 export
+    const mockMon = {
+      speciesId: 25, // Pikachu
+      dexId: 25,
+      speciesName: 'PIKACHU',
+      nickname: 'PIKA',
+      originalTrainerName: 'ASH',
+      level: 50,
+      exp: 125000,
+      friendship: 70,
+      hp: 100, maxHp: 100, attack: 80, defense: 50, speed: 90, special: 60, spAtk: 60, spDef: 60,
+      iv: { hp: 15, attack: 15, defense: 15, speed: 15, special: 15, spAtk: 15, spDef: 15 },
+      ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
+      moves: ['Thunderbolt', '-', '-', '-'],
+      moveIds: [85, 0, 0, 0],
+      movePp: [15, 0, 0, 0],
+      movePpUps: [0, 0, 0, 0],
+      isParty: true,
+      originalTrainerId: 12345,
+      heldItemId: 0,
+      pokerus: 0,
+      genExtension: null,
+      raw: new Uint8Array(48),
+    } as any;
+    const result = adapter.createStandalonePokemon(mockMon);
+    expect(result.length).toBe(73); // INT PokeList2 format
+    expect(result[0]).toBe(0x01); // Count = 1
+    expect(result[1]).toBe(25); // Species = Pikachu (National Dex)
+    expect(result[2]).toBe(0xFF); // Terminator
   });
 });

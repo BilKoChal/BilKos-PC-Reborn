@@ -523,36 +523,109 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
 
 /**
  * Parses a standalone .pk1 file.
- * Supports:
- * - 66 bytes: Raw data (44 struct + 11 OT + 11 Nick)
- * - 69 bytes: PKHeX format (3 padding + 66 data)
+ *
+ * Supports multiple .pk1 formats for maximum compatibility:
+ * - 69 bytes: PKHeX PokeList1 International (count + species + terminator + 44-byte party struct + 11-byte OT + 11-byte nick)
+ * - 59 bytes: PKHeX PokeList1 Japanese (count + species + terminator + 44-byte party struct + 6-byte OT + 6-byte nick)
+ * - 66 bytes: Legacy format (44 struct + 11 OT + 11 Nick, no PokeList header)
+ * - 44 bytes: Raw party struct (no OT/nickname)
+ * - 33 bytes: Raw box struct (no OT/nickname)
+ *
+ * The species byte in the PokeList1 header uses Gen 1 INTERNAL species IDs
+ * (not National Dex!). Must convert via GEN1_INTERNAL_TO_DEX.
+ * Pokemon data is ALWAYS party format (44 bytes) in .pk1 files.
  */
 export function parsePk1(buffer: Uint8Array): PokemonStats | null {
-    let view = buffer;
+    const SIZE_1PARTY = 44;
+    const SIZE_1STORED = 33;
 
-    // Handle 69-byte file (Header/Padding usually 0x00 0x00 0x00)
-    // The actual data starts at index 3.
+    // Detect format based on file size
     if (buffer.length === 69) {
-        view = buffer.slice(3); // Strip first 3 bytes
-    } 
-    else if (buffer.length !== 66) {
-        console.error("Invalid .pk1 size", buffer.length);
-        return null;
+      // PKHeX PokeList1 International format
+      // Byte 0: Count (should be 1)
+      // Byte 1: Species (Gen 1 internal ID)
+      // Byte 2: Terminator (0xFF)
+      // Bytes 3-46: Pokemon data (party format, 44 bytes)
+      // Bytes 47-57: OT Name (11 bytes)
+      // Bytes 58-68: Nickname (11 bytes)
+      const count = buffer[0];
+      if (count !== 1) {
+        console.warn(`parsePk1: Unexpected count byte: ${count}. Expected 1.`);
+      }
+      const speciesInternal = buffer[1]!; // Gen 1 internal species ID
+      const dexId = GEN1_INTERNAL_TO_DEX[speciesInternal] ?? speciesInternal;
+
+      const monData = buffer.slice(3, 3 + SIZE_1PARTY);
+      const otRaw = buffer.slice(3 + SIZE_1PARTY, 3 + SIZE_1PARTY + 11);
+      const nickRaw = buffer.slice(3 + SIZE_1PARTY + 11, 3 + SIZE_1PARTY + 22);
+
+      const otName = decodeText(otRaw, 0, 11);
+      const nickname = decodeText(nickRaw, 0, 11);
+
+      const mon = parsePokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
+
+      // Override dexId since the struct's speciesId is internal ID
+      if (mon.speciesId !== dexId && dexId > 0) {
+        mon.dexId = dexId;
+        mon.speciesName = getPokemonName(dexId);
+      }
+
+      return mon;
     }
 
-    // After stripping, view should be 66 bytes.
-    // 0-43: Pokemon Struct (44 bytes)
-    // 44-54: OT Name (11 bytes)
-    // 55-65: Nickname (11 bytes)
+    if (buffer.length === 59) {
+      // PKHeX PokeList1 Japanese format
+      const count = buffer[0];
+      if (count !== 1) {
+        console.warn(`parsePk1: Unexpected count byte: ${count}. Expected 1.`);
+      }
+      const speciesInternal = buffer[1]!;
+      const dexId = GEN1_INTERNAL_TO_DEX[speciesInternal] ?? speciesInternal;
 
-    const otNameOffset = 44;
-    const nickOffset = 55;
+      const monData = buffer.slice(3, 3 + SIZE_1PARTY);
+      const otRaw = buffer.slice(3 + SIZE_1PARTY, 3 + SIZE_1PARTY + 6);
+      const nickRaw = buffer.slice(3 + SIZE_1PARTY + 6, 3 + SIZE_1PARTY + 12);
 
-    const otName = decodeText(view, otNameOffset, 11);
-    const nickname = decodeText(view, nickOffset, 11);
-    const otRaw = view.slice(otNameOffset, otNameOffset + 11);
-    const nickRaw = view.slice(nickOffset, nickOffset + 11);
+      const otName = decodeText(otRaw, 0, 6, true);
+      const nickname = decodeText(nickRaw, 0, 6, true);
 
-    // Treat as Party Mon (isParty=true) to parse stats if present
-    return parsePokemonStruct(view, 0, true, nickname, otName, nickRaw, otRaw);
+      const mon = parsePokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
+
+      if (mon.speciesId !== dexId && dexId > 0) {
+        mon.dexId = dexId;
+        mon.speciesName = getPokemonName(dexId);
+      }
+
+      return mon;
+    }
+
+    if (buffer.length === 66) {
+      // Legacy format: 44 bytes struct + 11 OT + 11 Nick (no PokeList header)
+      const otNameOffset = 44;
+      const nickOffset = 55;
+
+      const otName = decodeText(buffer, otNameOffset, 11);
+      const nickname = decodeText(buffer, nickOffset, 11);
+      const otRaw = buffer.slice(otNameOffset, otNameOffset + 11);
+      const nickRaw = buffer.slice(nickOffset, nickOffset + 11);
+
+      return parsePokemonStruct(buffer, 0, true, nickname, otName, nickRaw, otRaw);
+    }
+
+    if (buffer.length === 44) {
+      // Raw party struct (no OT/nickname)
+      const otRaw = new Uint8Array(11).fill(0x50);
+      const nickRaw = new Uint8Array(11).fill(0x50);
+      return parsePokemonStruct(buffer, 0, true, '?????', '?????', nickRaw, otRaw);
+    }
+
+    if (buffer.length === 33) {
+      // Raw box struct (no OT/nickname)
+      const otRaw = new Uint8Array(11).fill(0x50);
+      const nickRaw = new Uint8Array(11).fill(0x50);
+      return parsePokemonStruct(buffer, 0, false, '?????', '?????', nickRaw, otRaw);
+    }
+
+    console.error("Invalid .pk1 size", buffer.length);
+    return null;
 }

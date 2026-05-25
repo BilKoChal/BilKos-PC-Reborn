@@ -112,6 +112,9 @@ export class Gen1Adapter implements IGenerationAdapter {
 
   supportsStandalone = true;
 
+  /** The PKHeX-compatible file extension for this generation */
+  readonly standaloneExtension = '.pk1';
+
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
     const parsed = parsePk1(buffer);
     if (!parsed) {
@@ -121,7 +124,7 @@ export class Gen1Adapter implements IGenerationAdapter {
   }
 
   createStandalonePokemon(mon: PokemonStats): Uint8Array {
-    return createPk1Binary(mon);
+    return createPk1Binary(mon, 'international');
   }
 
   calculateStat(base: number, iv: number, ev: number, level: number, isHp: boolean): number {

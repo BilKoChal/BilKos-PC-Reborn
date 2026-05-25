@@ -11,7 +11,6 @@ import { getPokemonTypes } from '../../../lib/generations/gen1/data/pokemonTypes
 // enumeration (getAllSpeciesNames), eliminating hardcoded generation branching.
 // NOTE: MOVES_LIST and MOVES_PP are now accessed via adapter.getAllMoveNames() and
 // adapter.getMoveBasePp() respectively, eliminating direct Gen1 data imports.
-import { createPk1Binary } from '../../../lib/generations/gen1/writer';
 import { sanitizePokemonText } from '../../../lib/utils/textValidator';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 
@@ -169,37 +168,30 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
         onClose();
     };
 
-    const handleExportPk1 = () => {
+    const handleExportPk = () => {
         try {
-            if (adapter && !adapter.supportsStandalone) {
+            if (!adapter || !adapter.supportsStandalone) {
                 alert(`Standalone .pk${generation} export is not yet supported for Generation ${generation}.`);
                 return;
             }
-            if (generation === 1) {
-                const binary = createPk1Binary(mon);
-                const blob = new Blob([binary], { type: "application/octet-stream" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${mon.nickname || mon.speciesName}.pk1`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            } else if (adapter?.supportsStandalone) {
-                const binary = adapter.createStandalonePokemon(mon);
-                const blob = new Blob([binary], { type: "application/octet-stream" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `${mon.nickname || mon.speciesName}.pk${generation}`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            } else {
-                alert(`Standalone .pk${generation} export is not yet supported for Generation ${generation}.`);
-            }
+
+            // Use the adapter's createStandalonePokemon for all generations.
+            // Each adapter produces the correct PKHeX-compatible format:
+            //   Gen 1 → 69-byte PokeList1 (.pk1)
+            //   Gen 2 → 73-byte PokeList2 (.pk2)
+            const binary = adapter.createStandalonePokemon(mon);
+            const extension = (adapter as any).standaloneExtension || `.pk${generation}`;
+            const filename = `${mon.nickname || mon.speciesName}${extension}`;
+
+            const blob = new Blob([binary], { type: "application/octet-stream" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         } catch (e) {
             console.error("Failed to export pokemon file", e);
             alert("Failed to export pokemon file.");
@@ -272,7 +264,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                                 <Book size={20} />
                             </button>
                             <button 
-                                onClick={handleExportPk1}
+                                onClick={handleExportPk}
                                 className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
                                 title={`Export .pk${generation}`}
                             >

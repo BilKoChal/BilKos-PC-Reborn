@@ -151,17 +151,17 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                                 <div className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-3 border border-blue-100 dark:border-blue-800/30 text-center">
                                     <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Map ID</div>
                                     <div className="text-base font-black text-blue-700 dark:text-blue-300">
-                                        {gen2Ext.currentMapId}
+                                        {gen2Ext?.currentMapId ?? 0}
                                     </div>
-                                    <div className="text-[9px] text-blue-500 font-mono">0x{gen2Ext.currentMapId.toString(16).toUpperCase()}</div>
+                                    <div className="text-[9px] text-blue-500 font-mono">0x{((gen2Ext?.currentMapId ?? 0)).toString(16).toUpperCase()}</div>
                                 </div>
                                 <div className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-3 border border-blue-100 dark:border-blue-800/30 text-center">
                                     <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">X</div>
-                                    <div className="text-base font-black text-blue-700 dark:text-blue-300">{gen2Ext.mapX}</div>
+                                    <div className="text-base font-black text-blue-700 dark:text-blue-300">{gen2Ext?.mapX ?? 0}</div>
                                 </div>
                                 <div className="bg-blue-50 dark:bg-blue-900/10 rounded-xl p-3 border border-blue-100 dark:border-blue-800/30 text-center">
                                     <div className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-1">Y</div>
-                                    <div className="text-base font-black text-blue-700 dark:text-blue-300">{gen2Ext.mapY}</div>
+                                    <div className="text-base font-black text-blue-700 dark:text-blue-300">{gen2Ext?.mapY ?? 0}</div>
                                 </div>
                             </div>
                             <div className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">

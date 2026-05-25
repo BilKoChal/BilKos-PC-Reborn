@@ -1,5 +1,5 @@
 import { ParsedSave, PokemonStats, Item } from '../../parser/types';
-import { GEN1_INTERNAL_TO_DEX, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig } from './data/offsets';
+import { GEN1_INTERNAL_TO_DEX, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig, Gen1Region } from './data/offsets';
 import { BinaryWriter } from '../../utils/io';
 
 // Reverse map: National Dex ID -> Internal ID
@@ -165,28 +165,58 @@ function calculateChecksum(buffer: Uint8Array, start: number, end: number): numb
 }
 
 /**
- * Creates a standard .pk1 binary (69 bytes)
- * Format: 3 Bytes Padding + 44 Bytes (Party Struct) + 11 Bytes (OT) + 11 Bytes (Nickname)
- * This format ensures compatibility with PKHeX and other tools.
+ * Creates a standard .pk1 binary in PKHeX-compatible PokeList1 format.
+ *
+ * Format (International, 69 bytes = SIZE_1ULIST):
+ *   Byte 0:      Count (always 0x01)
+ *   Byte 1:      Species (Gen 1 internal species ID, NOT National Dex)
+ *   Byte 2:      Terminator (always 0xFF)
+ *   Bytes 3-46:  Pokemon Data (party format, 44 bytes = SIZE_1PARTY)
+ *   Bytes 47-57: OT Name (11 bytes, Game Boy text, 0x50 terminated)
+ *   Bytes 58-68: Nickname (11 bytes, Game Boy text, 0x50 terminated)
+ *
+ * Format (Japanese, 59 bytes = SIZE_1JLIST):
+ *   Byte 0:      Count (always 0x01)
+ *   Byte 1:      Species (Gen 1 internal species ID)
+ *   Byte 2:      Terminator (always 0xFF)
+ *   Bytes 3-46:  Pokemon Data (party format, 44 bytes = SIZE_1PARTY)
+ *   Bytes 47-52: OT Name (6 bytes, Game Boy text, 0x50 terminated)
+ *   Bytes 53-58: Nickname (6 bytes, Game Boy text, 0x50 terminated)
+ *
+ * Key notes:
+ *   - Species in the PokeList1 header uses Gen 1 INTERNAL species ID (not National Dex!).
+ *     Must convert via DEX_TO_INTERNAL.
+ *   - Pokemon data is ALWAYS party format (44 bytes), even for box Pokemon.
+ *   - NO encryption. NO header padding.
  */
-export function createPk1Binary(mon: PokemonStats): Uint8Array {
-    const writer = new BinaryWriter(69);
+export function createPk1Binary(mon: PokemonStats, region: Gen1Region = 'international'): Uint8Array {
+    const isJapanese = region === 'japanese';
+    const strLen = isJapanese ? 6 : 11;
+    const SIZE_1PARTY = 44;
+    const totalSize = 1 + 1 + 1 + SIZE_1PARTY + strLen + strLen; // 69 for INT, 59 for JPN
+    const writer = new BinaryWriter(totalSize);
     
-    // 1. Write Header/Padding (3 bytes)
-    writer.u8(0); writer.u8(0); writer.u8(0);
-
-    // 2. Write Struct (Force Party Format = 44 bytes to include stats)
-    // Starts at offset 3
+    // Byte 0: Count (always 1)
+    writer.u8(0x01);
+    
+    // Byte 1: Species (Gen 1 INTERNAL ID, NOT National Dex!)
+    const internalId = DEX_TO_INTERNAL[mon.dexId] ?? mon.dexId;
+    writer.u8(internalId);
+    
+    // Byte 2: Terminator
+    writer.u8(0xFF);
+    
+    // Bytes 3-46: Pokemon data (party format, 44 bytes)
     writePokemonStruct(writer, mon, true);
     
-    // 3. Write OT Name (11 bytes) - Offset 44 + 3 = 47
-    writer.seek(47);
-    writer.string(mon.originalTrainerName, 11);
-
-    // 4. Write Nickname (11 bytes) - Offset 55 + 3 = 58
-    writer.seek(58);
-    writer.string(mon.nickname, 11);
-
+    // Bytes 47-57: OT Name (strLen bytes)
+    writer.seek(3 + SIZE_1PARTY);
+    writer.string(mon.originalTrainerName || '?????', strLen, 0x50, isJapanese);
+    
+    // Bytes 58-68: Nickname (strLen bytes)
+    writer.seek(3 + SIZE_1PARTY + strLen);
+    writer.string(mon.nickname || mon.speciesName || '?????', strLen, 0x50, isJapanese);
+    
     return writer.getBuffer();
 }
 
