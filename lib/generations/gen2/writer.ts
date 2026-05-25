@@ -6,6 +6,7 @@ import {
 } from '../../utils/byteHelpers';
 import { calculateGen2Checksum } from './parser';
 import { encodeGameBoyText } from '../../utils/textCodec';
+import { sanitizePokemonText } from '../../utils/textValidator';
 import { 
   getGen2Offsets, 
   getBoxOffset, 
@@ -271,10 +272,23 @@ function writeGen2Daycare(
 function writeGen2BoxNames(data: Uint8Array, offsets: Gen2OffsetsConfig, boxNames: string[]) {
   const offset = offsets.boxNames;
   const entrySize = offsets.boxNameEntrySize;
+  const maxNameLen = entrySize - 1; // Reserve 1 byte for terminator
+  const isJapanese = offsets.stringLength === 6;
 
   for (let i = 0; i < offsets.boxCount && i < boxNames.length; i++) {
     const nameOffset = offset + (i * entrySize);
-    const nameBuf = encodeGameBoyText(boxNames[i]!, entrySize, 0x50);
+    let name = boxNames[i] || '';
+
+    // Sanitize: strip unsupported characters before encoding to prevent
+    // them from becoming '?' (0xE6) which causes the "??????" corruption bug.
+    name = sanitizePokemonText(name, isJapanese);
+
+    // Enforce maximum name length based on entry size (generation-aware)
+    if (name.length > maxNameLen) {
+      name = name.substring(0, maxNameLen);
+    }
+
+    const nameBuf = encodeGameBoyText(name, entrySize, 0x50);
     data.set(nameBuf, nameOffset);
   }
 }

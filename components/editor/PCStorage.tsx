@@ -10,6 +10,7 @@ import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 import { parsePk1 } from '../../lib/generations/gen1/parser';
 import { useSaveContextSafe } from '../../context/SaveContext';
 import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
+import { sanitizePokemonText, isValidPokemonChar } from '../../lib/utils/textValidator';
 import { startTouchDrag, moveTouchDrag, endTouchDrag, cancelTouchDrag, isTouchDragging } from '../../lib/hooks/touchDnD';
 
 interface PCStorageProps {
@@ -35,6 +36,14 @@ interface PCStorageProps {
     onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
     /** Called when a drag session ends (cancel or complete) */
     onEndDragSession?: () => void;
+    /** Custom box names from the save file (Gen 2+). Index maps to box index. Empty strings use default "BOX N". */
+    boxNames?: string[];
+    /** Maximum character length for box names (generation-dependent: 8 for Gen2 INT/JPN, 16 for Gen2 KOR, undefined = no editing) */
+    boxNameMaxLength?: number;
+    /** Whether box names can be edited (true for Gen 2+, false for Gen 1) */
+    canEditBoxNames?: boolean;
+    /** Called when a box name is changed. (boxIndex: number, newName: string) => void */
+    onBoxNameChange?: (boxIndex: number, newName: string) => void;
 }
 
 type ViewMode = 'grid' | 'list';
@@ -425,7 +434,8 @@ const BoxSlot = memo<{
 export const PCStorage: React.FC<PCStorageProps> = ({ 
     boxes, currentBoxIndex, isMoveMode, onEnableMoveMode, onToggleMoveMode, selectedMoveSources = [], 
     onPokemonClick, onEmptySlotClick, onToggleSelection, onDropPokemon, onTouchDrop, onSortClick, onSetActiveBox, onImport, onToast,
-    tabId, gameVersion, onBeginDragSession, onEndDragSession
+    tabId, gameVersion, onBeginDragSession, onEndDragSession,
+    boxNames, boxNameMaxLength, canEditBoxNames, onBoxNameChange
 }) => {
     const { getGameTheme } = useTheme();
     const { mode: spriteMode } = useSpriteMode();
@@ -438,6 +448,10 @@ export const PCStorage: React.FC<PCStorageProps> = ({
     const [viewMode, setViewMode] = useState<ViewMode>('grid');
     const [isBoxMenuOpen, setIsBoxMenuOpen] = useState(false);
     const boxMenuRef = useRef<HTMLDivElement>(null);
+
+    // Box name inline editing state
+    const [editingBoxName, setEditingBoxName] = useState<number | null>(null);
+    const [editBoxNameValue, setEditBoxNameValue] = useState('');
 
     const activeBox = boxes[viewedBoxIndex] || [];
     const MAX_BOXES = boxes.length;
@@ -452,6 +466,38 @@ export const PCStorage: React.FC<PCStorageProps> = ({
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
+
+    const getBoxDisplayName = (idx: number) => {
+        if (boxNames && boxNames[idx] && boxNames[idx]!.trim() !== '') {
+            return boxNames[idx]!.trim();
+        }
+        return `BOX ${idx + 1}`;
+    };
+
+    const handleStartEditBoxName = (idx: number) => {
+        if (!canEditBoxNames) return;
+        setEditingBoxName(idx);
+        setEditBoxNameValue(boxNames?.[idx]?.trim() || '');
+    };
+
+    const handleFinishEditBoxName = () => {
+        if (editingBoxName !== null && onBoxNameChange) {
+            const sanitized = sanitizePokemonText(editBoxNameValue);
+            const trimmed = sanitized.substring(0, boxNameMaxLength || 8);
+            onBoxNameChange(editingBoxName, trimmed);
+        }
+        setEditingBoxName(null);
+        setEditBoxNameValue('');
+    };
+
+    const handleBoxNameKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleFinishEditBoxName();
+        } else if (e.key === 'Escape') {
+            setEditingBoxName(null);
+            setEditBoxNameValue('');
+        }
+    };
 
     const nextBox = () => setViewedBoxIndex((prev) => (prev + 1) % MAX_BOXES);
     const prevBox = () => setViewedBoxIndex((prev) => (prev - 1 + MAX_BOXES) % MAX_BOXES);
@@ -660,7 +706,40 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 onClick={() => setIsBoxMenuOpen(!isBoxMenuOpen)}
                                 className={`flex items-center justify-center gap-2 px-3 py-1 bg-current/10 hover:bg-current/20 rounded-full transition-colors min-w-[100px] ${isLightTheme ? 'text-gray-900' : 'text-white'}`}
                             >
-                                <span className="font-bold text-sm uppercase tracking-wider select-none leading-none">BOX {viewedBoxIndex + 1}</span>
+                                {editingBoxName === viewedBoxIndex ? (
+                                    <input
+                                        type="text"
+                                        value={editBoxNameValue}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            // Only allow valid Pokemon characters
+                                            let filtered = '';
+                                            for (const ch of val) {
+                                                if (isValidPokemonChar(ch)) filtered += ch;
+                                            }
+                                            setEditBoxNameValue(filtered.substring(0, boxNameMaxLength || 8));
+                                        }}
+                                        onKeyDown={handleBoxNameKeyDown}
+                                        onBlur={handleFinishEditBoxName}
+                                        autoFocus
+                                        maxLength={boxNameMaxLength || 8}
+                                        className={`font-bold text-sm uppercase tracking-wider leading-none bg-white/20 rounded px-1 outline-none border-b-2 border-white/50 w-24 text-center ${isLightTheme ? 'text-gray-900' : 'text-white'}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                ) : (
+                                    <span 
+                                        className={`font-bold text-sm uppercase tracking-wider select-none leading-none ${canEditBoxNames ? 'cursor-pointer hover:underline decoration-white/50 decoration-dotted underline-offset-2' : ''}`}
+                                        onClick={(e) => {
+                                            if (canEditBoxNames) {
+                                                e.stopPropagation();
+                                                handleStartEditBoxName(viewedBoxIndex);
+                                            }
+                                        }}
+                                        title={canEditBoxNames ? 'Click to edit box name' : undefined}
+                                    >
+                                        {getBoxDisplayName(viewedBoxIndex)}
+                                    </span>
+                                )}
                                 <ChevronDown size={14} className="opacity-70" />
                             </button>
 
@@ -685,7 +764,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                             >
                                                 <div className="flex items-center gap-2">
                                                     <div className={`w-2 h-2 rounded-full ${idx === currentBoxIndex ? 'bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]' : 'bg-gray-300 dark:bg-gray-600'}`}></div>
-                                                    <span>BOX {idx + 1}</span>
+                                                    <span className="truncate max-w-[120px]">{getBoxDisplayName(idx)}</span>
                                                 </div>
                                                 <span className="text-[10px] bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 rounded-full">
                                                     {box.length}
@@ -726,7 +805,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                 </button>
                             )}
                             <span className="text-gray-400 dark:text-gray-500 font-mono hidden sm:inline">
-                                (Current: <strong>BOX {currentBoxIndex + 1}</strong>)
+                                (Current: <strong>{getBoxDisplayName(currentBoxIndex)}</strong>)
                             </span>
                         </div>
                     )}

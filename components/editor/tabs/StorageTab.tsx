@@ -13,11 +13,16 @@ interface StorageTabProps {
     handleSetActiveBox: (boxIndex: number) => void;
     handleImportBox: (newBoxData: PokemonStats[], boxIndex: number) => void;
     handleInventoryUpdate: (newItems: Item[], newPcItems: Item[]) => void;
+    boxNames?: string[];
+    boxNameMaxLength?: number;
+    canEditBoxNames?: boolean;
+    onBoxNameChange?: (boxIndex: number, newName: string) => void;
 }
 
 export const StorageTab: React.FC<StorageTabProps> = ({
     data, handlePokemonClick, handleEmptySlotClick, setIsSortModalOpen,
-    handleSetActiveBox, handleImportBox, handleInventoryUpdate
+    handleSetActiveBox, handleImportBox, handleInventoryUpdate,
+    boxNames, boxNameMaxLength, canEditBoxNames, onBoxNameChange
 }) => {
     const ctx = useSaveContextSafe();
     const isMoveMode = ctx?.isMoveMode ?? false;
@@ -55,6 +60,10 @@ export const StorageTab: React.FC<StorageTabProps> = ({
                     gameVersion={gameVersion}
                     onBeginDragSession={onBeginDragSession}
                     onEndDragSession={onEndDragSession}
+                    boxNames={boxNames}
+                    boxNameMaxLength={boxNameMaxLength}
+                    canEditBoxNames={canEditBoxNames}
+                    onBoxNameChange={onBoxNameChange}
                 />
             </div>
             <div className="lg:col-span-3 h-[550px] lg:h-[650px] flex flex-col overflow-hidden lg:order-1">

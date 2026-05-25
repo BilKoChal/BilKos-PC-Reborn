@@ -1,7 +1,9 @@
 
 import React, { useState, useMemo } from 'react';
-import { EVENT_DISTRIBUTIONS, EventPokemonData } from '../../lib/data/eventDistributions';
+import { GEN1_EVENT_DISTRIBUTIONS, EventPokemonData as Gen1EventPokemonData } from '../../lib/generations/gen1/data/eventDistributions';
+import { GEN2_EVENT_DISTRIBUTIONS, EventPokemonData as Gen2EventPokemonData } from '../../lib/generations/gen2/data/eventDistributions';
 import { parsePk1 } from '../../lib/generations/gen1/parser';
+import { parsePk2 } from '../../lib/generations/gen2/parser';
 import { ParsedSave, PokemonStats } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
@@ -9,6 +11,18 @@ import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
 import { Search, Gift, Database, Tag, ExternalLink, User, Plus, Box } from 'lucide-react';
 import { TypeBadge } from '../ui/PokemonBadges';
 import { getPokemonTypes } from '../../lib/generations/gen1/data/pokemonTypes';
+
+// Unified type that both gen-specific interfaces conform to
+type UnifiedEventPokemonData = Gen1EventPokemonData | Gen2EventPokemonData;
+
+// Merge all distributions into a single array for the current generation
+function getEventDistributions(generation: number): UnifiedEventPokemonData[] {
+  switch (generation) {
+    case 1: return GEN1_EVENT_DISTRIBUTIONS;
+    case 2: return GEN2_EVENT_DISTRIBUTIONS;
+    default: return [];
+  }
+}
 
 interface EncounterDatabaseProps {
     data: ParsedSave;
@@ -23,27 +37,39 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
     
     const [search, setSearch] = useState('');
 
-    // Filtered Events — generation-filtered so Gen 1 events don't appear for Gen 2 saves
+    // Get all event distributions for current generation
+    const allEvents = useMemo(() => getEventDistributions(data.generation), [data.generation]);
+
+    // Filtered Events — generation-filtered + search
     const filteredEvents = useMemo(() => {
-        return EVENT_DISTRIBUTIONS.filter(evt => {
-            // Only show events for the current save's generation
-            if (evt.generation !== data.generation) return false;
-            
+        return allEvents.filter(evt => {
             const searchLower = search.toLowerCase();
             return (
                 evt.title.toLowerCase().includes(searchLower) ||
-                evt.tags.some(t => t.toLowerCase().includes(searchLower))
+                evt.tags.some(t => t.toLowerCase().includes(searchLower)) ||
+                evt.description.toLowerCase().includes(searchLower)
             );
         });
-    }, [search, data.generation]);
+    }, [search, allEvents]);
 
-    const handleAddEvent = (event: EventPokemonData) => {
-        // Parse raw bytes from the event definition
-        const mon = parsePk1(new Uint8Array(event.bytes));
+    const handleAddEvent = (event: UnifiedEventPokemonData) => {
+        let mon: PokemonStats | null = null;
+
+        // Parse based on format
+        if (event.format === 'pk2' && event.generation === 2) {
+            mon = parsePk2(new Uint8Array(event.bytes));
+        } else if (event.format === 'pk1' && event.generation === 1) {
+            mon = parsePk1(new Uint8Array(event.bytes));
+        } else {
+            // Fallback: try pk1 for gen1, pk2 for gen2
+            if (event.generation === 2) {
+                mon = parsePk2(new Uint8Array(event.bytes));
+            } else {
+                mon = parsePk1(new Uint8Array(event.bytes));
+            }
+        }
         
         if (mon) {
-            // Default to Box for safety, user can move later
-            // Note: The prompt asked for "Add", defaulting to box is standard for editors.
             mon.isParty = false;
             onAddPokemon(mon, 'pc');
             onToast(`Redeemed ${event.title}! Added to PC.`);
@@ -59,11 +85,33 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
             case 'red': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800';
             case 'blue': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800';
             case 'yellow': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-300 dark:border-yellow-800';
+            case 'gold': return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800';
+            case 'silver': return 'bg-gray-200 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
+            case 'crystal': return 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300 dark:border-cyan-800';
             case 'event': return 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800';
             case 'classic': return 'bg-gray-200 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600';
             case 'special encounter': return 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800';
+            case 'shiny': return 'bg-yellow-100 text-yellow-700 border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-200 dark:border-yellow-700';
+            case 'legendary': return 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-800';
+            case 'mythical': return 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200 dark:bg-fuchsia-900/30 dark:text-fuchsia-300 dark:border-fuchsia-800';
+            case 'gift': return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800';
+            case 'fossil': return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-800';
+            case 'egg': return 'bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800';
+            case 'roaming': return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-800';
+            case 'virtual console': return 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800';
             default: return 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800';
         }
+    };
+
+    // Get tag icon for special categories
+    const getTagIcon = (tag: string) => {
+        const t = tag.toLowerCase();
+        if (t === 'shiny') return '★';
+        if (t === 'legendary') return '◆';
+        if (t === 'mythical') return '✦';
+        if (t === 'egg') return '○';
+        if (t === 'fossil') return '⛏';
+        return null;
     };
 
     return (
@@ -77,7 +125,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                     <Gift size={24} />
                     <div>
                         <h2 className="font-black text-xl uppercase tracking-widest leading-none">Mystery Gift</h2>
-                        <p className="text-xs text-white/80 font-medium">Valid Event Pokemon Database</p>
+                        <p className="text-xs text-white/80 font-medium">In-Game & Event Pokemon Database — Gen {data.generation}</p>
                     </div>
                 </div>
 
@@ -94,6 +142,16 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                 </div>
             </div>
 
+            {/* Count indicator */}
+            <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    {filteredEvents.length} of {allEvents.length} available
+                </span>
+                <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
+                    {data.generation === 1 ? 'pk1' : 'pk2'} format
+                </span>
+            </div>
+
             {/* List Content */}
             <div className="flex-grow overflow-y-auto p-4 bg-gray-50 dark:bg-gray-900/50 custom-scrollbar">
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -103,7 +161,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                             <span className="font-bold uppercase text-xs tracking-widest">No Events Found</span>
                         </div>
                     ) : filteredEvents.map((evt) => {
-                        const types = getPokemonTypes(evt.previewDexId);
+                        const types = getPokemonTypes(evt.previewDexId, evt.generation);
                         const spriteUrl = getPokemonSpriteUrl(evt.previewDexId, spriteMode, data.gameVersion);
 
                         return (
@@ -139,12 +197,15 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
 
                                         {/* Tags */}
                                         <div className="flex flex-wrap gap-1.5 mt-1">
-                                            {evt.tags.map(tag => (
-                                                <span key={tag} className={`flex items-center gap-1 text-[9px] uppercase font-bold px-2 py-0.5 rounded-md border ${getTagColor(tag)}`}>
-                                                    <Tag className="w-3 h-3" />
-                                                    {tag}
-                                                </span>
-                                            ))}
+                                            {evt.tags.map(tag => {
+                                                const icon = getTagIcon(tag);
+                                                return (
+                                                    <span key={tag} className={`flex items-center gap-1 text-[9px] uppercase font-bold px-2 py-0.5 rounded-md border ${getTagColor(tag)}`}>
+                                                        {icon && <span className="text-[10px]">{icon}</span>}
+                                                        {tag}
+                                                    </span>
+                                                );
+                                            })}
                                         </div>
 
                                         {/* Credit Section */}

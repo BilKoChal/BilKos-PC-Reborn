@@ -263,6 +263,34 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
         updateData(newData);
     };
 
+    const handleBoxNameChange = (boxIndex: number, newName: string) => {
+        const newData = { ...data };
+        // Update the Gen2SaveExtension boxNames
+        if (newData.genExtension && (newData.genExtension as any).generation === 2) {
+            const gen2Ext = newData.genExtension as import('../../lib/canonicalModel').Gen2SaveExtension;
+            const updatedNames = [...(gen2Ext.boxNames || [])];
+            // Ensure array is long enough
+            while (updatedNames.length <= boxIndex) {
+                updatedNames.push('');
+            }
+            updatedNames[boxIndex] = newName;
+            gen2Ext.boxNames = updatedNames;
+            // Need to create a new genExtension reference to trigger re-render
+            newData.genExtension = { ...gen2Ext, boxNames: updatedNames } as import('../../lib/canonicalModel').Gen2SaveExtension;
+        }
+        updateData(newData);
+    };
+
+    // Box name support (Gen 2+)
+    const boxNames = data.generation === 2
+        ? (data.genExtension as any)?.boxNames || []
+        : undefined;
+    const canEditBoxNames = data.generation >= 2;
+    // Max box name length: Gen2 INT/JPN = 8, Gen2 KOR = 16
+    const boxNameMaxLength = data.generation === 2
+        ? ((data.genExtension as any)?.region === 'korean' ? 16 : 8)
+        : undefined;
+
     const TabButton = ({ id, icon: Icon, label }: { id: DashboardTab, icon: React.ElementType, label: string }) => {
         const isActive = activeTab === id;
         
@@ -370,6 +398,10 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                                 handleSetActiveBox={handleSetActiveBox}
                                 handleImportBox={handleImportBox}
                                 handleInventoryUpdate={handleInventoryUpdate}
+                                boxNames={boxNames}
+                                boxNameMaxLength={boxNameMaxLength}
+                                canEditBoxNames={canEditBoxNames}
+                                onBoxNameChange={handleBoxNameChange}
                             />
                         )}
 

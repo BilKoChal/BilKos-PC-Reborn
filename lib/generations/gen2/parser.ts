@@ -405,6 +405,84 @@ export function parseGen2PokemonStruct(
   };
 }
 
+/**
+ * Parse a .pk2 file (PKHeX PokeList2 format) into a PokemonStats object.
+ *
+ * PKHeX PokeList2 International format (73 bytes):
+ *   Byte 0:      Count (should be 1)
+ *   Byte 1:      Species (Gen 2 National Dex ID)
+ *   Byte 2:      Terminator (0xFF)
+ *   Bytes 3-50:  Pokemon data (party format, 48 bytes)
+ *   Bytes 51-61: OT Name (11 bytes)
+ *   Bytes 62-72: Nickname (11 bytes)
+ */
+export function parsePk2(buffer: Uint8Array): PokemonStats | null {
+  const SIZE_2PARTY = 48;
+
+  if (buffer.length === 73) {
+    // PKHeX PokeList2 International format
+    const count = buffer[0];
+    if (count !== 1) {
+      console.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
+    }
+    const speciesId = buffer[1]!;
+
+    const monData = buffer.slice(3, 3 + SIZE_2PARTY);
+    const otRaw = buffer.slice(3 + SIZE_2PARTY, 3 + SIZE_2PARTY + 11);
+    const nickRaw = buffer.slice(3 + SIZE_2PARTY + 11, 3 + SIZE_2PARTY + 22);
+
+    const otName = decodeText(otRaw, 0, 11);
+    const nickname = decodeText(nickRaw, 0, 11);
+
+    const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
+
+    return mon;
+  }
+
+  if (buffer.length === 63) {
+    // PKHeX PokeList2 Japanese format (shorter names)
+    const count = buffer[0];
+    if (count !== 1) {
+      console.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
+    }
+
+    const monData = buffer.slice(3, 3 + SIZE_2PARTY);
+    const otRaw = buffer.slice(3 + SIZE_2PARTY, 3 + SIZE_2PARTY + 6);
+    const nickRaw = buffer.slice(3 + SIZE_2PARTY + 6, 3 + SIZE_2PARTY + 12);
+
+    const otName = decodeText(otRaw, 0, 6, true);
+    const nickname = decodeText(nickRaw, 0, 6, true);
+
+    const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
+
+    return mon;
+  }
+
+  // Legacy format: 48 bytes struct + 11 OT + 11 Nick (no PokeList header)
+  if (buffer.length === 70) {
+    const otNameOffset = 48;
+    const nickOffset = 59;
+
+    const otName = decodeText(buffer, otNameOffset, 11);
+    const nickname = decodeText(buffer, nickOffset, 11);
+    const otRaw = buffer.slice(otNameOffset, otNameOffset + 11);
+    const nickRaw = buffer.slice(nickOffset, nickOffset + 11);
+
+    return parseGen2PokemonStruct(buffer, 0, true, nickname, otName, nickRaw, otRaw);
+  }
+
+  // Raw party struct only (48 bytes)
+  if (buffer.length === 48) {
+    const otRaw = new Uint8Array(11).fill(0x50);
+    const nickRaw = new Uint8Array(11).fill(0x50);
+
+    return parseGen2PokemonStruct(buffer, 0, true, '???', '???', nickRaw, otRaw);
+  }
+
+  console.warn(`parsePk2: Unrecognized .pk2 file size: ${buffer.length} bytes`);
+  return null;
+}
+
 export function parseItemsPocketGen2(view: Uint8Array, start: number, countIdx: number, size: number, maxCap: number): Item[] {
   const count = view[countIdx]!;
   const items: Item[] = [];
@@ -699,8 +777,11 @@ export function parseGen2BoxNames(
     }
     const raw = data.slice(nameOffset, nameOffset + entrySize);
     const decoded = decodeText(raw, 0, nameDecodeLen);
-    // If the decoded name is empty or just terminators, use the default
-    names.push(decoded.trim() || `BOX ${i + 1}`);
+    // Preserve the actual decoded name (even if empty).
+    // The UI is responsible for displaying a default like "BOX N" for empty names.
+    // Previously, replacing empty names with "BOX N" caused corruption on re-encode
+    // because the literal "BOX N" string would be encoded over the original raw data.
+    names.push(decoded.trim());
   }
 
   return names;
