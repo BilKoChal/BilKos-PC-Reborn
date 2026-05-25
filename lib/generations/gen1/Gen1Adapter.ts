@@ -110,6 +110,8 @@ export class Gen1Adapter implements IGenerationAdapter {
     return validateGen1Checksum(buffer);
   }
 
+  supportsStandalone = true;
+
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
     const parsed = parsePk1(buffer);
     if (!parsed) {

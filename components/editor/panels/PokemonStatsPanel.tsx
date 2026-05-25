@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PokemonStats, Generation } from '../../../lib/parser/types';
+import { PokemonStats, Generation, PokemonIVs, PokemonEVs } from '../../../lib/parser/types';
 import { LineChart, BarChart3, Hexagon } from 'lucide-react';
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { useSaveContextSafe } from '../../../context/SaveContext';
@@ -125,7 +125,12 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
     const hasSplitSpecial = adapter?.hasSplitSpecial ?? (generation !== 1);
 
     // Dynamically choose stats array based on whether this generation has split Special
-    const statData = [
+    // Type ivKey/evKey as keyof PokemonIVs / keyof PokemonEVs so updateIV/updateEV
+    // accept them without `as any` casts.
+    type IvKey = keyof PokemonIVs;
+    type EvKey = keyof PokemonEVs;
+
+    const statData: { label: string; val: number; iv: number; ev: number; ivKey: IvKey; evKey: EvKey; color: string; barColor: string }[] = [
         { label: 'HP', val: mon.hp, iv: mon.iv.hp, ev: mon.ev.hp, ivKey: 'hp', evKey: 'hp', color: 'text-red-500', barColor: 'bg-red-500' },
         { label: 'Attack', val: mon.attack, iv: mon.iv.attack, ev: mon.ev.attack, ivKey: 'attack', evKey: 'attack', color: 'text-orange-500', barColor: 'bg-orange-500' },
         { label: 'Defense', val: mon.defense, iv: mon.iv.defense, ev: mon.ev.defense, ivKey: 'defense', evKey: 'defense', color: 'text-yellow-500', barColor: 'bg-yellow-500' },
@@ -193,7 +198,7 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
                                 <input 
                                     type="number" 
                                     value={row.iv}
-                                    onChange={(e) => updateIV(row.ivKey as any, Number(e.target.value))}
+                                    onChange={(e) => updateIV(row.ivKey, Number(e.target.value))}
                                     className="w-10 text-center text-xs font-mono bg-gray-100 dark:bg-gray-900 rounded py-1 border border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none"
                                 />
                             </div>
@@ -201,7 +206,7 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
                                 <input 
                                     type="number" 
                                     value={row.ev}
-                                    onChange={(e) => updateEV(row.evKey as any, Number(e.target.value))}
+                                    onChange={(e) => updateEV(row.evKey, Number(e.target.value))}
                                     className="w-14 text-center text-xs font-mono bg-gray-100 dark:bg-gray-900 rounded py-1 border border-transparent focus:border-blue-500 focus:bg-white transition-all outline-none"
                                 />
                             </div>
@@ -219,9 +224,11 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
                                 generation,
                                 onChange: (field, val) => {
                                     if (field.startsWith('iv.')) {
-                                        updateIV(field.substring(3) as any, val);
+                                        const key = field.substring(3) as IvKey;
+                                        updateIV(key, val as number);
                                     } else if (field.startsWith('ev.')) {
-                                        updateEV(field.substring(3) as any, val);
+                                        const key = field.substring(3) as EvKey;
+                                        updateEV(key, val as number);
                                     }
                                 },
                                 theme: undefined

@@ -91,7 +91,19 @@ export interface IGenerationBinaryOps {
   parseSave(buffer: Uint8Array, filename: string): ParsedSave;
   writeSave(save: ParsedSave): Uint8Array;
   validateSave(buffer: Uint8Array): boolean;
+
+  /** Whether this generation supports standalone Pokemon file parsing/creation
+   *  (e.g. .pk1 for Gen 1, .pk2 for Gen 2). Callers should check this flag
+   *  before calling parseStandalonePokemon/createStandalonePokemon to avoid
+   *  runtime throws. Gen 1 supports it; Gen 2+ may not yet. */
+  supportsStandalone: boolean;
+
+  /** Parse a standalone Pokemon binary file into a PokemonStats object.
+   *  Throws if supportsStandalone is false — callers must check first. */
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats;
+
+  /** Create a standalone Pokemon binary from a PokemonStats object.
+   *  Throws if supportsStandalone is false — callers must check first. */
   createStandalonePokemon(mon: PokemonStats): Uint8Array;
 }
 

@@ -46,26 +46,68 @@ export function isGen2Shiny(atkIv: number, defIv: number, spdIv: number, spcIv: 
 }
 
 // Estimate gender based on Attack DV (used if real gender ratio is unknown)
+// GSC gender is determined by comparing the Attack DV against a species-specific
+// threshold. The threshold depends on the species' gender ratio:
+//   Genderless   → no gender
+//   100% Male    → always Male
+//   87.5% M/12.5% F → Female if atkIv ≤ 1
+//   75% M/25% F  → Female if atkIv ≤ 3
+//   50% M/50% F  → Female if atkIv ≤ 7
+//   25% M/75% F  → Female if atkIv ≤ 11
+//   100% Female  → always Female
+//
+// Data verified against Bulbapedia + PokeAPI (gender_rate field) for species 1–251.
 export function getGen2Gender(speciesId: number, atkIv: number): string {
-  // Simple GSC gender logic based on Attack DV vs. Species female ratio thresholds.
-  // We can default to Male if >= 8, Female if < 8, or Genderless for standard legendaries
-  const genderless = [81, 82, 100, 101, 120, 121, 132, 137, 144, 145, 146, 150, 151, 201, 233, 243, 244, 245, 249, 250, 251];
-  if (genderless.includes(speciesId)) return "Genderless";
-  
-  const alwaysFemale = [29, 30, 31, 113, 115, 124, 241, 242];
-  if (alwaysFemale.includes(speciesId)) return "Female";
-  
-  const alwaysMale = [32, 33, 34, 106, 107, 236, 237];
-  if (alwaysMale.includes(speciesId)) return "Male";
+  // ── Genderless (21 species) ──
+  const genderless = [
+    81, 82, 100, 101, 120, 121, 132, 137, 144, 145, 146,
+    150, 151, 201, 233, 243, 244, 245, 249, 250, 251
+  ];
+  if (genderless.includes(speciesId)) return 'Genderless';
 
-  // For starter classes and Eevee (87.5% Male, threshold is Atk DV < 2)
-  const startersAndEevee = [1, 2, 3, 4, 5, 6, 7, 8, 9, 133, 134, 135, 136, 152, 153, 154, 155, 156, 157, 158, 159, 160, 196, 197];
-  if (startersAndEevee.includes(speciesId)) {
-    return atkIv < 2 ? "Female" : "Male";
-  }
+  // ── Always Female / 0% Male (9 species) ──
+  const alwaysFemale = [29, 30, 31, 113, 115, 124, 238, 241, 242];
+  if (alwaysFemale.includes(speciesId)) return 'Female';
 
-  // General species (50% Male / 50% Female, threshold is Atk DV < 8)
-  return atkIv < 8 ? "Female" : "Male";
+  // ── Always Male / 0% Female (8 species) ──
+  const alwaysMale = [32, 33, 34, 106, 107, 128, 236, 237];
+  if (alwaysMale.includes(speciesId)) return 'Male';
+
+  // ── 87.5% Male / 12.5% Female → Female if atkIv ≤ 1 (32 species) ──
+  // Starters (Kanto + Johto), Eevee family, Fossils, Snorlax, Togepi line
+  const male87 = [
+    1, 2, 3, 4, 5, 6, 7, 8, 9,                     // Kanto starters
+    133, 134, 135, 136, 196, 197,                     // Eevee family
+    138, 139, 140, 141, 142,                           // Fossils
+    143,                                               // Snorlax
+    152, 153, 154, 155, 156, 157, 158, 159, 160,      // Johto starters
+    175, 176                                           // Togepi line
+  ];
+  if (male87.includes(speciesId)) return atkIv <= 1 ? 'Female' : 'Male';
+
+  // ── 75% Male / 25% Female → Female if atkIv ≤ 3 (12 species) ──
+  const male75 = [
+    58, 59,     // Growlithe line
+    63, 64, 65, // Abra line
+    66, 67, 68, // Machop line
+    125, 126,   // Electabuzz, Magmar
+    239, 240    // Elekid, Magby
+  ];
+  if (male75.includes(speciesId)) return atkIv <= 3 ? 'Female' : 'Male';
+
+  // ── 25% Male / 75% Female → Female if atkIv ≤ 11 (11 species) ──
+  const female75 = [
+    35, 36,       // Clefairy line
+    37, 38,       // Vulpix line
+    39, 40,       // Jigglypuff line
+    173, 174,     // Cleffa, Igglybuff
+    209, 210,     // Snubbull line
+    222           // Corsola
+  ];
+  if (female75.includes(speciesId)) return atkIv <= 11 ? 'Female' : 'Male';
+
+  // ── Default: 50% Male / 50% Female → Female if atkIv ≤ 7 ──
+  return atkIv <= 7 ? 'Female' : 'Male';
 }
 
 // Map 2-byte type IDs inside Gen 2 structure

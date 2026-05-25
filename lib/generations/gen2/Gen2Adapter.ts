@@ -216,6 +216,8 @@ export class Gen2Adapter implements IGenerationAdapter {
            (gsSumComputed === gsSumStored && gsSumStored !== 0);
   }
 
+  supportsStandalone = false;
+
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
     // Graceful fallback dummy since GSC doesn't strictly focus on loose standalone files
     throw new Error("GSC Standalone Pokemon files (.pk2) parsing not explicitly requested.");
