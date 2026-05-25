@@ -1,7 +1,39 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ParsedSave, GameOptions, isGen2Extension, Gen2SaveExtension, Gen2Extension } from '../../../lib/parser/types';
 import { EventFlagsManager } from '../EventFlagsManager';
-import { Settings, Clock, Flag, MapPin, Baby, CreditCard, Gift, Sparkles, Swords, PiggyBank, Phone, Eye, Flame, Zap, Snowflake } from 'lucide-react';
+import { Settings, Clock, Flag, MapPin, Baby, CreditCard, Gift, Sparkles, Swords, PiggyBank, Eye, Flame, Zap, Snowflake } from 'lucide-react';
+
+// ─── Unown Form Sprite Helper ─────────────────────────────────────────────────
+const POKEAPI_SPRITES_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites';
+
+/** Small component that renders an Unown form sprite image, falling back to the letter text if the image fails to load. */
+const UnownFormSprite: React.FC<{ letter: string; isCaught: boolean }> = ({ letter, isCaught }) => {
+    const [imgError, setImgError] = useState(false);
+    const spriteUrl = `${POKEAPI_SPRITES_BASE}/pokemon/201-${letter.toLowerCase()}.png`;
+
+    if (!isCaught || imgError) {
+        // Not caught or image failed — show the letter text
+        return (
+            <span className={`text-xs font-bold ${
+                isCaught
+                    ? 'text-violet-700 dark:text-violet-200'
+                    : 'text-gray-400 dark:text-gray-600'
+            }`}>
+                {letter}
+            </span>
+        );
+    }
+
+    return (
+        <img
+            src={spriteUrl}
+            alt={`Unown ${letter}`}
+            className="w-7 h-7 object-contain pixelated"
+            onError={() => setImgError(true)}
+            title={`Unown ${letter} — caught`}
+        />
+    );
+};
 
 interface EventsTabProps {
     data: ParsedSave;
@@ -246,32 +278,6 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                         </div>
                     )}
 
-                    {/* ── Phone Contacts ── */}
-                    {gen2Ext.phoneContacts.length > 0 && (
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                            <div className="p-4 flex items-center gap-3 bg-gradient-to-r from-cyan-500 to-teal-600 text-white">
-                                <Phone size={20} />
-                                <div>
-                                    <h2 className="font-black text-lg uppercase tracking-widest leading-none">Phone Contacts</h2>
-                                    <p className="text-xs text-white/80 font-medium">Registered Trainer Phone Numbers</p>
-                                </div>
-                                <span className="ml-auto bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">{gen2Ext.phoneContacts.length}</span>
-                            </div>
-                            <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                                    {gen2Ext.phoneContacts.map((contact, idx) => (
-                                        <div key={idx} className="bg-cyan-50 dark:bg-cyan-900/10 rounded-lg p-2 border border-cyan-100 dark:border-cyan-800/30">
-                                            <div className="text-xs font-bold text-cyan-700 dark:text-cyan-300 truncate">{contact.name}</div>
-                                            <div className="text-[9px] text-cyan-500 font-mono">
-                                                Map {contact.mapGroup}/{contact.mapNumber} | Class {contact.trainerClass}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                     {/* ── Unown Dex ── */}
                     {gen2Ext.unownCaughtForms.length > 0 && (
                         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
@@ -292,14 +298,17 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                                         return (
                                             <span
                                                 key={letter}
-                                                className={`text-xs w-7 h-7 flex items-center justify-center rounded font-bold transition-all ${
+                                                className={`text-xs w-9 h-9 flex items-center justify-center rounded font-bold transition-all ${
                                                     isCaught
-                                                        ? 'bg-violet-200 dark:bg-violet-700 text-violet-700 dark:text-violet-200 shadow-sm'
+                                                        ? 'bg-violet-200 dark:bg-violet-700 shadow-sm'
                                                         : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-600'
                                                 }`}
                                                 title={isCaught ? `Unown ${letter} — caught` : `Unown ${letter} — not caught`}
                                             >
-                                                {letter}
+                                                <UnownFormSprite
+                                                    letter={letter}
+                                                    isCaught={isCaught}
+                                                />
                                             </span>
                                         );
                                     })}

@@ -3,6 +3,7 @@ import { PokemonStats, Generation, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
 import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses } from '../../lib/sprites';
+import { PokemonSpriteWithOverlays } from '../ui/PokemonSpriteWithOverlays';
 import { Heart, Ban, MousePointer2, CheckSquare, Square, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
@@ -252,13 +253,17 @@ const PokemonSlot = memo<{
              {/* Center: Sprite */}
              <div className="flex-grow flex items-center justify-center py-2 relative">
                  <div className={`w-40 h-40 relative flex items-center justify-center transition-transform duration-300 ${!isMoveMode && 'group-hover:scale-105'}`}>
-                    <img 
-                        src={spriteUrl} 
-                        alt={mon.speciesName}
-                        className={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain')}
+                    <PokemonSpriteWithOverlays
+                        dexId={mon.dexId}
+                        isShiny={mon.isShiny}
+                        isEgg={mon.isEgg}
+                        speciesName={mon.speciesName}
+                        spriteMode={spriteMode}
+                        gameVersion={gameVersion}
+                        className="w-full h-full"
+                        imgClassName={getSpriteImgClasses(spriteMode, 'w-full h-full object-contain')}
                         draggable={false}
                         style={{ pointerEvents: 'none' }}
-                        onError={(e) => { (e.target as HTMLImageElement).src = POKEMON_SPRITE_FALLBACK }}
                     />
                  </div>
              </div>

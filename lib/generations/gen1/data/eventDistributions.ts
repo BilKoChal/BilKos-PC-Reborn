@@ -2,21 +2,9 @@
 // Data sourced from Project Pokemon In-Game Series: https://github.com/projectpokemon/In-GameSeries/tree/master/Gen%201/English
 // Additional info: https://projectpokemon.org/home/files/category/143-english/
 
-import { GameVersion } from "../../../parser/types";
+import { EventPokemonData } from "../../../data/eventPokemonTypes";
 
-export interface EventPokemonData {
-  id: string;
-  title: string;
-  description: string;
-  tags: string[];
-  generation: 1 | 2 | 3;
-  previewDexId: number;
-  previewVersion: GameVersion;
-  format: 'pk1' | 'pk2' | 'pk3';
-  bytes: number[];
-  credit?: string;
-  creditLink?: string;
-}
+export type { EventPokemonData };
 
 export const GEN1_EVENT_DISTRIBUTIONS: EventPokemonData[] = [
   {

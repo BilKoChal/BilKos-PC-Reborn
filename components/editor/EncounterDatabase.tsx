@@ -1,22 +1,21 @@
 
 import React, { useState, useMemo } from 'react';
-import { GEN1_EVENT_DISTRIBUTIONS, EventPokemonData as Gen1EventPokemonData } from '../../lib/generations/gen1/data/eventDistributions';
-import { GEN2_EVENT_DISTRIBUTIONS, EventPokemonData as Gen2EventPokemonData } from '../../lib/generations/gen2/data/eventDistributions';
+import { GEN1_EVENT_DISTRIBUTIONS } from '../../lib/generations/gen1/data/eventDistributions';
+import { GEN2_EVENT_DISTRIBUTIONS } from '../../lib/generations/gen2/data/eventDistributions';
+import { EventPokemonData } from '../../lib/data/eventPokemonTypes';
 import { parsePk1 } from '../../lib/generations/gen1/parser';
 import { parsePk2 } from '../../lib/generations/gen2/parser';
 import { ParsedSave, PokemonStats } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
 import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
+import { PokemonSpriteWithOverlays } from '../ui/PokemonSpriteWithOverlays';
 import { Search, Gift, Database, Tag, ExternalLink, User, Plus, Box } from 'lucide-react';
 import { TypeBadge } from '../ui/PokemonBadges';
 import { getPokemonTypes } from '../../lib/generations/gen1/data/pokemonTypes';
 
-// Unified type that both gen-specific interfaces conform to
-type UnifiedEventPokemonData = Gen1EventPokemonData | Gen2EventPokemonData;
-
 // Merge all distributions into a single array for the current generation
-function getEventDistributions(generation: number): UnifiedEventPokemonData[] {
+function getEventDistributions(generation: number): EventPokemonData[] {
   switch (generation) {
     case 1: return GEN1_EVENT_DISTRIBUTIONS;
     case 2: return GEN2_EVENT_DISTRIBUTIONS;
@@ -52,7 +51,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
         });
     }, [search, allEvents]);
 
-    const handleAddEvent = (event: UnifiedEventPokemonData) => {
+    const handleAddEvent = (event: EventPokemonData) => {
         let mon: PokemonStats | null = null;
 
         // Parse based on format
@@ -170,10 +169,15 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                                     {/* Sprite Preview */}
                                     <div className="w-full sm:w-40 h-40 flex-shrink-0 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-center relative overflow-hidden group-hover:border-blue-200 dark:group-hover:border-blue-700 transition-colors self-center sm:self-auto">
                                         <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity"></div>
-                                        <img 
-                                            src={spriteUrl} 
-                                            alt={evt.title}
-                                            className={getSpriteImgClasses(spriteMode, 'w-32 h-32 object-contain transition-transform group-hover:scale-110 drop-shadow-md')}
+                                        <PokemonSpriteWithOverlays
+                                            dexId={evt.previewDexId}
+                                            isShiny={evt.tags.includes('shiny')}
+                                            isEgg={false}
+                                            speciesName={evt.title}
+                                            spriteMode={spriteMode}
+                                            gameVersion={data.gameVersion}
+                                            className="w-32 h-32"
+                                            imgClassName={getSpriteImgClasses(spriteMode, 'w-32 h-32 object-contain transition-transform group-hover:scale-110 drop-shadow-md')}
                                         />
                                     </div>
 

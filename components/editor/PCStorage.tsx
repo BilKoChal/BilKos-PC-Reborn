@@ -3,6 +3,7 @@ import { PokemonStats, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
 import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses } from '../../lib/sprites';
+import { PokemonSpriteWithOverlays } from '../ui/PokemonSpriteWithOverlays';
 import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, CheckSquare, Square, Move, Shuffle, Power, Download, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
@@ -267,10 +268,15 @@ const BoxSlot = memo<{
                 {mon ? (
                     <>
                         <div className="w-24 h-24 flex items-center justify-center shrink-0 -ml-2">
-                            <img 
-                                src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny)}
-                                alt={mon.speciesName}
-                                className={getSpriteImgClasses(spriteMode, 'w-20 h-20 object-contain drop-shadow-md transition-transform group-hover:scale-110')}
+                            <PokemonSpriteWithOverlays
+                                dexId={mon.dexId}
+                                isShiny={mon.isShiny}
+                                isEgg={mon.isEgg}
+                                speciesName={mon.speciesName}
+                                spriteMode={spriteMode}
+                                gameVersion={gameVersion}
+                                className="w-20 h-20"
+                                imgClassName="w-20 h-20 object-contain drop-shadow-md transition-transform group-hover:scale-110"
                                 draggable={false}
                                 style={{ pointerEvents: 'none' }}
                             />
@@ -374,14 +380,18 @@ const BoxSlot = memo<{
                     </div>
 
                     {/* Sprite — pointer-events: none prevents dragLeave flicker on child elements */}
-                    <img 
-                        src={getPokemonSpriteUrl(mon.dexId, spriteMode, gameVersion, mon.isShiny)} 
-                        alt={mon.speciesName}
-                        className={getSpriteImgClasses(spriteMode, 'w-24 h-24 object-contain transition-transform -my-2' + (!isMoveMode ? ' group-hover:scale-110' : ''))}
+                    <PokemonSpriteWithOverlays
+                        dexId={mon.dexId}
+                        isShiny={mon.isShiny}
+                        isEgg={mon.isEgg}
+                        speciesName={mon.speciesName}
+                        spriteMode={spriteMode}
+                        gameVersion={gameVersion}
+                        className="w-24 h-24"
+                        imgClassName={getSpriteImgClasses(spriteMode, 'w-24 h-24 object-contain transition-transform -my-2' + (!isMoveMode ? ' group-hover:scale-110' : ''))}
                         loading="lazy"
                         draggable={false}
                         style={{ pointerEvents: 'none' }}
-                        onError={(e) => { (e.target as HTMLImageElement).src = POKEMON_SPRITE_FALLBACK }}
                     />
                     
                     <div className="w-full text-center relative z-10">

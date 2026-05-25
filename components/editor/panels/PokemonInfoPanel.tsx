@@ -3,6 +3,7 @@ import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { User, Fingerprint } from 'lucide-react';
 import { Autocomplete } from '../../ui/Autocomplete';
 import { TypeBadge } from '../../ui/PokemonBadges';
+import { PokemonSpriteWithOverlays } from '../../ui/PokemonSpriteWithOverlays';
 // Adapter-driven: species names are now accessed via adapter.getAllSpeciesNames()
 // instead of direct generation-specific imports. This eliminates the hardcoded
 // `generation === 2 ? GEN2_POKEMON_NAMES : POKEMON_NAMES` branching.
@@ -48,21 +49,30 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
             {/* Sprite & Types */}
             <div className="flex flex-col items-center">
                 <div className={`w-64 h-64 relative flex items-center justify-center bg-gray-50 dark:bg-gray-800 rounded-[2rem] border shadow-inner mb-4 transition-all duration-300 ${
-                    mon.isShiny 
-                        ? 'border-yellow-400 dark:border-yellow-500 shadow-[0_0_20px_rgba(250,204,21,0.35)]' 
-                        : 'border-gray-100 dark:border-gray-700'
+                    mon.isEgg
+                        ? 'border-green-300 dark:border-green-500 shadow-[0_0_20px_rgba(74,222,128,0.25)]'
+                        : mon.isShiny 
+                            ? 'border-yellow-400 dark:border-yellow-500 shadow-[0_0_20px_rgba(250,204,21,0.35)]' 
+                            : 'border-gray-100 dark:border-gray-700'
                 }`}>
                     <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-50 rounded-[2rem]"></div>
                     
                     {/* Shiny Sparkle Indicator */}
-                    {mon.isShiny && (
+                    {mon.isShiny && !mon.isEgg && (
                         <div className="absolute top-3.5 right-4 text-yellow-500 font-extrabold text-[10px] tracking-widest flex items-center gap-0.5 animate-pulse bg-yellow-50 dark:bg-yellow-950/30 px-2 py-0.5 rounded-full border border-yellow-200 dark:border-yellow-800/40 shadow-sm z-20">
                             <span>✨</span>SHINY
                         </div>
                     )}
 
+                    {/* EGG Label */}
+                    {mon.isEgg && (
+                        <div className="absolute top-3.5 right-4 text-green-600 dark:text-green-400 font-extrabold text-[10px] tracking-widest flex items-center gap-0.5 bg-green-50 dark:bg-green-950/30 px-2 py-0.5 rounded-full border border-green-200 dark:border-green-800/40 shadow-sm z-20">
+                            🥚EGG
+                        </div>
+                    )}
+
                     {/* Gender Emblem Indicator */}
-                    {mon.gender && mon.gender !== 'Genderless' && (
+                    {mon.gender && mon.gender !== 'Genderless' && !mon.isEgg && (
                         <div className={`absolute top-3.5 left-4 font-black text-[10px] px-1.5 py-0.5 rounded-md border shadow-sm z-20 select-none ${
                             mon.gender === 'Female' 
                                 ? 'bg-pink-50 text-pink-500 border-pink-100 dark:bg-pink-950/30 dark:text-pink-400 dark:border-pink-900/30' 
@@ -72,16 +82,22 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                         </div>
                     )}
 
-                    <img 
-                                                src={spriteUrl} 
-                        className={getSpriteImgClasses(spriteMode, 'w-48 h-48 object-contain drop-shadow-2xl z-10 transition-transform hover:scale-110 duration-500')}
-                        alt={mon.speciesName}
-                        onError={(e) => { (e.target as HTMLImageElement).src = ITEM_SPRITE_FALLBACK }}
+                    <PokemonSpriteWithOverlays
+                        dexId={mon.dexId}
+                        isShiny={mon.isShiny}
+                        isEgg={mon.isEgg}
+                        speciesName={mon.speciesName}
+                        spriteMode={spriteMode}
+                        gameVersion={ctx?.data?.gameVersion}
+                        className="w-48 h-48 z-10"
+                        imgClassName="w-48 h-48 object-contain drop-shadow-2xl transition-transform hover:scale-110 duration-500"
                     />
-                    {/* Type Badges */}
-                    <div className="absolute -bottom-3 flex gap-2">
-                        {types.map(t => <TypeBadge key={t} type={t} size="md" className="shadow-lg border-2 border-white dark:border-gray-900" />)}
-                    </div>
+                    {/* Type Badges — hidden for eggs */}
+                    {!mon.isEgg && (
+                        <div className="absolute -bottom-3 flex gap-2">
+                            {types.map(t => <TypeBadge key={t} type={t} size="md" className="shadow-lg border-2 border-white dark:border-gray-900" />)}
+                        </div>
+                    )}
                 </div>
                 
                 {/* Species Selector */}
