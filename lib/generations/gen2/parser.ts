@@ -545,15 +545,8 @@ export function parseGen2HallOfFame(
 
   // Hall of Fame is stored in SRAM Bank 0, starting at 0x0C6C for INT GS
   // The exact offset varies by version/region; use a computed offset
-  const isJapanese = offsets.stringLength === 6;
   const isCrystal = offsets.gender >= 0;
-  let hofOffset: number;
-
-  if (isJapanese) {
-    hofOffset = isCrystal ? 0x0C86 : 0x0C6C;
-  } else {
-    hofOffset = isCrystal ? 0x0C86 : 0x0C6C;
-  }
+  const hofOffset = isCrystal ? 0x0C86 : 0x0C6C;
 
   // Safety: don't parse beyond buffer
   if (hofOffset + (50 * entrySize * 6) > data.length) {
@@ -935,6 +928,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   const money = parseBCD(data, offsets.money, 3);
   const coins = parseBCD(data, offsets.coins, 2);
   const badges = data[offsets.johtoBadges]! | (data[offsets.johtoBadges + 1]! << 8);
+  const kantoBadges = data[offsets.kantoBadges] ?? 0;
 
   // Play time: hours(2 bytes BE) + minutes(1 byte) + seconds(1 byte)
   const timeOffset = offsets.timePlayed;
@@ -1053,9 +1047,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   };
 
   // ── Phase 2: Parse Hall of Fame ──
-  // Gen 2 Hall of Fame not supported (PKHeX excludes SAV2 from HoF editor)
-  // The tab is hidden for Gen 2 saves; data is set to empty to avoid garbage display.
-  const hallOfFame: HallOfFameTeam[] = []; // Gen 2 Hall of Fame not supported (PKHeX excludes SAV2 from HoF editor)
+  const hallOfFame = parseGen2HallOfFame(data, offsets);
 
   // ── Phase 2: Parse Event Flags ──
   // 2000 event flags (250 bytes) — covers all story progress, NPC interactions, items, etc.
@@ -1087,6 +1079,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   gen2SaveExt.mapX = mapData.x;
   gen2SaveExt.mapY = mapData.y;
   gen2SaveExt.hallOfFameOffset = 0x0C6C; // Default for INT GS, computed above for others
+  gen2SaveExt.kantoBadges = kantoBadges;
   gen2SaveExt.eventFlagsOffset = offsets.eventFlags;
   gen2SaveExt.eventWorkOffset = offsets.eventWork;
 
@@ -1117,8 +1110,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
 
   // Phase 4: Mom Savings (3-byte BCD, same format as money)
   if (offsets.momSavings + 2 < data.length) {
-    const momBytes = data.slice(offsets.momSavings, offsets.momSavings + 3);
-    gen2SaveExt.momSavings = (momBytes[0]! << 16) | (momBytes[1]! << 8) | momBytes[2]!;
+    gen2SaveExt.momSavings = parseBCD(data, offsets.momSavings, 3);
   }
 
   // Phase 4: Unown Dex
@@ -1135,14 +1127,15 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   // Phase 4: Phone Contacts
   if (offsets.phoneContacts > 0) {
     const phoneOffset = offsets.phoneContacts;
+    const entryStride = offsets.stringLength + 3; // name + trainerClass + mapGroup + mapNumber
     for (let i = 0; i < 39; i++) {
-      const entryOffset = phoneOffset + (i * offsets.stringLength);
+      const nameOffset = phoneOffset + (i * entryStride);
       // Check if slot is occupied (first byte non-zero and non-0xFF)
-      if (entryOffset >= data.length || data[entryOffset] === 0 || data[entryOffset] === 0xFF) continue;
-      const name = decodeText(data, entryOffset, offsets.stringLength);
-      const trainerClass = data[entryOffset + offsets.stringLength] ?? 0;
-      const mapGroup = data[entryOffset + offsets.stringLength + 1] ?? 0;
-      const mapNumber = data[entryOffset + offsets.stringLength + 2] ?? 0;
+      if (nameOffset >= data.length || data[nameOffset] === 0 || data[nameOffset] === 0xFF) continue;
+      const name = decodeText(data, nameOffset, offsets.stringLength);
+      const trainerClass = data[nameOffset + offsets.stringLength] ?? 0;
+      const mapGroup = data[nameOffset + offsets.stringLength + 1] ?? 0;
+      const mapNumber = data[nameOffset + offsets.stringLength + 2] ?? 0;
       gen2SaveExt.phoneContacts.push({ trainerClass, name, mapGroup, mapNumber });
     }
   }

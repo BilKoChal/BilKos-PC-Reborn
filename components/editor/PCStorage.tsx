@@ -472,6 +472,9 @@ export const PCStorage: React.FC<PCStorageProps> = ({
     const saveCtx = useSaveContextSafe();
     const adapter = saveCtx?.adapter;
 
+    // Compute the accept pattern from the adapter's standalone format
+    const acceptPattern = adapter?.standaloneFormat?.acceptPattern ?? (adapter?.generation === 2 ? '.pk2' : '.pk1');
+
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || !onImport) return;
         
@@ -483,10 +486,23 @@ export const PCStorage: React.FC<PCStorageProps> = ({
             if (extension !== '.pk1' && extension !== '.pk2') continue;
 
             const buffer = new Uint8Array(await file.arrayBuffer());
+
+            // Validate using the standalone format if available
+            if (adapter?.standaloneFormat) {
+                const validation = adapter.standaloneFormat.validateFile(buffer);
+                if (!validation.valid) {
+                    if (onToast) onToast(validation.error || `Invalid ${extension} file (${file.name})`);
+                    continue;
+                }
+            }
+
             let mon: PokemonStats | null = null;
 
             try {
-                if (extension === '.pk2' && adapter && adapter.generation === 2 && adapter.supportsStandalone) {
+                if (adapter?.standaloneFormat) {
+                    // Use the adapter's standalone format for parsing
+                    mon = adapter.standaloneFormat.parseFile(buffer);
+                } else if (extension === '.pk2' && adapter && adapter.generation === 2 && adapter.supportsStandalone) {
                     // Use Gen2Adapter for .pk2 files
                     mon = adapter.parseStandalonePokemon(buffer);
                 } else if (extension === '.pk1' && adapter && adapter.generation === 1 && adapter.supportsStandalone) {
@@ -547,7 +563,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
             <input 
                 type="file" 
                 multiple 
-                accept=".pk1,.pk2" 
+                accept={acceptPattern}
                 ref={fileInputRef} 
                 className="hidden" 
                 onChange={handleFileChange}

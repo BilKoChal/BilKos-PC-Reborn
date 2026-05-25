@@ -1,4 +1,4 @@
-import { IGenerationAdapter, BaseStats } from '../../interfaces';
+import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat } from '../../interfaces';
 import { ParsedSave, PokemonStats, Gen2SaveExtension } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
 import { writeGen2Save, writeGen2PokemonStruct } from './writer';
@@ -17,6 +17,7 @@ import {
   type Gen2Region,
   type Gen2Version
 } from './data/offsets';
+import { Gen2StandaloneFormat } from './StandaloneFormat';
 import { decodeText } from '../../utils/textDecoder';
 import { encodeGameBoyText } from '../../utils/textCodec';
 import { getPokemonTypes } from '../gen1/data/pokemonTypes';
@@ -266,6 +267,9 @@ export class Gen2Adapter implements IGenerationAdapter {
 
   /** The PKHeX-compatible file extension for this generation */
   readonly standaloneExtension = '.pk2';
+
+  /** Standalone Pokemon format handler for Gen 2 (.pk2) */
+  readonly standaloneFormat: IStandalonePokemonFormat = new Gen2StandaloneFormat();
 
   /**
    * Parse a standalone .pk2 file into a PokemonStats object.

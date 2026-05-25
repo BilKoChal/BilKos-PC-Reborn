@@ -52,6 +52,7 @@ export interface Gen2OffsetsConfig {
   money: number;               // 3 bytes BCD
   coins: number;               // 2 bytes BE
   johtoBadges: number;         // 2 bytes
+  kantoBadges: number;         // 1 byte, right after johtoBadges
 
   // ── Item Pockets ──
   tmHmPouch: number;
@@ -184,6 +185,7 @@ const INT_GS_OFFSETS = {
   momSavings: 0x23DD,
   coins: 0x23E2,
   johtoBadges: 0x23E4,
+  kantoBadges: 0x23E5,
   tmHmPouch: 0x23E6,
   itemPouchCount: 0x241E,
   itemPouchStart: 0x241F,
@@ -229,6 +231,7 @@ const INT_CRYSTAL_OFFSETS = {
   momSavings: 0x23DE,
   coins: 0x23E3,
   johtoBadges: 0x23E5,
+  kantoBadges: 0x23E6,
   tmHmPouch: 0x23E7,
   itemPouchCount: 0x241F,
   itemPouchStart: 0x2420,
@@ -274,6 +277,7 @@ const JPN_GS_OFFSETS = {
   momSavings: 0x23DE,
   coins: 0x23C3,
   johtoBadges: 0x23C5,
+  kantoBadges: 0x23C6,
   tmHmPouch: 0x23C7,
   itemPouchCount: 0x23FF,
   itemPouchStart: 0x2400,
@@ -319,6 +323,7 @@ const JPN_CRYSTAL_OFFSETS = {
   momSavings: 0x23DF,
   coins: 0x23C5,
   johtoBadges: 0x23C7,
+  kantoBadges: 0x23C8,
   tmHmPouch: 0x23C9,
   itemPouchCount: 0x2401,
   itemPouchStart: 0x2402,
@@ -364,6 +369,7 @@ const KOR_GS_OFFSETS = {
   momSavings: 0x23EE,
   coins: 0x23DA,
   johtoBadges: 0x23DC,
+  kantoBadges: 0x23DD,
   tmHmPouch: 0x23DE,
   itemPouchCount: 0x2416,
   itemPouchStart: 0x2417,

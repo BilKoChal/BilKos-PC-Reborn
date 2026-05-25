@@ -21,6 +21,51 @@ export interface BaseStats {
 }
 
 // ============================================================================
+// Standalone Pokemon Format — Scalable PKx Support for Future Gens
+// ============================================================================
+
+/**
+ * Describes how a generation serializes standalone Pokemon (.pkx) files.
+ * Each generation's adapter owns a StandalonePokemonFormat instance that
+ * defines its specific file format, validation rules, and serialization logic.
+ *
+ * This abstraction allows adding Gen 3+ support (with encryption, abilities,
+ * natures, etc.) without modifying any UI code or the adapter interface.
+ * PCStorage and PokemonEditorModal use this interface generically.
+ */
+export interface IStandalonePokemonFormat {
+  /** File extension including dot (e.g., '.pk1', '.pk2', '.pk3') */
+  fileExtension: string;
+  
+  /** MIME type / accept pattern for file input elements (e.g., '.pk1,.pk2') */
+  acceptPattern: string;
+  
+  /** Expected file sizes for validation (INT and JPN variants) */
+  expectedSizes: {
+    international: number;
+    japanese: number;
+  };
+  
+  /** Whether this generation uses encryption for Pokemon data (Gen3+ = true) */
+  hasEncryption: boolean;
+  
+  /** Whether this generation has the Ability system (Gen3+ = true) */
+  hasAbilities: boolean;
+  
+  /** Whether this generation has the Nature system (Gen3+ = true) */
+  hasNatures: boolean;
+  
+  /** Create a standalone .pkx file from a canonical Pokemon */
+  createFile(mon: import('./parser/types').PokemonStats, region?: string): Uint8Array;
+  
+  /** Parse a standalone .pkx file into a canonical Pokemon */
+  parseFile(buffer: Uint8Array, region?: string): import('./parser/types').PokemonStats;
+  
+  /** Validate a .pkx file buffer (check size, checksums, etc.) */
+  validateFile(buffer: Uint8Array): { valid: boolean; error?: string };
+}
+
+// ============================================================================
 // Interface Segregation: Focused sub-interfaces for IGenerationAdapter
 // ============================================================================
 
@@ -105,6 +150,13 @@ export interface IGenerationBinaryOps {
   /** Create a standalone Pokemon binary from a PokemonStats object.
    *  Throws if supportsStandalone is false — callers must check first. */
   createStandalonePokemon(mon: PokemonStats): Uint8Array;
+
+  /** Standalone Pokemon format handler for this generation.
+   *  Provides structured access to file extensions, validation, and
+   *  serialization. Use this for PKx file operations instead of
+   *  calling parseStandalonePokemon/createStandalonePokemon directly
+   *  when the full format metadata is needed (e.g., for UI file inputs). */
+  readonly standaloneFormat?: IStandalonePokemonFormat;
 }
 
 /**

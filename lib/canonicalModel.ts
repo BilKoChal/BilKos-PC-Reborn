@@ -290,6 +290,9 @@ export class Gen2SaveExtension implements ISaveExtension {
   /** Detected game version: 'Gold', 'Silver', or 'Crystal' */
   gameVersion: string = 'Gold';
 
+  /** Kanto region badges (1 byte, 8 bits for 8 badges) */
+  kantoBadges: number = 0;
+
   // ── Phase 2: Rival Name ──
   /** Rival's trainer name, decoded from the save file */
   rivalName: string = '';

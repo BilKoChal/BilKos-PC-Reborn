@@ -52,10 +52,18 @@ function getPokedexFlags(data: Uint8Array, start: number): boolean[] {
 
 function getEventFlags(data: Uint8Array, start: number): boolean[] {
     const flags: boolean[] = [];
-    // Gen 1 Missable Objects array is 32 bytes (256 bits)
-    for (let i = 0; i < 256; i++) {
+    // Gen 1 event flags: 2560 flags (320 bytes) — covers all story events,
+    // NPC interactions, item pickups, and cutscene triggers.
+    // The Missable Objects offset points into the larger event flag array.
+    const EVENT_FLAG_BYTES = 320;
+    const totalFlags = EVENT_FLAG_BYTES * 8;
+    for (let i = 0; i < totalFlags; i++) {
         const byteIndex = Math.floor(i / 8);
         const bitIndex = i % 8;
+        if (start + byteIndex >= data.length) {
+            flags.push(false);
+            continue;
+        }
         const byte = data[start + byteIndex]!;
         flags.push((byte & (1 << bitIndex)) !== 0);
     }
@@ -427,10 +435,12 @@ export function parseGen1Save(buffer: Uint8Array, filename: string = "save.sav")
       pikachuSurfScore = d4 * 1000 + d3 * 100 + d2 * 10 + d1;
   }
   
-  const hours = view[offsets.PLAY_TIME]!; 
+  const hours = view[offsets.PLAY_TIME]!;
+  const maxFlag = view[offsets.PLAY_TIME + 1]!;
   const minutes = view[offsets.PLAY_TIME + 2]!;
   const seconds = view[offsets.PLAY_TIME + 3]!;
-  const playTime = `${hours}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
+  const displayHours = maxFlag !== 0 ? '255+' : hours.toString();
+  const playTime = `${displayHours}h ${minutes.toString().padStart(2, '0')}m ${seconds.toString().padStart(2, '0')}s`;
   const badges = view[offsets.BADGES]!;
   
   const pokedexOwned = countSetBits(view, offsets.POKEDEX_OWNED, 19);

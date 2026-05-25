@@ -25,11 +25,12 @@ function writePokedexFlags(writer: BinaryWriter, flags: boolean[]) {
 
 // Helper: Write Event Flags
 function writeEventFlags(writer: BinaryWriter, flags: boolean[]) {
-    for (let i = 0; i < 32; i++) { // 32 bytes
+    const EVENT_FLAG_BYTES = 320;
+    for (let i = 0; i < EVENT_FLAG_BYTES; i++) {
         let byte = 0;
         for (let bit = 0; bit < 8; bit++) {
             const flagIndex = (i * 8) + bit;
-            if (flags[flagIndex] === true) {
+            if (flagIndex < flags.length && flags[flagIndex] === true) {
                 byte |= (1 << bit);
             }
         }
@@ -327,6 +328,8 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
         
         writer.seek(offsets.PLAY_TIME);
         writer.u8(hours);
+        writer.seek(offsets.PLAY_TIME + 1);
+        writer.u8(hours >= 255 ? 0x01 : 0x00); // Max flag
         writer.seek(offsets.PLAY_TIME + 2);
         writer.u8(minutes);
         writer.seek(offsets.PLAY_TIME + 3);

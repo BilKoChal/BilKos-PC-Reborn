@@ -1,4 +1,4 @@
-import { IGenerationAdapter, BaseStats } from '../../interfaces';
+import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat } from '../../interfaces';
 import { ParsedSave, PokemonStats } from '../../parser/types';
 import { detectGameVersion, validateGen1Checksum, parseGen1Save, parsePk1 } from './parser';
 import { writeGen1Save, createPk1Binary } from './writer';
@@ -8,6 +8,7 @@ import { getMoveName, MOVES_LIST, MOVES_PP, MOVES_TYPE } from './data/moves';
 import { getItemName } from './data/items';
 import { getPokemonTypes } from './data/pokemonTypes';
 import { GEN1_BASE_STATS } from './data/baseStats';
+import { Gen1StandaloneFormat } from './StandaloneFormat';
 import { decodeText } from '../../utils/textDecoder';
 import { encodeGameBoyText } from '../../utils/textCodec';
 
@@ -114,6 +115,9 @@ export class Gen1Adapter implements IGenerationAdapter {
 
   /** The PKHeX-compatible file extension for this generation */
   readonly standaloneExtension = '.pk1';
+
+  /** Standalone Pokemon format handler for Gen 1 (.pk1) */
+  readonly standaloneFormat: IStandalonePokemonFormat = new Gen1StandaloneFormat();
 
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
     const parsed = parsePk1(buffer);
