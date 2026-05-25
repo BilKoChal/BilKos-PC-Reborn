@@ -4,7 +4,7 @@ import { PokemonStats, isGen2Extension, Gen2SaveExtension, Gen2Extension } from 
 import { Autocomplete } from '../../../components/ui/Autocomplete';
 import { GEN2_ITEMS } from './data/constants';
 import { extensionRegistry } from '../../core/ExtensionRegistry';
-import { Sparkles, HelpCircle, SunMoon } from 'lucide-react';
+import { Sparkles, HelpCircle, SunMoon, Heart, Egg } from 'lucide-react';
 
 // ============================================================================
 // POKEMON-LEVEL EXTENSIONS
@@ -198,11 +198,117 @@ export const CaughtDataSection: ISectionExtension = {
 // reliable than trying to pipe save context through the pokemon panel.
 // ============================================================================
 
+// 5. FriendshipEggSection: Displays friendship for hatched Pokemon or
+// egg cycles (hatch counter) for egg Pokemon. In Gen 2, byte 0x1B serves
+// dual purpose — friendship for hatched Pokemon, hatch counter for eggs.
+export const FriendshipEggSection: ISectionExtension = {
+  id: 'gsc-friendship-egg',
+  panelId: 'pokemon-info',
+  render(mon: PokemonStats, context: IExtensionRenderContext) {
+    const gen2Ext = mon.genExtension as Gen2Extension | null;
+    if (!gen2Ext || gen2Ext.generation !== 2) return null;
+
+    if (mon.isEgg) {
+      // Egg: show hatch counter (egg cycles)
+      const eggCycles = gen2Ext.eggCycles || 0;
+      return (
+        <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3 border border-green-100 dark:border-green-800/30">
+          <div className="flex items-center gap-2 mb-2">
+            <Egg size={14} className="text-green-500" />
+            <span className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest">Egg</span>
+          </div>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-1.5 border border-green-200 dark:border-green-800/50 shadow-inner flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-green-600 dark:text-green-400 uppercase shrink-0">Hatch Counter</span>
+            <input
+              type="number"
+              value={eggCycles}
+              min={0}
+              max={255}
+              onChange={(e) => {
+                const val = Math.min(255, Math.max(0, Number(e.target.value)));
+                if (gen2Ext) {
+                  const updated = { ...gen2Ext, eggCycles: val };
+                  context.onChange('genExtension', updated as unknown);
+                }
+              }}
+              className="w-full text-center text-xs font-mono font-bold bg-transparent outline-none text-gray-700 dark:text-gray-200"
+            />
+          </div>
+          <div className="text-[10px] text-green-500 dark:text-green-400 mt-1">
+            Steps until hatching: ~{eggCycles * 256}. Counter decreases as you walk.
+          </div>
+        </div>
+      );
+    }
+
+    // Hatched Pokemon: show friendship
+    const friendship = gen2Ext.friendship || mon.friendship || 0;
+    // Friendship level descriptions
+    let friendshipLabel = 'Neutral';
+    let friendshipColor = 'text-gray-500';
+    if (friendship >= 255) { friendshipLabel = 'Best Friends'; friendshipColor = 'text-pink-500'; }
+    else if (friendship >= 200) { friendshipLabel = 'Very Happy'; friendshipColor = 'text-green-500'; }
+    else if (friendship >= 150) { friendshipLabel = 'Happy'; friendshipColor = 'text-blue-500'; }
+    else if (friendship >= 100) { friendshipLabel = 'Friendly'; friendshipColor = 'text-yellow-500'; }
+    else if (friendship >= 50) { friendshipLabel = 'Neutral'; friendshipColor = 'text-gray-500'; }
+    else { friendshipLabel = 'Unhappy'; friendshipColor = 'text-red-500'; }
+
+    return (
+      <div className="bg-pink-50 dark:bg-pink-900/10 rounded-xl p-3 border border-pink-100 dark:border-pink-800/30">
+        <div className="flex items-center gap-2 mb-2">
+          <Heart size={14} className="text-pink-500" />
+          <span className="text-xs font-bold text-pink-600 dark:text-pink-400 uppercase tracking-widest">Friendship</span>
+          <span className={`text-[10px] font-bold ${friendshipColor} ml-auto`}>{friendshipLabel}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="range"
+            min={0}
+            max={255}
+            value={friendship}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              context.onChange('friendship', val as unknown);
+              if (gen2Ext) {
+                const updated = { ...gen2Ext, friendship: val };
+                context.onChange('genExtension', updated as unknown);
+              }
+            }}
+            className="flex-grow accent-pink-500 h-2"
+          />
+          <input
+            type="number"
+            value={friendship}
+            min={0}
+            max={255}
+            onChange={(e) => {
+              const val = Math.min(255, Math.max(0, Number(e.target.value)));
+              context.onChange('friendship', val as unknown);
+              if (gen2Ext) {
+                const updated = { ...gen2Ext, friendship: val };
+                context.onChange('genExtension', updated as unknown);
+              }
+            }}
+            className="w-14 text-center text-xs font-mono font-bold bg-white dark:bg-gray-900 rounded border border-pink-200 dark:border-pink-800/50 py-1 outline-none text-gray-700 dark:text-gray-200"
+          />
+        </div>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-red-400 via-yellow-400 to-pink-500 transition-all duration-300"
+            style={{ width: `${(friendship / 255) * 100}%` }}
+          />
+        </div>
+      </div>
+    );
+  }
+};
+
 // Auto-register POKEMON-LEVEL extensions for Generation 2
 // These are the only extensions that work correctly in the pokemon panel
 extensionRegistry.registerExtension('pokemon-info', 2, HeldItemSection);
 extensionRegistry.registerExtension('pokemon-info', 2, ShinyFlagSection);
 extensionRegistry.registerExtension('pokemon-info', 2, GenderSection);
+extensionRegistry.registerExtension('pokemon-info', 2, FriendshipEggSection);
 extensionRegistry.registerExtension('pokemon-stats', 2, SpAtkSpDefSection);
 // Phase 3: Crystal-specific pokemon-level extension
 extensionRegistry.registerExtension('pokemon-info', 2, CaughtDataSection);

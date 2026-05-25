@@ -237,7 +237,8 @@ export function parseGen2PokemonStruct(
   nickname: string, 
   otName: string,
   nicknameRaw: Uint8Array, 
-  otNameRaw: Uint8Array
+  otNameRaw: Uint8Array,
+  listSpeciesId?: number
 ): PokemonStats {
   // Bounds checking: ensure we have enough bytes to read the base structure
   const minBytes = isParty ? 48 : 32;
@@ -260,7 +261,12 @@ export function parseGen2PokemonStruct(
   }
 
   const speciesId = view[offset]!;
-  const dexId = speciesId; // Gen 2 species IDs match National Dex index (1-251)
+  // In the save file, eggs have speciesId 0xFD (253) in the species list header,
+  // but the struct body at offset 0x00 contains the hatched species (e.g. 173 = Cleffa).
+  // We use listSpeciesId to detect eggs correctly.
+  const isEggFromList = listSpeciesId === EGG_SPECIES_ID;
+  const effectiveSpeciesId = isEggFromList ? speciesId : speciesId; // Body species is always used for data
+  const dexId = isEggFromList ? speciesId : speciesId; // For eggs, dexId = hatched species
 
   const heldItemId = view[offset + 0x01]!;
   const heldItemName = getGen2ItemName(heldItemId);
@@ -305,7 +311,15 @@ export function parseGen2PokemonStruct(
     view[offset + 26]! >> 6
   ];
 
-  const friendship = view[offset + 27]!;
+  // In Gen 2, byte 0x1B (offset + 27) serves DUAL purpose:
+  //   - For hatched Pokemon: friendship/happiness value (0-255)
+  //   - For eggs: hatch counter (counts down from base egg cycles to 0)
+  // When is_egg is true, we store this as eggCycles in Gen2Extension
+  // and set friendship to 0 (eggs don't have friendship until hatched).
+  const rawByte27 = view[offset + 27]!;
+  const isEggDetected = isEggFromList;
+  const friendship = isEggDetected ? 0 : rawByte27;
+  const eggCycles = isEggDetected ? rawByte27 : 0;
   const pokerus = view[offset + 28]!;
   const caughtDataRaw = (view[offset + 0x1D]! << 8) | view[offset + 0x1E]!;
   const level = view[offset + 31]!;
@@ -341,7 +355,8 @@ export function parseGen2PokemonStruct(
   }
 
   const isShiny = isGen2Shiny(atkIv, defIv, spdIv, spcIv);
-  const gender = getGen2Gender(speciesId, atkIv);
+  // For eggs, gender is based on the hatched species (body speciesId)
+  const gender = isEggDetected ? 'Genderless' : getGen2Gender(speciesId, atkIv);
 
   // Use types from GSC constants or Fallback to standard mapping
   const parsedTypes = getPokemonTypes(dexId, 2);
@@ -362,6 +377,7 @@ export function parseGen2PokemonStruct(
   gen2Ext.spAtk = spAtk;
   gen2Ext.spDef = spDef;
   gen2Ext.friendship = friendship;
+  gen2Ext.eggCycles = eggCycles;
 
   // ── Phase 3: Parse CaughtData (Crystal only) ──
   // The CaughtData is a 16-bit value at bytes 0x1D-0x1E in the Pokemon struct.
@@ -411,7 +427,7 @@ export function parseGen2PokemonStruct(
     type1Name: t1Name,
     type2Name: t2Name,
     isParty,
-    isEgg: speciesId === 253, // GSC Egg identifier index
+    isEgg: isEggDetected, // Determined from species list header (0xFD) or pk2 header
     isShiny,
     gender,
     heldItemId,
@@ -463,14 +479,8 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     const otName = decodeText(otRaw, 0, 11);
     const nickname = decodeText(nickRaw, 0, 11);
 
-    const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
-
-    // Fix isEgg: In PKHeX's .pk2 format, the PokeList2 header species is 0xFD (253)
-    // for eggs, but the struct body contains the actual hatched species. The parser
-    // only checks the struct body species, so we must override isEgg from the header.
-    if (mon && isEggFromHeader) {
-      mon.isEgg = true;
-    }
+    // Pass the header species ID for egg detection (0xFD = egg)
+    const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw, headerSpeciesId);
 
     return mon;
   }
@@ -482,7 +492,6 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
       console.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
     }
     const headerSpeciesId = buffer[1]!;
-    const isEggFromHeader = headerSpeciesId === EGG_SPECIES_ID;
 
     const monData = buffer.slice(3, 3 + SIZE_2PARTY);
     const otRaw = buffer.slice(3 + SIZE_2PARTY, 3 + SIZE_2PARTY + 6);
@@ -491,11 +500,8 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     const otName = decodeText(otRaw, 0, 6, true);
     const nickname = decodeText(nickRaw, 0, 6, true);
 
-    const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw);
-
-    if (mon && isEggFromHeader) {
-      mon.isEgg = true;
-    }
+    // Pass the header species ID for egg detection (0xFD = egg)
+    const mon = parseGen2PokemonStruct(monData, 0, true, nickname, otName, nickRaw, otRaw, headerSpeciesId);
 
     return mon;
   }
@@ -586,7 +592,8 @@ export function parsePCBoxGen2(view: Uint8Array, offset: number, offsets: Gen2Of
       nickname,
       otName,
       nicknameRaw,
-      otNameRaw
+      otNameRaw,
+      speciesId // Pass species list header ID for egg detection (0xFD = egg)
     ));
   }
 
@@ -1105,6 +1112,9 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
     const nickname = decodeText(nicknameRaw, 0, strLen);
     const otName = decodeText(otNameRaw, 0, strLen);
 
+    // Read species list header for egg detection (0xFD = egg)
+    const listSpeciesId = data[partySpeciesStart + i]!;
+
     partyList.push(parseGen2PokemonStruct(
       data,
       structOffset,
@@ -1112,7 +1122,8 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
       nickname,
       otName,
       nicknameRaw,
-      otNameRaw
+      otNameRaw,
+      listSpeciesId // Pass species list header ID for egg detection
     ));
   }
 

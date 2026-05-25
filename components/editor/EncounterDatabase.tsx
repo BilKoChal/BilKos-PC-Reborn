@@ -9,7 +9,7 @@ import { ParsedSave, PokemonStats } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
 import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
-import { PokemonSpriteWithOverlays } from '../ui/PokemonSpriteWithOverlays';
+import { PokemonSprite } from '../ui/PokemonSprite';
 import { Search, Gift, Database, Tag, ExternalLink, User, Plus, Box } from 'lucide-react';
 import { TypeBadge } from '../ui/PokemonBadges';
 import { getPokemonTypes } from '../../lib/generations/gen1/data/pokemonTypes';
@@ -169,7 +169,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                                     {/* Sprite Preview */}
                                     <div className="w-full sm:w-40 h-40 flex-shrink-0 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-700 flex items-center justify-center relative overflow-hidden group-hover:border-blue-200 dark:group-hover:border-blue-700 transition-colors self-center sm:self-auto">
                                         <div className="absolute inset-0 bg-blue-500 opacity-0 group-hover:opacity-5 transition-opacity"></div>
-                                        <PokemonSpriteWithOverlays
+                                        <PokemonSprite
                                             dexId={evt.previewDexId}
                                             isShiny={evt.tags.includes('shiny')}
                                             isEgg={evt.tags.includes('egg')}

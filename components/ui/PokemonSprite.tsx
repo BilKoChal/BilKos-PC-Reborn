@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses, isGen2GameSpecificShiny } from '../../lib/sprites';
 import { SpriteMode } from '../../context/SpriteContext';
 import { GameVersion } from '../../lib/parser/types';
+import { Egg, Sparkles } from 'lucide-react';
 
 // ─── Gen 2 Shiny Sprite Canvas Padding ──────────────────────────────────────
 // Gen 2 game-specific shiny sprites from PokeAPI are 40x40px, while regular
@@ -40,7 +41,7 @@ function padSpriteTo80x80(url: string): Promise<string> {
         return;
       }
 
-      // Center the sprite with 20px padding on each side
+      // Center the sprite with padding on each side
       const offsetX = (80 - img.naturalWidth) / 2;
       const offsetY = (80 - img.naturalHeight) / 2;
       ctx.imageSmoothingEnabled = false; // Preserve pixel art
@@ -59,7 +60,7 @@ function padSpriteTo80x80(url: string): Promise<string> {
   });
 }
 
-interface PokemonSpriteWithOverlaysProps {
+interface PokemonSpriteProps {
   dexId: number;
   isShiny: boolean;
   isEgg: boolean;
@@ -77,7 +78,16 @@ interface PokemonSpriteWithOverlaysProps {
   form?: string;
 }
 
-export const PokemonSpriteWithOverlays: React.FC<PokemonSpriteWithOverlaysProps> = ({
+/**
+ * PokemonSprite — Renders a Pokemon sprite with optional egg and shiny overlays
+ * using lucide-react icons.
+ *
+ * - Egg overlay: lucide `Egg` icon displayed over the sprite for egg Pokemon
+ * - Shiny overlay: lucide `Sparkles` icon badge at top-right for shiny Pokemon
+ * - Gen 2 shiny sprite padding: automatically pads 40x40px Gen 2 shiny sprites
+ *   to 80x80px for consistent sizing
+ */
+export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
   dexId,
   isShiny,
   isEgg,
@@ -106,32 +116,11 @@ export const PokemonSpriteWithOverlays: React.FC<PokemonSpriteWithOverlaysProps>
     }
   }, [needsPadding, originalSrc]);
 
-  // For egg Pokemon, show an egg visual
-  if (isEgg && showOverlays) {
-    return (
-      <div className={`relative ${className}`}>
-        {/* Egg body - CSS-drawn egg shape */}
-        <div className="w-full h-full flex items-center justify-center">
-          <div className="relative w-[70%] h-[85%]">
-            {/* Main egg shape */}
-            <div className="absolute inset-0 bg-gradient-to-b from-white via-green-50 to-green-100 dark:from-gray-200 dark:via-green-100 dark:to-green-200 rounded-[50%_50%_50%_50%/60%_60%_40%_40%] border-2 border-green-200 dark:border-green-400 shadow-md">
-              {/* Egg spots */}
-              <div className="absolute top-[25%] left-[20%] w-3 h-3 rounded-full bg-green-200 dark:bg-green-500/40"></div>
-              <div className="absolute top-[40%] right-[25%] w-4 h-4 rounded-full bg-green-200 dark:bg-green-500/40"></div>
-              <div className="absolute bottom-[30%] left-[35%] w-2.5 h-2.5 rounded-full bg-green-200 dark:bg-green-500/40"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // For regular Pokemon, show sprite with optional overlays
   const imgSrc = paddedSrc || originalSrc;
 
   return (
     <div className={`relative ${className}`}>
-      <img 
+      <img
         src={imgSrc}
         alt={speciesName}
         className={getSpriteImgClasses(spriteMode, imgClassName)}
@@ -140,10 +129,18 @@ export const PokemonSpriteWithOverlays: React.FC<PokemonSpriteWithOverlaysProps>
         onError={onError || ((e) => { (e.target as HTMLImageElement).src = POKEMON_SPRITE_FALLBACK })}
         loading={loading}
       />
-      {/* Shiny star overlay */}
+      {/* Egg overlay — lucide Egg icon */}
+      {isEgg && showOverlays && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div className="bg-green-400/80 dark:bg-green-500/80 rounded-full p-1.5 shadow-lg border-2 border-white dark:border-gray-800">
+            <Egg size={16} className="text-white" />
+          </div>
+        </div>
+      )}
+      {/* Shiny overlay — lucide Sparkles icon badge */}
       {isShiny && showOverlays && (
-        <div className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center bg-yellow-400 dark:bg-yellow-500 rounded-full border-2 border-white dark:border-gray-800 shadow-lg z-10">
-          <span className="text-[10px] leading-none text-yellow-900 font-black">★</span>
+        <div className="absolute -top-1 -right-1 flex items-center justify-center bg-yellow-400 dark:bg-yellow-500 rounded-full border-2 border-white dark:border-gray-800 shadow-lg z-10">
+          <Sparkles size={12} className="text-yellow-900" />
         </div>
       )}
     </div>

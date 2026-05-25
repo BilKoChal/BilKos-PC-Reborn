@@ -3,7 +3,7 @@ import { PokemonStats, GameVersion } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
 import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter } from '../../lib/sprites';
-import { PokemonSpriteWithOverlays } from '../ui/PokemonSpriteWithOverlays';
+import { PokemonSprite } from '../ui/PokemonSprite';
 import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, CheckSquare, Square, Move, Shuffle, Power, Download, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
@@ -268,7 +268,7 @@ const BoxSlot = memo<{
                 {mon ? (
                     <>
                         <div className="w-24 h-24 flex items-center justify-center shrink-0 -ml-2">
-                            <PokemonSpriteWithOverlays
+                            <PokemonSprite
                                 dexId={mon.dexId}
                                 isShiny={mon.isShiny}
                                 isEgg={mon.isEgg}
@@ -381,7 +381,7 @@ const BoxSlot = memo<{
                     </div>
 
                     {/* Sprite — pointer-events: none prevents dragLeave flicker on child elements */}
-                    <PokemonSpriteWithOverlays
+                    <PokemonSprite
                         dexId={mon.dexId}
                         isShiny={mon.isShiny}
                         isEgg={mon.isEgg}

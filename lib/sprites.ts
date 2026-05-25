@@ -23,7 +23,7 @@
  *
  * Gen 2 shiny sprite sizing:
  * - Gen 2 game-specific shiny sprites from PokeAPI are 40x40px (half the 80x80 regular size)
- * - The PokemonSpriteWithOverlays component handles Canvas padding to normalize sizing
+ * - The PokemonSprite component handles Canvas padding to normalize sizing
  */
 
 import { SpriteMode } from '../context/SpriteContext';

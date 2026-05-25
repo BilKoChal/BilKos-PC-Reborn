@@ -66,8 +66,19 @@ export function writeGen2PokemonStruct(
     data[offset + 23 + m] = (ups << 6) | (pps & 0x3F);
   }
 
-  // 9. Friendship and Pokerus
-  data[offset + 27] = mon.friendship !== undefined ? mon.friendship : 70;
+  // 9. Friendship / Egg Cycles (dual-purpose byte at offset + 27)
+  // For eggs: this byte stores the hatch counter (egg cycles remaining)
+  // For hatched Pokemon: this byte stores friendship/happiness
+  if (mon.isEgg) {
+    // Write eggCycles from Gen2Extension if available, otherwise use raw byte 27
+    const gen2Ext = mon.genExtension as import('../../canonicalModel').Gen2Extension | null;
+    const eggCycles = (gen2Ext && gen2Ext.generation === 2 && gen2Ext.eggCycles > 0) 
+      ? gen2Ext.eggCycles 
+      : (mon.raw && mon.raw[27] !== undefined ? mon.raw[27]! : 0);
+    data[offset + 27] = eggCycles;
+  } else {
+    data[offset + 27] = mon.friendship !== undefined ? mon.friendship : 70;
+  }
   data[offset + 28] = mon.pokerus !== undefined ? mon.pokerus : 0;
 
   // 9b. Phase 3: Write CaughtData (Crystal only) — bytes 0x1D-0x1E
@@ -136,8 +147,11 @@ export function writePCBoxGen2(data: Uint8Array, offset: number, pokemonList: Po
   const pokemonStructStart = offset + 1 + (slotCount + 1); // count + species list + 0xFF terminator
 
   // Write species list
+  // For egg Pokemon, the species list header must be 0xFD (253),
+  // while the struct body contains the hatched species ID.
   for (let i = 0; i < count; i++) {
-    data[speciesListOffset + i] = pokemonList[i]!.speciesId;
+    const mon = pokemonList[i]!;
+    data[speciesListOffset + i] = mon.isEgg ? 0xFD : mon.speciesId;
   }
   data[speciesListOffset + count] = 0xFF;
 
@@ -597,8 +611,10 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
 
   // Party species list
   const partySpeciesStart = offsets.party + 1;
+  // Party species list — write 0xFD for egg Pokemon
   for (let i = 0; i < partyCount; i++) {
-    data[partySpeciesStart + i] = save.party[i]!.speciesId;
+    const mon = save.party[i]!;
+    data[partySpeciesStart + i] = mon.isEgg ? 0xFD : mon.speciesId;
   }
   data[partySpeciesStart + partyCount] = 0xFF;
 

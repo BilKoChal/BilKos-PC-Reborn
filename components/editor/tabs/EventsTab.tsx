@@ -318,41 +318,11 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     )}
 
                     {/* ── Phone Contacts ── */}
-                    {gen2Ext.phoneContacts.length > 0 && (
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                            <div className="p-4 flex items-center gap-3 bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
-                                <Phone size={20} />
-                                <div>
-                                    <h2 className="font-black text-lg uppercase tracking-widest leading-none">Phone Contacts</h2>
-                                    <p className="text-xs text-white/80 font-medium">PokeGear Registered Numbers</p>
-                                </div>
-                                <span className="ml-auto bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                                    {gen2Ext.phoneContacts.length}
-                                </span>
-                            </div>
-                            <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                    {gen2Ext.phoneContacts.map((contact, idx) => (
-                                        <div key={idx} className="bg-teal-50 dark:bg-teal-900/10 rounded-lg p-2.5 border border-teal-100 dark:border-teal-800/30 flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-teal-200 dark:bg-teal-700 flex items-center justify-center text-teal-600 dark:text-teal-300 font-bold text-xs shrink-0">
-                                                {contact.name.charAt(0) || '?'}
-                                            </div>
-                                            <div className="min-w-0">
-                                                <div className="text-sm font-bold text-teal-700 dark:text-teal-300 truncate">{contact.name}</div>
-                                                <div className="text-[10px] text-teal-500 dark:text-teal-400">
-                                                    Class {contact.trainerClass} &middot; Map {contact.mapGroup}-{contact.mapNumber}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="mt-3 text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
-                                    Registered trainer phone numbers from the PokeGear. These trainers can be called for rematch battles or item hints.
-                                    The trainer class and map location identify which trainer this contact represents.
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    {/* Phone contacts parsing is temporarily hidden because the current
+                        implementation decodes raw bytes as names, which produces incorrect
+                        data. In Gen 2, phone contacts are stored as contact IDs that map
+                        to internal game tables — proper display requires a name lookup table
+                        for all 39 possible trainer contacts per version. */}
 
                     {/* ═══════════════════════════════════════════════════════════
                         Crystal-Specific Sections

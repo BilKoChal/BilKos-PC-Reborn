@@ -3,7 +3,7 @@ import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { User, Fingerprint } from 'lucide-react';
 import { Autocomplete } from '../../ui/Autocomplete';
 import { TypeBadge } from '../../ui/PokemonBadges';
-import { PokemonSpriteWithOverlays } from '../../ui/PokemonSpriteWithOverlays';
+import { PokemonSprite } from '../../ui/PokemonSprite';
 // Adapter-driven: species names are now accessed via adapter.getAllSpeciesNames()
 // instead of direct generation-specific imports. This eliminates the hardcoded
 // `generation === 2 ? GEN2_POKEMON_NAMES : POKEMON_NAMES` branching.
@@ -82,7 +82,7 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                         </div>
                     )}
 
-                    <PokemonSpriteWithOverlays
+                    <PokemonSprite
                         dexId={mon.dexId}
                         isShiny={mon.isShiny}
                         isEgg={mon.isEgg}
