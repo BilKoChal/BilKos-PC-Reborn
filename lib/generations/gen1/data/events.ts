@@ -2,8 +2,9 @@ export interface GameEvent {
     id: string;
     name: string;
     description: string;
-    offset: number; // Global Bit Index (0-255) in the 32-byte array
-    category: 'Legendary' | 'Interaction' | 'Gift';
+    offset: number; // Global Bit Index in the event flags array
+    category: 'Legendary' | 'Interaction' | 'Gift' | 'Story';
+    version?: 'all' | 'gs' | 'crystal'; // Which versions this flag applies to (Gen 2 only)
 }
 
 export const GEN1_EVENTS: GameEvent[] = [

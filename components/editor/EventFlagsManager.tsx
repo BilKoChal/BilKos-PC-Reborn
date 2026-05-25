@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { GEN1_EVENTS, GameEvent } from '../../lib/generations/gen1/data/events';
-import { ParsedSave } from '../../lib/parser/types';
+import { GEN2_EVENTS } from '../../lib/generations/gen2/data/events';
+import { ParsedSave, Gen2SaveExtension } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
-import { MapPin, Gift, Zap, Flag } from 'lucide-react';
+import { MapPin, Gift, Zap, Flag, Swords } from 'lucide-react';
 
 interface EventFlagsManagerProps {
     data: ParsedSave;
@@ -16,7 +17,26 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
     const [flags, setFlags] = useState<boolean[]>([...data.eventFlags]);
 
     // Select the correct event database based on generation
-    const eventsData: GameEvent[] = data.generation === 1 ? GEN1_EVENTS : [];
+    // For Gen 2, filter by version (Gold/Silver vs Crystal)
+    const eventsData: GameEvent[] = useMemo(() => {
+        if (data.generation === 1) return GEN1_EVENTS;
+        if (data.generation === 2) {
+            const gen2Ext = data.genExtension as Gen2SaveExtension | null;
+            const version = gen2Ext?.gameVersion || 'Gold';
+            const isCrystal = version === 'Crystal';
+            // Filter Gen 2 events by version compatibility
+            return GEN2_EVENTS.filter(e => 
+                e.version === 'all' || 
+                (isCrystal && e.version === 'crystal') ||
+                (!isCrystal && e.version === 'gs')
+            ).map(e => ({
+                ...e,
+                // Remove the version field since Gen1 GameEvent doesn't have it
+                // but we're using the same interface, so just pass through
+            }));
+        }
+        return [];
+    }, [data.generation, data.genExtension]);
 
     // Group events by category
     const groupedEvents = eventsData.reduce((acc, event) => {
@@ -26,6 +46,7 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
     }, {} as Record<string, GameEvent[]>);
 
     const handleToggle = (offset: number) => {
+        if (offset >= flags.length) return;
         const newFlags = [...flags];
         // Toggle bit
         newFlags[offset] = !newFlags[offset];
@@ -37,7 +58,8 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
         switch(category) {
             case 'Legendary': return <Zap size={18} className="text-yellow-500" />;
             case 'Gift': return <Gift size={18} className="text-pink-500" />;
-            default: return <MapPin size={18} className="text-blue-500" />;
+            case 'Story': return <Swords size={18} className="text-blue-500" />;
+            default: return <MapPin size={18} className="text-green-500" />;
         }
     };
 
@@ -62,6 +84,20 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
 
     return (
         <div className="flex flex-col max-h-[500px] overflow-hidden">
+            {/* Header Info */}
+            <div className="px-6 pt-4 pb-2 bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex items-center justify-between">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                        {eventsData.length} named events &middot; {data.eventFlags.length} total flags
+                    </div>
+                    {data.generation === 2 && (
+                        <div className="text-[10px] bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-full font-bold">
+                            {(data.genExtension as Gen2SaveExtension)?.gameVersion || 'GSC'}
+                        </div>
+                    )}
+                </div>
+            </div>
+
             {/* Content */}
             <div className="p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 flex-grow custom-scrollbar">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -74,8 +110,8 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
                             
                             <div className="space-y-3">
                                 {events.map(event => {
-                                    const isDefeated = flags[event.offset]; 
-                                    const isAvailable = !isDefeated;
+                                    const offset = event.offset;
+                                    const isSet = offset < flags.length ? flags[offset] : false;
 
                                     return (
                                         <div key={event.id} className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg transition-colors">
@@ -85,17 +121,17 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
                                             </div>
 
                                             <button 
-                                                onClick={() => handleToggle(event.offset)}
+                                                onClick={() => handleToggle(offset)}
                                                 className={`
                                                     relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                                                    ${isAvailable ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}
+                                                    ${isSet ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}
                                                 `}
                                             >
                                                 <span className="sr-only">Toggle availability</span>
                                                 <span
                                                     className={`
                                                         inline-block h-4 w-4 transform rounded-full bg-white transition-transform
-                                                        ${isAvailable ? 'translate-x-6' : 'translate-x-1'}
+                                                        ${isSet ? 'translate-x-6' : 'translate-x-1'}
                                                     `}
                                                 />
                                             </button>
@@ -108,9 +144,15 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
                 </div>
                 
                 <div className="mt-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 rounded-lg text-xs text-yellow-700 dark:text-yellow-400">
-                    <strong>Note:</strong> "Available" (Green) means the Pokemon or Item will appear in the game world. 
-                    "Defeated/Taken" (Grey) means it has already been interacted with. 
-                    If you killed a legendary by mistake, toggle it back to Green to make it reappear!
+                    <strong>Note:</strong> {data.generation === 1 ? (
+                        <>"Available" (Green) means the Pokemon or Item will appear in the game world. 
+                        "Defeated/Taken" (Grey) means it has already been interacted with. 
+                        If you killed a legendary by mistake, toggle it back to Green to make it reappear!</>
+                    ) : (
+                        <>Event flags control story progress and encounters. "Set" (Green) means the event has occurred 
+                        (e.g., a legendary has been defeated, an item has been taken). "Unset" (Grey) means the event 
+                        is still available. Toggle flags carefully — incorrect combinations may break game progression.</>
+                    )}
                 </div>
             </div>
         </div>
