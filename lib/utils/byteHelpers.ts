@@ -76,6 +76,20 @@ export function getUInt32LE(data: Uint8Array | DataView, offset: number): number
   ) >>> 0; 
 }
 
+// --- Little Endian Write Helpers (Gen 3+) ---
+
+export function setUInt16LE(view: DataView, offset: number, value: number) {
+    view.setUint8(offset, value & 0xFF);
+    view.setUint8(offset + 1, (value >> 8) & 0xFF);
+}
+
+export function setUInt32LE(view: DataView, offset: number, value: number) {
+    view.setUint8(offset, value & 0xFF);
+    view.setUint8(offset + 1, (value >> 8) & 0xFF);
+    view.setUint8(offset + 2, (value >> 16) & 0xFF);
+    view.setUint8(offset + 3, (value >> 24) & 0xFF);
+}
+
 // --- Bit Manipulation Utilities ---
 
 export class BitUtils {
