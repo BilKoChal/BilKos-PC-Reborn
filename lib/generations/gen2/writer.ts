@@ -1,4 +1,4 @@
-import { ParsedSave, PokemonStats, Item, isGen2Extension, Gen2SaveExtension } from '../../parser/types';
+import { ParsedSave, PokemonStats, Item, isGen2Extension, isGen2SaveExtension, Gen2SaveExtension } from '../../parser/types';
 import { 
   setUInt16BigEndian, 
   setUInt24BigEndian, 
@@ -70,9 +70,9 @@ export function writeGen2PokemonStruct(
   // For eggs: this byte stores the hatch counter (egg cycles remaining)
   // For hatched Pokemon: this byte stores friendship/happiness
   if (mon.isEgg) {
-    // Write eggCycles from Gen2Extension if available, otherwise use raw byte 27
-    const gen2Ext = mon.genExtension as import('../../canonicalModel').Gen2Extension | null;
-    const eggCycles = (gen2Ext && gen2Ext.generation === 2 && gen2Ext.eggCycles > 0) 
+    // D2: Use isGen2Extension type guard instead of `as Gen2Extension` + `generation === 2` check
+    const gen2Ext = isGen2Extension(mon.genExtension) ? mon.genExtension : null;
+    const eggCycles = (gen2Ext && gen2Ext.eggCycles > 0) 
       ? gen2Ext.eggCycles 
       : (mon.raw && mon.raw[27] !== undefined ? mon.raw[27]! : 0);
     data[offset + 27] = eggCycles;
@@ -82,9 +82,9 @@ export function writeGen2PokemonStruct(
   data[offset + 28] = mon.pokerus !== undefined ? mon.pokerus : 0;
 
   // 9b. Phase 3: Write CaughtData (Crystal only) — bytes 0x1D-0x1E
-  // Read caughtData from Gen2Extension if available, otherwise preserve raw bytes
-  const gen2Ext = mon.genExtension as import('../../canonicalModel').Gen2Extension | null;
-  if (gen2Ext && gen2Ext.generation === 2 && gen2Ext.caughtData !== undefined && gen2Ext.caughtData !== 0) {
+  // D2: Use isGen2Extension type guard instead of `as Gen2Extension` + `generation === 2` check
+  const gen2Ext = isGen2Extension(mon.genExtension) ? mon.genExtension : null;
+  if (gen2Ext && gen2Ext.caughtData !== undefined && gen2Ext.caughtData !== 0) {
     data[offset + 0x1D] = (gen2Ext.caughtData >> 8) & 0xFF;
     data[offset + 0x1E] = gen2Ext.caughtData & 0xFF;
   }
@@ -509,10 +509,10 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   // ── Determine version and region ──
   const gameVersion = (save.gameVersion || 'Gold') as Gen2Version;
   
-  // Get region from Gen2SaveExtension, default to international
+  // D2: Use isGen2SaveExtension type guard for safe region access
   let region: Gen2Region = 'international';
-  if (save.genExtension && 'region' in save.genExtension) {
-    const extRegion = (save.genExtension as Gen2SaveExtension).region;
+  if (isGen2SaveExtension(save.genExtension)) {
+    const extRegion = save.genExtension.region;
     if (extRegion === 'japanese' || extRegion === 'korean' || extRegion === 'international') {
       region = extRegion as Gen2Region;
     }
@@ -521,8 +521,8 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   const offsets = getGen2Offsets(gameVersion, region);
   const strLen = offsets.stringLength;
 
-  // Get Gen2SaveExtension for Phase 2 data
-  const gen2SaveExt = (save.genExtension as Gen2SaveExtension) || new Gen2SaveExtension();
+  // D2: Use isGen2SaveExtension type guard for safe extension access
+  const gen2SaveExt = isGen2SaveExtension(save.genExtension) ? save.genExtension : new Gen2SaveExtension();
 
   // ── Write Game Options ──
   if (save.options) {

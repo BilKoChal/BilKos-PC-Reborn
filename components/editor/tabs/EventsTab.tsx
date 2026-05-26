@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ParsedSave, GameOptions, isGen2Extension, Gen2SaveExtension, Gen2Extension } from '../../../lib/parser/types';
+import { ParsedSave, GameOptions, isGen2Extension, isGen2SaveExtension, Gen2Extension } from '../../../lib/parser/types';
 import { EventFlagsManager } from '../EventFlagsManager';
 import { Settings, Clock, Flag, MapPin, Baby, CreditCard, Gift, Sparkles, Swords, PiggyBank, Eye, Flame, Zap, Snowflake, Phone } from 'lucide-react';
 
@@ -46,9 +46,9 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     handleEventFlagsUpdate,
     handleOptionsUpdate
 }) => {
-    // Get Gen 2 save extension for save-level data display
-    // Adapter-driven: use adapter capability flags instead of hardcoded generation checks
-    const gen2Ext = data.genExtension && (data.genExtension as Gen2SaveExtension).generation === 2 ? (data.genExtension as Gen2SaveExtension | null) : null;
+    // D1/D2: Use isGen2SaveExtension type guard instead of manual `as Gen2SaveExtension` cast
+    // + `.generation === 2` check. Follows PKHeX's `sav is SAV2` pattern.
+    const gen2Ext = isGen2SaveExtension(data.genExtension) ? data.genExtension : null;
     const isCrystal = gen2Ext?.gameVersion === 'Crystal';
 
     return (

@@ -138,8 +138,9 @@ export const CaughtDataSection: ISectionExtension = {
   id: 'gsc-caught-data',
   panelId: 'pokemon-info',
   render(mon: PokemonStats) {
-    const gen2Ext = mon.genExtension as Gen2Extension | null;
-    if (!gen2Ext || gen2Ext.generation !== 2 || gen2Ext.caughtData === 0) return null;
+    // D2: Use isGen2Extension type guard instead of `as Gen2Extension | null` cast
+    const gen2Ext = isGen2Extension(mon.genExtension) ? mon.genExtension : null;
+    if (!gen2Ext || gen2Ext.caughtData === 0) return null;
 
     const todIcon = gen2Ext.metTimeOfDay === 'Morning' ? '🌅' 
       : gen2Ext.metTimeOfDay === 'Day' ? '☀️' 
@@ -205,8 +206,9 @@ export const FriendshipEggSection: ISectionExtension = {
   id: 'gsc-friendship-egg',
   panelId: 'pokemon-info',
   render(mon: PokemonStats, context: IExtensionRenderContext) {
-    const gen2Ext = mon.genExtension as Gen2Extension | null;
-    if (!gen2Ext || gen2Ext.generation !== 2) return null;
+    // D2: Use isGen2Extension type guard instead of `as Gen2Extension | null` cast
+    const gen2Ext = isGen2Extension(mon.genExtension) ? mon.genExtension : null;
+    if (!gen2Ext) return null;
 
     if (mon.isEgg) {
       // Egg: show hatch counter (egg cycles)

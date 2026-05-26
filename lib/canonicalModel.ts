@@ -256,6 +256,27 @@ export interface ISaveExtension {
 }
 
 /**
+ * Type guard for Generation 1 save-level extension.
+ * Use this to narrow `data.genExtension: ISaveExtension | null` to `Gen1SaveExtension`,
+ * replacing unsafe `as Gen1SaveExtension` casts and `data.generation === 1` checks
+ * when accessing save-level extension fields. Follows PKHeX's `sav is SAV1` pattern.
+ */
+export function isGen1SaveExtension(ext: ISaveExtension | null | undefined): ext is Gen1SaveExtension {
+  return ext !== null && ext !== undefined && ext.generation === 1;
+}
+
+/**
+ * Type guard for Generation 2 save-level extension.
+ * Use this to narrow `data.genExtension: ISaveExtension | null` to `Gen2SaveExtension`,
+ * replacing unsafe `as Gen2SaveExtension` / `as any` casts and `data.generation >= 2` /
+ * `data.generation === 2` checks when accessing save-level extension fields.
+ * Follows PKHeX's `sav is SAV2` / `sav is IBoxDetailName` pattern.
+ */
+export function isGen2SaveExtension(ext: ISaveExtension | null | undefined): ext is Gen2SaveExtension {
+  return ext !== null && ext !== undefined && ext.generation === 2;
+}
+
+/**
  * Generation 1 Specific save-level extension.
  */
 export class Gen1SaveExtension implements ISaveExtension {

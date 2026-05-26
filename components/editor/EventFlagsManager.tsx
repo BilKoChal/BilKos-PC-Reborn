@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ParsedSave, Gen2SaveExtension } from '../../lib/parser/types';
+import { ParsedSave, isGen2SaveExtension } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { MapPin, Gift, Zap, Flag, Swords } from 'lucide-react';
 // A7: Game events now accessed through adapter — no direct imports from gen1/gen2 data files.
@@ -19,17 +19,18 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
     const adapter = saveCtx?.adapter;
     const [flags, setFlags] = useState<boolean[]>([...data.eventFlags]);
 
-    // A7: Get the correct event database from the adapter, with version filtering for Gen 2+
+    // A7/D1/D2: Get the correct event database from the adapter, with version filtering.
+    // Uses isGen2SaveExtension type guard instead of `data.generation >= 2` + `as Gen2SaveExtension` cast.
+    // Future Gen3+ adapters will provide their own version via isGen3SaveExtension / adapter methods.
     const eventsData: GameEventDefinition[] = useMemo(() => {
         if (!adapter) return [];
-        // Determine version for filtering (Gen 2+ needs version-aware filtering)
+        // Determine version for filtering via save-level type guard
         let version: string | undefined;
-        if (data.generation >= 2) {
-            const gen2Ext = data.genExtension as Gen2SaveExtension | null;
-            version = gen2Ext?.gameVersion;
+        if (isGen2SaveExtension(data.genExtension)) {
+            version = data.genExtension.gameVersion;
         }
         return adapter.getGameEvents(version);
-    }, [adapter, data.generation, data.genExtension]);
+    }, [adapter, data.genExtension]);
 
     // Group events by category
     const groupedEvents = eventsData.reduce((acc, event) => {
@@ -85,7 +86,7 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
                     </div>
                     {adapter?.hasGender && (
                         <div className="text-[10px] bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-full font-bold">
-                            {(data.genExtension as Gen2SaveExtension)?.gameVersion || 'GSC'}
+                            {isGen2SaveExtension(data.genExtension) ? data.genExtension.gameVersion : 'GSC'}
                         </div>
                     )}
                 </div>

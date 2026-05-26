@@ -125,8 +125,9 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
     const adapter = adapterProp ?? ctx?.adapter;
     const [chartMode, setChartMode] = useState<'bar' | 'radar'>('bar');
 
-    // Adapter-driven: replaces `generation === 1` branching for stat display
-    const hasSplitSpecial = adapter?.hasSplitSpecial ?? (generation !== 1);
+    // D1: Adapter-driven — `adapter.hasSplitSpecial` is always provided by both adapters.
+    // Fallback to `false` (Gen 1 default) if adapter is somehow unavailable.
+    const hasSplitSpecial = adapter?.hasSplitSpecial ?? false;
 
     // Adapter-driven IV/EV limits (A2 fix)
     const ivMax = ivMaxProp ?? adapter?.ivMax ?? 15;

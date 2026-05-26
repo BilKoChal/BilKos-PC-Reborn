@@ -114,7 +114,7 @@ describe('recalculateStats', () => {
       level: 5,
     } as any;
 
-    const result = recalculateStats(mon, baseStats, 1);
+    const result = recalculateStats(mon, baseStats, 1, false);
 
     // Verify HP formula
     // ((45 + 15) * 2 + 0) * 5 / 100 + 5 + 10 = 600/100 + 15 = 21
@@ -138,7 +138,7 @@ describe('recalculateStats', () => {
       level: 5,
     } as any;
 
-    const result = recalculateStats(mon, baseStats, 1);
+    const result = recalculateStats(mon, baseStats, 1, false);
     expect(result.hp).toBe(result.maxHp);
   });
 });

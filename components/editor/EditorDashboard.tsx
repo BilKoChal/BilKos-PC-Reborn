@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions } from '../../lib/parser/types';
+import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions, isGen2SaveExtension, Gen2SaveExtension } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { SaveProvider, useSaveContextSafe } from '../../context/SaveContext';
 import { EditorTools } from './EditorTools';
@@ -241,8 +241,9 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     };
 
     const handlePokedexUpdate = (owned: boolean[], seen: boolean[]) => {
-        // Adapter-driven: replaces hardcoded `data.generation === 2 ? 251 : 151`
-        const generationLimit = adapter?.nationalDexMax ?? (data.generation === 2 ? 251 : 151);
+        // D1: Adapter-driven — removes `data.generation === 2 ? 251 : 151` fallback.
+        // The adapter always provides nationalDexMax; 151 is a dead-code safety net.
+        const generationLimit = adapter?.nationalDexMax ?? 151;
         const ownedCount = owned.filter((f, i) => i > 0 && i <= generationLimit && f).length;
         const seenCount = seen.filter((f, i) => i > 0 && i <= generationLimit && f).length;
         
@@ -268,30 +269,30 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
 
     const handleBoxNameChange = (boxIndex: number, newName: string) => {
         const newData = { ...data };
-        // Update the save extension boxNames if this generation supports them
-        if (adapter?.supportsBoxNames && newData.genExtension) {
-            const gen2Ext = newData.genExtension as import('../../lib/canonicalModel').Gen2SaveExtension;
-            if (gen2Ext.generation === 2) {
-                const updatedNames = [...(gen2Ext.boxNames || [])];
-                while (updatedNames.length <= boxIndex) {
-                    updatedNames.push('');
-                }
-                updatedNames[boxIndex] = newName;
-                gen2Ext.boxNames = updatedNames;
-                newData.genExtension = { ...gen2Ext, boxNames: updatedNames } as import('../../lib/canonicalModel').Gen2SaveExtension;
+        // D2: Use isGen2SaveExtension type guard instead of `as Gen2SaveExtension` + `generation === 2` check.
+        // Follows PKHeX's `sav is IBoxDetailName` pattern.
+        if (adapter?.supportsBoxNames && isGen2SaveExtension(newData.genExtension)) {
+            const gen2Ext = newData.genExtension;
+            const updatedNames = [...(gen2Ext.boxNames || [])];
+            while (updatedNames.length <= boxIndex) {
+                updatedNames.push('');
             }
+            updatedNames[boxIndex] = newName;
+            newData.genExtension = { ...gen2Ext, boxNames: updatedNames } as Gen2SaveExtension;
         }
         updateData(newData);
     };
 
+    // D2: Use isGen2SaveExtension type guard instead of `as any` casts.
     // Box name support — adapter-driven (replaces generation === 2 / >= 2 checks)
+    const gen2SaveExt = isGen2SaveExtension(data.genExtension) ? data.genExtension : null;
     const boxNames = adapter?.supportsBoxNames
-        ? (data.genExtension as any)?.boxNames || []
+        ? gen2SaveExt?.boxNames ?? []
         : undefined;
     const canEditBoxNames = adapter?.supportsBoxNames ?? false;
     // Max box name length: adapter declares default, Korean override for Gen2
     const boxNameMaxLength = adapter?.supportsBoxNames
-        ? ((data.genExtension as any)?.region === 'korean' ? 16 : (adapter?.boxNameMaxLength ?? 8))
+        ? (gen2SaveExt?.region === 'korean' ? 16 : (adapter?.boxNameMaxLength ?? 8))
         : undefined;
 
     const TabButton = ({ id, icon: Icon, label }: { id: DashboardTab, icon: React.ElementType, label: string }) => {

@@ -1,6 +1,7 @@
 import React from 'react';
-import { ParsedSave, Gen2SaveExtension, Gen2Mail } from '../../../lib/parser/types';
+import { ParsedSave, isGen2SaveExtension, Gen2Mail } from '../../../lib/parser/types';
 import { Mail, Inbox, Send, User } from 'lucide-react';
+import { useSaveContextSafe } from '../../../context/SaveContext';
 
 interface MailboxTabProps {
     data: ParsedSave;
@@ -92,18 +93,23 @@ const MailCard: React.FC<{ mail: Gen2Mail; index: number; label: string }> = ({ 
 };
 
 export const MailboxTab: React.FC<MailboxTabProps> = ({ data }) => {
-    if (data.generation !== 2) {
+    const saveCtx = useSaveContextSafe();
+    const adapter = saveCtx?.adapter;
+
+    // D1: Use adapter capability flag instead of `data.generation !== 2`.
+    // The parent tab already conditionally renders this tab via adapter?.hasMailbox.
+    if (!adapter?.hasMailbox) {
         return (
             <div className="w-full flex flex-col items-center justify-center py-20 text-gray-400">
                 <Mail size={48} className="mb-4 opacity-40" />
                 <h3 className="font-bold text-lg uppercase tracking-widest">Mailbox Not Available</h3>
-                <p className="text-sm mt-2">Mailbox is only available in Generation 2 saves.</p>
+                <p className="text-sm mt-2">Mailbox is not available for this generation.</p>
             </div>
         );
     }
 
-    // Read from Gen2SaveExtension
-    const ext = data.genExtension as Gen2SaveExtension | null;
+    // D2: Use isGen2SaveExtension type guard instead of `as Gen2SaveExtension` cast.
+    const ext = isGen2SaveExtension(data.genExtension) ? data.genExtension : null;
     const mailbox = ext?.mailbox;
 
     // Count non-null mail entries

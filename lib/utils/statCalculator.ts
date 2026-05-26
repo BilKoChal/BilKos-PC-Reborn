@@ -41,7 +41,20 @@ export function deriveBaseStats(mon: PokemonStats, generation: Generation): Base
     }
 }
 
-export function recalculateStats(mon: PokemonStats, baseStats: BaseStats, generation: Generation): PokemonStats {
+/**
+ * Recalculate Pokemon stats from base stats and IV/EV values.
+ *
+ * D1: The `generation` parameter is retained for backward compatibility but is
+ * NO LONGER used for branching. The `hasSplitSpecial` parameter replaces the
+ * former `generation >= 2` check, following the adapter-driven pattern where
+ * the caller passes `adapter.hasSplitSpecial` instead of relying on a hardcoded
+ * generation comparison. This makes the function generation-agnostic — Gen 3+
+ * adapters will pass their own stat recalculation through `adapter.recalculateStats()`.
+ *
+ * @param hasSplitSpecial Whether this generation has split SpAtk/SpDef (Gen2+).
+ *   Defaults to `true` for backward compatibility with callers that don't pass it.
+ */
+export function recalculateStats(mon: PokemonStats, baseStats: BaseStats, generation: Generation, hasSplitSpecial: boolean = true): PokemonStats {
     // B6: Deep-clone iv and ev to prevent latent shared-reference bugs.
     // Even though this function currently only reads mon.iv/mon.ev (doesn't write),
     // the shallow clone means any caller that later writes to newMon.iv would
@@ -49,7 +62,7 @@ export function recalculateStats(mon: PokemonStats, baseStats: BaseStats, genera
     // the fix applied to recalculateGen2Stats.
     const newMon = { ...mon, iv: { ...mon.iv }, ev: { ...mon.ev } };
 
-    if (generation >= 2) {
+    if (hasSplitSpecial) {
       // Gen 2+: Use split SpAtk/SpDef
       newMon.maxHp = calculateGen1Stat(baseStats.hp, mon.iv.hp, mon.ev.hp, mon.level, true); // Same formula
       newMon.hp = newMon.maxHp;

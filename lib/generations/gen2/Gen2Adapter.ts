@@ -1,5 +1,5 @@
 import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
-import { ParsedSave, PokemonStats, Gen2SaveExtension } from '../../parser/types';
+import { ParsedSave, PokemonStats, Gen2SaveExtension, isGen2SaveExtension } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
 import { writeGen2Save, writeGen2PokemonStruct } from './writer';
 import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
@@ -484,7 +484,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * Falls back to default "BOX N" names if the extension is not available.
    */
   getBoxNames(save: ParsedSave): string[] {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     if (ext && ext.boxNames && ext.boxNames.length > 0) {
       return ext.boxNames;
     }
@@ -498,7 +498,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * Returns the rival's name, or empty string if not available.
    */
   getRivalName(save: ParsedSave): string {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     if (ext && ext.rivalName) return ext.rivalName;
     return save.trainer.rivalName || '';
   }
@@ -524,7 +524,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    */
   getMapData(save: ParsedSave): { currentMapId: number; x: number; y: number } {
     if (save.map) return save.map;
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     if (ext) return { currentMapId: ext.currentMapId, x: ext.mapX, y: ext.mapY };
     return { currentMapId: 0, x: 0, y: 0 };
   }
@@ -537,7 +537,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * Mystery Gift, GS Ball event, and Move Tutors that Gold/Silver lack.
    */
   isCrystal(save: ParsedSave): boolean {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     return ext?.gameVersion === 'Crystal';
   }
 
@@ -547,7 +547,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * The Blue Card tracks Battle Tower wins and can be exchanged for prizes.
    */
   getBlueCardPoints(save: ParsedSave): number {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     return ext?.blueCardPoints ?? -1;
   }
 
@@ -558,7 +558,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * that allows players to receive items from other players or special events.
    */
   getMysteryGiftStatus(save: ParsedSave): { unlocked: number; item: number } | null {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     if (!ext || ext.mysteryGiftUnlocked < 0) return null;
     return { unlocked: ext.mysteryGiftUnlocked, item: ext.mysteryGiftItem };
   }
@@ -570,7 +570,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * Virtual Console releases. Returns false for Gold/Silver saves.
    */
   isGSBallEventEnabled(save: ParsedSave): boolean {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     return ext?.gsBallEventEnabled ?? false;
   }
 
@@ -582,7 +582,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * Returns an empty array for Gold/Silver saves (no Move Tutors).
    */
   getMoveTutorFlags(save: ParsedSave): boolean[] {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     return ext?.moveTutorFlags ?? [];
   }
 
@@ -620,7 +620,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * events like day/night cycles and berry growth.
    */
   getRtcFlags(save: ParsedSave): number {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     return ext?.rtcFlags ?? 0;
   }
 
@@ -630,7 +630,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * Returns 0 if the extension is not available.
    */
   getMomSavings(save: ParsedSave): number {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     return ext?.momSavings ?? 0;
   }
 
@@ -640,7 +640,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * name, and map location info. Returns empty array if not available.
    */
   getPhoneContacts(save: ParsedSave): { trainerClass: number; name: string; mapGroup: number; mapNumber: number }[] {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     return ext?.phoneContacts ?? [];
   }
 
@@ -650,7 +650,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * unlock flags, and first seen form. Returns null if no data.
    */
   getUnownDexData(save: ParsedSave): { caughtForms: number[]; unlockedFlags: number; firstSeen: number } | null {
-    const ext = save.genExtension as Gen2SaveExtension | null;
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     if (!ext || ext.unownCaughtForms.length === 0) return null;
     return {
       caughtForms: ext.unownCaughtForms,

@@ -64,12 +64,13 @@ function sortLivingDex(
     externalSaves: { id: string, data: ParsedSave }[]
 ): SortResult {
     
-    // Adapter-driven: replaces hardcoded generation checks
+    // D1: Adapter-driven — replaces hardcoded `generation === 1` / `generation === 2` checks.
+    // Box slot count comes from adapter (handles Japanese Gen1 30-slot boxes internally).
+    // nationalDexMax comes from adapter; 151 is a dead-code safety net.
     const adapter = registry.getAdapter(targetSave.generation);
     const numBoxes = targetSave.pcBoxes.length;
-    const isJapanese = targetSave.generation === 1 && numBoxes === 8;
-    const boxCapacity = isJapanese ? 30 : 20;
-    const maxDex = adapter?.nationalDexMax ?? (targetSave.generation === 2 ? 251 : 151);
+    const boxCapacity = adapter?.boxSlotCount ?? 20;
+    const maxDex = adapter?.nationalDexMax ?? 151;
     const livingDexBoxesCount = Math.ceil(maxDex / boxCapacity);
     const overflowStartBox = livingDexBoxesCount;
 
@@ -310,8 +311,9 @@ export function sortPCBoxes(
     
     const numBoxes = targetSave.pcBoxes.length;
     const adapter = registry.getAdapter(targetSave.generation);
-    const boxCapacity = (targetSave.generation === 1 && numBoxes === 8) ? 30 : 20;
-    const maxDex = adapter?.nationalDexMax ?? (targetSave.generation === 2 ? 251 : 151);
+    // D1: Adapter-driven box capacity — replaces `generation === 1 && numBoxes === 8 ? 30 : 20`
+    const boxCapacity = adapter?.boxSlotCount ?? 20;
+    const maxDex = adapter?.nationalDexMax ?? 151;
 
     newBoxes = Array.from({ length: numBoxes }, () => []);
     for (let i = 0; i < numBoxes; i++) {

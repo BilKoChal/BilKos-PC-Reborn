@@ -170,7 +170,8 @@ export class Gen1Adapter implements IGenerationAdapter {
   }
 
   recalculateStats(mon: PokemonStats, baseStats: BaseStats): PokemonStats {
-    return recalculateStats(mon, baseStats, 1);
+    // D1: Pass hasSplitSpecial=false instead of relying on generation >= 2 check inside
+    return recalculateStats(mon, baseStats, 1, false);
   }
 
   getBaseStats(dexId: number): BaseStats | undefined {

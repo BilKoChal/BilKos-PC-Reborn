@@ -20,8 +20,9 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
     const ctx = useSaveContextSafe();
     const adapter = ctx?.adapter;
 
-    // Adapter-driven values replace all hardcoded `generation === 2 ? 251 : 151` checks
-    const maxDex = adapter?.nationalDexMax ?? (data.generation === 2 ? 251 : 151);
+    // D1: Adapter-driven — removes `data.generation === 2 ? 251 : 151` fallback.
+    // The adapter always provides nationalDexMax; 151 is a dead-code safety net.
+    const maxDex = adapter?.nationalDexMax ?? 151;
     const pokemonNames = adapter?.getAllSpeciesNames() ?? [];
 
     // State

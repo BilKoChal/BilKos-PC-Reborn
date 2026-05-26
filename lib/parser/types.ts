@@ -31,6 +31,8 @@ export {
   isGen1Extension,
   isGen2Extension,
   isGen3Extension,
+  isGen1SaveExtension,
+  isGen2SaveExtension,
   Gen1Extension,
   Gen2Extension,
   Gen3Extension,
