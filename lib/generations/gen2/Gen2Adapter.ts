@@ -19,78 +19,9 @@ import {
 } from './data/offsets';
 import { Gen2StandaloneFormat } from './StandaloneFormat';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
-import { getPokemonTypes } from '../gen1/data/pokemonTypes';
+import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
+import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
 import './extensions';
-
-// Specific GSC typings incorporating Dark (16) and Steel (15/8) types
-const GSC_SPECIES_TYPES: Record<number, string[]> = {
-  81: ['Electric', 'Steel'],  // Magnemite
-  82: ['Electric', 'Steel'],  // Magneton
-  152: ['Grass'], 153: ['Grass'], 154: ['Grass'], 
-  155: ['Fire'], 156: ['Fire'], 157: ['Fire'], 
-  158: ['Water'], 159: ['Water'], 160: ['Water'], 
-  161: ['Normal'], 162: ['Normal'], 
-  163: ['Normal', 'Flying'], 164: ['Normal', 'Flying'], 
-  165: ['Bug', 'Flying'], 166: ['Bug', 'Flying'], 
-  167: ['Bug', 'Poison'], 168: ['Bug', 'Poison'], 
-  169: ['Poison', 'Flying'], 
-  170: ['Water', 'Electric'], 171: ['Water', 'Electric'], 
-  172: ['Electric'], 173: ['Normal'], 174: ['Normal'], 
-  175: ['Normal'], 176: ['Normal', 'Flying'], 
-  177: ['Psychic', 'Flying'], 178: ['Psychic', 'Flying'], 
-  179: ['Electric'], 180: ['Electric'], 181: ['Electric'], 
-  182: ['Grass'], 
-  183: ['Water'], 184: ['Water'], 
-  185: ['Rock'], 
-  186: ['Water'], 
-  187: ['Grass', 'Flying'], 188: ['Grass', 'Flying'], 189: ['Grass', 'Flying'], 
-  190: ['Normal'], 
-  191: ['Grass'], 192: ['Grass'], 
-  193: ['Bug', 'Flying'], 
-  194: ['Water', 'Ground'], 195: ['Water', 'Ground'], 
-  196: ['Psychic'], 197: ['Dark'], 
-  198: ['Dark', 'Flying'], 
-  199: ['Water', 'Psychic'], 
-  200: ['Ghost'], 
-  201: ['Psychic'], 
-  202: ['Psychic'], 
-  203: ['Normal', 'Psychic'], 
-  204: ['Bug'], 205: ['Bug', 'Steel'], 
-  206: ['Normal'], 
-  207: ['Ground', 'Flying'], 
-  208: ['Steel', 'Ground'], 
-  209: ['Normal'], 210: ['Normal'], 
-  211: ['Water', 'Poison'], 
-  212: ['Bug', 'Steel'], 
-  213: ['Bug', 'Rock'], 
-  214: ['Bug', 'Fighting'], 
-  215: ['Dark', 'Ice'], 
-  216: ['Normal'], 217: ['Normal'], 
-  218: ['Fire'], 219: ['Fire', 'Rock'], 
-  220: ['Ice', 'Ground'], 221: ['Ice', 'Ground'], 
-  222: ['Water', 'Rock'], 
-  223: ['Water'], 224: ['Water'], 
-  225: ['Ice', 'Flying'], 
-  226: ['Water', 'Flying'], 
-  227: ['Steel', 'Flying'], 
-  228: ['Dark', 'Fire'], 229: ['Dark', 'Fire'], 
-  230: ['Water', 'Dragon'], 
-  231: ['Ground'], 232: ['Ground'], 
-  233: ['Normal'], 
-  234: ['Normal'], 
-  235: ['Normal'], 
-  236: ['Fighting'], 237: ['Fighting'], 
-  238: ['Ice', 'Psychic'], 
-  239: ['Electric'], 
-  240: ['Fire'], 
-  241: ['Normal'], 
-  242: ['Normal'], 
-  243: ['Electric'], 244: ['Fire'], 245: ['Water'],
-  246: ['Rock', 'Ground'], 247: ['Rock', 'Ground'], 248: ['Rock', 'Dark'], 
-  249: ['Psychic', 'Flying'], 
-  250: ['Fire', 'Flying'],
-  251: ['Grass', 'Psychic']
-};
 
 export class Gen2Adapter implements IGenerationAdapter {
   generation = 2;
@@ -410,19 +341,14 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   getTypes(dexId: number): { type1: number; type2: number; type1Name: string; type2Name: string } {
-    const types = GSC_SPECIES_TYPES[dexId] || getPokemonTypes(dexId) || ['Normal'];
+    // Use Gen2-specific type lookup with Gen1 fallback for Kanto species
+    const types = getGen2PokemonTypes(dexId, getGen1PokemonTypes);
     const type1Name = types[0] || 'Normal';
     const type2Name = types[1] || type1Name;
 
-    const internalMap: Record<string, number> = {
-      'Normal': 0, 'Fighting': 1, 'Flying': 2, 'Poison': 3, 'Ground': 4, 'Rock': 5, 
-      'Bug': 7, 'Ghost': 8, 'Steel': 9,
-      'Fire': 20, 'Water': 21, 'Grass': 22, 'Electric': 23, 'Psychic': 24, 'Ice': 25, 'Dragon': 26, 'Dark': 27
-    };
-
     return {
-      type1: internalMap[type1Name] !== undefined ? internalMap[type1Name] : 0,
-      type2: internalMap[type2Name] !== undefined ? internalMap[type2Name] : 0,
+      type1: GEN2_TYPE_ID_MAP[type1Name] ?? 0,
+      type2: GEN2_TYPE_ID_MAP[type2Name] ?? 0,
       type1Name,
       type2Name
     };

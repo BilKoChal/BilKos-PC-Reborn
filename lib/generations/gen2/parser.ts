@@ -1,5 +1,6 @@
 import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension, HallOfFameTeam, HallOfFamePokemon, Gen2TmHmEntry } from '../../parser/types';
-import { getPokemonTypes, TYPE_MAP } from '../gen1/data/pokemonTypes';
+import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
+import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
 import { 
   getUInt16BigEndian, 
   getUInt24BigEndian, 
@@ -220,16 +221,6 @@ export function getGen2Gender(speciesId: number, atkIv: number): string {
   return atkIv <= 7 ? 'Female' : 'Male';
 }
 
-// Map 2-byte type IDs inside Gen 2 structure
-export function getGen2TypeName(typeId: number): string {
-  const GSC_TYPES: Record<number, string> = {
-    0: "Normal", 1: "Fighting", 2: "Flying", 3: "Poison", 4: "Ground", 
-    5: "Rock", 7: "Bug", 8: "Ghost", 9: "Steel", 20: "Fire", 21: "Water", 
-    22: "Grass", 23: "Electric", 24: "Psychic", 25: "Ice", 26: "Dragon", 27: "Dark"
-  };
-  return GSC_TYPES[typeId] || "Normal";
-}
-
 export function parseGen2PokemonStruct(
   view: Uint8Array, 
   offset: number, 
@@ -358,12 +349,12 @@ export function parseGen2PokemonStruct(
   // For eggs, gender is based on the hatched species (body speciesId)
   const gender = isEggDetected ? 'Genderless' : getGen2Gender(speciesId, atkIv);
 
-  // Use types from GSC constants or Fallback to standard mapping
-  const parsedTypes = getPokemonTypes(dexId, 2);
+  // Use Gen2-specific type lookup with Gen1 fallback
+  const parsedTypes = getGen2PokemonTypes(dexId, getGen1PokemonTypes);
   const t1Name = parsedTypes[0] || 'Normal';
   const t2Name = parsedTypes[1] || t1Name;
-  const type1Id = TYPE_MAP[t1Name] !== undefined ? TYPE_MAP[t1Name] : 0;
-  const type2Id = TYPE_MAP[t2Name] !== undefined ? TYPE_MAP[t2Name] : 0;
+  const type1Id = GEN2_TYPE_ID_MAP[t1Name] !== undefined ? GEN2_TYPE_ID_MAP[t1Name] : 0;
+  const type2Id = GEN2_TYPE_ID_MAP[t2Name] !== undefined ? GEN2_TYPE_ID_MAP[t2Name] : 0;
 
   const raw = view.slice(offset, offset + (isParty ? 48 : 32));
 
@@ -702,8 +693,8 @@ export function parseGen2HallOfFame(
       // Use GEN2_POKEMON_NAMES for species name (species ID = National Dex in Gen 2)
       const speciesName = GEN2_POKEMON_NAMES[speciesId] || `Species ${speciesId}`;
 
-      // Get type info from the adapter's type table
-      const parsedTypes = getPokemonTypes(speciesId, 2);
+      // Get type info from Gen2-specific type lookup
+      const parsedTypes = getGen2PokemonTypes(speciesId, getGen1PokemonTypes);
       const types = parsedTypes.length > 0 ? parsedTypes : ['Normal'];
 
       pokemon.push({

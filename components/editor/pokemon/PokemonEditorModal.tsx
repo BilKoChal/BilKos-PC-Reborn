@@ -8,7 +8,9 @@ import { X, Save, Download, Book } from 'lucide-react';
 // which uses the correct generation-specific formula. The shared statCalculator uses
 // the Gen 1 formula for all generations, which produces wrong results for Gen 3+.
 import { getGrowthRate, getLevelFromExp as calculateLevel, getExpAtLevel as calculateMinExp } from '../../../lib/utils/experience';
-import { getPokemonTypes } from '../../../lib/generations/gen1/data/pokemonTypes';
+// NOTE: Type lookup is now routed through adapter.getTypes() instead of direct
+// getPokemonTypes() import. The adapter provides generation-correct type data
+// without cross-gen namespace coupling (A6 fix).
 // NOTE: Generation-specific name lists are now accessed via adapter.getAllSpeciesNames() instead of
 // direct imports. The adapter provides both single-name lookups (getPokemonName) and full list
 // enumeration (getAllSpeciesNames), eliminating hardcoded generation branching.
@@ -42,10 +44,15 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     // Modal states
     const [showDexEntry, setShowDexEntry] = useState(false);
 
-    // Derived Types state
+    // Derived Types state — adapter-driven (A6: eliminates direct gen1/data import)
     const types = useMemo(() => {
-        return getPokemonTypes(mon.dexId, generation);
-    }, [mon.dexId, generation]);
+        if (adapter) {
+            const typeInfo = adapter.getTypes(mon.dexId);
+            return [typeInfo.type1Name, typeInfo.type2Name];
+        }
+        // Fallback for cases where adapter is not yet available
+        return [mon.type1Name || 'Normal', mon.type2Name || 'Normal'];
+    }, [adapter, mon.dexId, mon.type1Name, mon.type2Name]);
 
     // Adapter-driven IV/EV limits (A2 fix: replaces hardcoded clamp values)
     const ivMax = adapter?.ivMax ?? 15;
@@ -86,13 +93,13 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
             const maxDex = adapter.nationalDexMax;
             for (let id = 1; id <= maxDex; id++) {
                 if (adapter.getPokemonName(id) === name) {
-                    const speciesTypes = getPokemonTypes(id, generation);
+                    const speciesTypes = adapter.getTypes(id);
                     setMon(prev => ({ 
                         ...prev, 
                         speciesName: name, 
                         dexId: id,
-                        type1Name: speciesTypes[0] || 'Normal',
-                        type2Name: speciesTypes[1] || speciesTypes[0] || 'Normal'
+                        type1Name: speciesTypes.type1Name || 'Normal',
+                        type2Name: speciesTypes.type2Name || speciesTypes.type1Name || 'Normal'
                     }));
                     setIsDirty(true);
                     return;

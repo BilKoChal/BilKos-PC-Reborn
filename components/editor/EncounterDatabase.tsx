@@ -12,7 +12,9 @@ import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
 import { PokemonSprite } from '../ui/PokemonSprite';
 import { Search, Gift, Database, Tag, ExternalLink, User, Plus, Box } from 'lucide-react';
 import { TypeBadge } from '../ui/PokemonBadges';
-import { getPokemonTypes } from '../../lib/generations/gen1/data/pokemonTypes';
+// A6: Type lookup now uses adapter.getTypes() instead of direct gen1/data import.
+// The adapter provides generation-correct type data without cross-gen coupling.
+import { useSaveContextSafe } from '../../context/SaveContext';
 
 // Merge all distributions into a single array for the current generation
 function getEventDistributions(generation: number): EventPokemonData[] {
@@ -33,6 +35,8 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
     const { getGameTheme } = useTheme();
     const { mode: spriteMode } = useSpriteMode();
     const theme = getGameTheme();
+    const saveCtx = useSaveContextSafe();
+    const adapter = saveCtx?.adapter;
     
     const [search, setSearch] = useState('');
 
@@ -160,7 +164,8 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                             <span className="font-bold uppercase text-xs tracking-widest">No Events Found</span>
                         </div>
                     ) : filteredEvents.map((evt) => {
-                        const types = getPokemonTypes(evt.previewDexId, evt.generation);
+                        const typeInfo = adapter?.getTypes(evt.previewDexId);
+                        const types = typeInfo ? [typeInfo.type1Name, typeInfo.type2Name] : ['Normal'];
                         const spriteUrl = getPokemonSpriteUrl(evt.previewDexId, spriteMode, data.gameVersion);
 
                         return (

@@ -1,50 +1,41 @@
+/**
+ * Gen 1 (Red/Blue/Yellow) type data.
+ *
+ * This module owns ALL Gen1-specific type information:
+ * - Species → type mapping for Gen1's 151 Pokémon
+ * - Gen1 internal type ID map (used in save file byte layout)
+ * - Type name lookup from Gen1 internal IDs
+ *
+ * IMPORTANT: The canonical TYPE_MAP (name → modern ID) has been moved
+ * to the shared `lib/data/types.ts`. Each generation's internal ID map
+ * lives in its own genN/data/types.ts.
+ *
+ * Gen2 type data now lives in `lib/generations/gen2/data/types.ts`.
+ * The `generation === 2` branch has been removed from getPokemonTypes().
+ */
 
-// Standardized Type IDs for UI Consistency
-export const TYPE_MAP: Record<string, number> = {
-  "Normal": 0, 
-  "Fighting": 1, 
-  "Flying": 2, 
-  "Poison": 3, 
-  "Ground": 4, 
-  "Rock": 5, 
-  "Bug": 6, 
-  "Ghost": 7, 
-  "Steel": 8, // Exists for data integrity if needed, but unused in Gen 1 UI
-  "Fire": 9, 
-  "Water": 10, 
-  "Grass": 11, 
-  "Electric": 12, 
-  "Psychic": 13, 
-  "Ice": 14, 
-  "Dragon": 15, 
-  "Dark": 16, 
-  "Fairy": 17,
-  "???": 18
-};
+// Re-export canonical TYPE_MAP from shared location for backward compatibility
+export { TYPE_MAP } from '../../../data/types';
 
 // Internal Gen 1 Type IDs (Offset 0x05/0x06 in Save)
 export const GEN1_TYPE_ID_MAP: Record<string, number> = {
-    'Normal': 0, 'Fighting': 1, 'Flying': 2, 'Poison': 3, 'Ground': 4, 'Rock': 5, 
-    'Bug': 7, 'Ghost': 8, 
+    'Normal': 0, 'Fighting': 1, 'Flying': 2, 'Poison': 3, 'Ground': 4, 'Rock': 5,
+    'Bug': 7, 'Ghost': 8,
     'Fire': 20, 'Water': 21, 'Grass': 22, 'Electric': 23, 'Psychic': 24, 'Ice': 25, 'Dragon': 26
 };
-
-export function getTypeId(typeName: string): number {
-    return TYPE_MAP[typeName] !== undefined ? TYPE_MAP[typeName] : 0;
-}
 
 export const getTypeName = (typeId: number): string => {
     // Gen 1 Type Table
     const types: Record<number, string> = {
-        0: 'Normal', 1: 'Fighting', 2: 'Flying', 3: 'Poison', 4: 'Ground', 5: 'Rock', 
-        7: 'Bug', 8: 'Ghost', 20: 'Fire', 21: 'Water', 22: 'Grass', 23: 'Electric', 
+        0: 'Normal', 1: 'Fighting', 2: 'Flying', 3: 'Poison', 4: 'Ground', 5: 'Rock',
+        7: 'Bug', 8: 'Ghost', 20: 'Fire', 21: 'Water', 22: 'Grass', 23: 'Electric',
         24: 'Psychic', 25: 'Ice', 26: 'Dragon'
     };
     return types[typeId] || 'Unknown';
 };
 
 // Mapping of National Dex ID to Type Names
-// STRICTLY GEN 1 TYPINGS
+// STRICTLY GEN 1 TYPINGS (Magnemite/Magneton are pure Electric in Gen 1)
 export const NATIONAL_DEX_TYPES: Record<number, string[]> = {
   1: ['Grass', 'Poison'], 2: ['Grass', 'Poison'], 3: ['Grass', 'Poison'],
   4: ['Fire'], 5: ['Fire'], 6: ['Fire', 'Flying'],
@@ -125,84 +116,17 @@ export const NATIONAL_DEX_TYPES: Record<number, string[]> = {
   150: ['Psychic'], 151: ['Psychic'],
 };
 
-export const JOHTO_DEX_TYPES: Record<number, string[]> = {
-  152: ['Grass'], 153: ['Grass'], 154: ['Grass'], 
-  155: ['Fire'], 156: ['Fire'], 157: ['Fire'], 
-  158: ['Water'], 159: ['Water'], 160: ['Water'], 
-  161: ['Normal'], 162: ['Normal'], 
-  163: ['Normal', 'Flying'], 164: ['Normal', 'Flying'], 
-  165: ['Bug', 'Flying'], 166: ['Bug', 'Flying'], 
-  167: ['Bug', 'Poison'], 168: ['Bug', 'Poison'], 
-  169: ['Poison', 'Flying'], 
-  170: ['Water', 'Electric'], 171: ['Water', 'Electric'], 
-  172: ['Electric'], 173: ['Normal'], 174: ['Normal'], 
-  175: ['Normal'], 176: ['Normal', 'Flying'], 
-  177: ['Psychic', 'Flying'], 178: ['Psychic', 'Flying'], 
-  179: ['Electric'], 180: ['Electric'], 181: ['Electric'], 
-  182: ['Grass'], 
-  183: ['Water'], 184: ['Water'], 
-  185: ['Rock'], 
-  186: ['Water'], 
-  187: ['Grass', 'Flying'], 188: ['Grass', 'Flying'], 189: ['Grass', 'Flying'], 
-  190: ['Normal'], 
-  191: ['Grass'], 192: ['Grass'], 
-  193: ['Bug', 'Flying'], 
-  194: ['Water', 'Ground'], 195: ['Water', 'Ground'], 
-  196: ['Psychic'], 197: ['Dark'], 
-  198: ['Dark', 'Flying'], 
-  199: ['Water', 'Psychic'], 
-  200: ['Ghost'], 
-  201: ['Psychic'], 
-  202: ['Psychic'], 
-  203: ['Normal', 'Psychic'], 
-  204: ['Bug'], 205: ['Bug', 'Steel'], 
-  206: ['Normal'], 
-  207: ['Ground', 'Flying'], 
-  208: ['Steel', 'Ground'], 
-  209: ['Normal'], 210: ['Normal'], 
-  211: ['Water', 'Poison'], 
-  212: ['Bug', 'Steel'], 
-  213: ['Bug', 'Rock'], 
-  214: ['Bug', 'Fighting'], 
-  215: ['Dark', 'Ice'], 
-  216: ['Normal'], 217: ['Normal'], 
-  218: ['Fire'], 219: ['Fire', 'Rock'], 
-  220: ['Ice', 'Ground'], 221: ['Ice', 'Ground'], 
-  222: ['Water', 'Rock'], 
-  223: ['Water'], 224: ['Water'], 
-  225: ['Ice', 'Flying'], 
-  226: ['Water', 'Flying'], 
-  227: ['Steel', 'Flying'], 
-  228: ['Dark', 'Fire'], 229: ['Dark', 'Fire'], 
-  230: ['Water', 'Dragon'], 
-  231: ['Ground'], 232: ['Ground'], 
-  233: ['Normal'], 
-  234: ['Normal'], 
-  235: ['Normal'], 
-  236: ['Fighting'], 237: ['Fighting'], 
-  238: ['Ice', 'Psychic'], 
-  239: ['Electric'], 
-  240: ['Fire'], 
-  241: ['Normal'], 
-  242: ['Normal'], 
-  243: ['Electric'], 244: ['Fire'], 245: ['Water'], 
-  246: ['Rock', 'Ground'], 247: ['Rock', 'Ground'], 248: ['Rock', 'Dark'], 
-  249: ['Psychic', 'Flying'], 
-  250: ['Fire', 'Flying'], 
-  251: ['Grass', 'Psychic']
-};
-
-export function getPokemonTypes(dexId: number, generation: number = 1): string[] {
-    // Adapter-driven type lookup: Gen2+ adapters handle type corrections (e.g., Magnemite/Magneton Steel)
-    // via their own getTypes() method. This function remains for backward compatibility and
-    // is used by parsers and utility code that don't have an adapter reference.
-    // UI components should prefer adapter.getTypes() which automatically applies generation-specific
-    // corrections without branching.
-    if (generation === 2) {
-        if (dexId === 81 || dexId === 82) {
-            return ['Electric', 'Steel']; // Magnemite/Magneton got Steel secondary type in Gen 2
-        }
-        return JOHTO_DEX_TYPES[dexId] || NATIONAL_DEX_TYPES[dexId] || ['Normal'];
-    }
+/**
+ * Get Pokémon types for a given dex ID in Gen 1 context.
+ *
+ * This function is Gen1-only. The `generation` parameter is deprecated —
+ * Gen2 type lookup should use `gen2/data/types.ts::getGen2PokemonTypes()`
+ * or `adapter.getTypes()` instead.
+ *
+ * @param dexId - National Dex ID
+ * @param generation - DEPRECATED, ignored. Will be removed in a future cleanup.
+ * @returns Array of type name strings (e.g. ['Electric'])
+ */
+export function getPokemonTypes(dexId: number, _generation?: number): string[] {
     return NATIONAL_DEX_TYPES[dexId] || ['Normal'];
 }
