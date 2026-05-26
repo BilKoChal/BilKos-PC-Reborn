@@ -225,11 +225,97 @@ export interface IGenerationDataAccess {
 
   /** All valid item names for the generation (for autocomplete). */
   getAllItemNames(): string[];
+
+  // ── Pokédex & location data (replaces direct gen1/data imports in UI) ──
+
+  /** Get Pokédex flavor text for a species in a specific game version.
+   *  Returns the flavor text string, or undefined if not available
+   *  (e.g. the species doesn't exist in this generation's dex).
+   *  Each adapter internally maps version strings to its generation's entries,
+   *  so the UI never hardcodes version names or entry shapes.
+   *  @param dexId - National Dex ID (e.g., 25 for Pikachu)
+   *  @param version - Game version string (e.g., 'Red', 'Crystal', 'Emerald')
+   */
+  getPokedexEntry(dexId: number, version: string): string | undefined;
+
+  /** Get encounter/acquisition location text for a species in a specific game version.
+   *  Returns a human-readable location string (e.g., "Route 1, Viridian Forest"),
+   *  or undefined if the species has no location data for this version.
+   *  @param dexId - National Dex ID
+   *  @param version - Game version string
+   */
+  getEncounterLocations(dexId: number, version: string): string | undefined;
+}
+
+/**
+ * First-class, adapter-owned text codec.
+ * Each generation adapter constructs and owns an ITextCodec instance that
+ * encapsulates all character encoding logic for that generation.
+ *
+ * This replaces the old pattern of shared global functions (textCodec.ts,
+ * textDecoder.ts, textValidator.ts) and the inline charmap in
+ * BinaryWriter.string(). Gen 1/2 share a GameBoyTextCodec; Gen 3+ will
+ * each have their own codec class with completely different charmaps,
+ * terminators, and byte widths.
+ *
+ * The codec is accessed via `adapter.codec` — UI components never import
+ * generation-specific encoding functions directly.
+ */
+export interface ITextCodec {
+  /** Decode raw bytes → Unicode string, stopping at the generation's terminator.
+   *  @param data   The raw byte buffer
+   *  @param offset Byte offset to start reading
+   *  @param maxLength Maximum number of character units to read
+   */
+  decode(data: Uint8Array, offset: number, maxLength: number): string;
+
+  /** Encode a Unicode string → raw bytes.
+   *  @param text   The string to encode
+   *  @param maxLength Maximum number of character units to write
+   *  @param terminator Terminator byte(s) to pad with (default: generation-specific)
+   *  @returns Uint8Array of exactly `maxLength * charSize` bytes
+   */
+  encode(text: string, maxLength: number, terminator?: number): Uint8Array;
+
+  /** Whether a single Unicode character can be represented in this encoding.
+   *  Replaces the standalone `isValidPokemonChar()` from textValidator.ts.
+   */
+  isValidChar(char: string): boolean;
+
+  /** Sanitize a string by removing/normalizing characters that can't be encoded.
+   *  Replaces the standalone `sanitizePokemonText()` from textValidator.ts.
+   */
+  sanitize(text: string): string;
+
+  /** Maximum nickname length in characters for this generation/region.
+   *  Gen 1/2 INT: 10, Gen 1/2 JPN: 5, Gen 3+: varies.
+   */
+  nicknameMaxLength(): number;
+
+  /** Maximum OT (Original Trainer) name length in characters for this generation/region.
+   *  Gen 1/2 INT: 10 (7 for box), Gen 1/2 JPN: 5.
+   */
+  otNameMaxLength(): number;
+
+  /** Size of one character unit in bytes. 1 for Gen 1-3, 2 for Gen 4+. */
+  readonly charSize: 1 | 2;
+
+  /** Default terminator value for this encoding.
+   *  Gen 1/2: 0x50, Gen 3: 0xFF, Gen 4/5: 0xFFFF, Gen 6+: 0x0000 */
+  readonly terminator: number;
+
+  /** Whether this codec instance is configured for Japanese region. */
+  readonly isJapanese: boolean;
 }
 
 /**
  * Text encoding and decoding operations.
  * Handles generation-specific character encoding for Pokemon names, trainer names, etc.
+ *
+ * NOTE: The decodeText/encodeText methods on this interface are convenience
+ * pass-throughs to `adapter.codec.decode()` / `adapter.codec.encode()`,
+ * kept for backward compatibility. New code should prefer `adapter.codec`
+ * directly for the extended API (isValidChar, sanitize, nicknameMaxLength, etc.).
  */
 export interface IGenerationTextCodec {
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string;
@@ -259,7 +345,28 @@ export interface IGenerationAdapter extends
   IGenerationBinaryOps,
   IGenerationStatsOps,
   IGenerationDataAccess,
-  IGenerationTextCodec {}
+  IGenerationTextCodec {
+
+  /** First-class text codec owned by this adapter.
+   *  Provides the full encoding API: decode, encode, isValidChar, sanitize,
+   *  nicknameMaxLength, otNameMaxLength, charSize, terminator, isJapanese.
+   *  Use this instead of importing textCodec/textDecoder/textValidator directly.
+   *
+   *  The codec is constructed with the appropriate region (international/japanese)
+   *  based on save detection, so all encode/decode calls are region-correct.
+   */
+  readonly codec: ITextCodec;
+
+  /** Detect the region of a save file.
+   *  Replaces the standalone `isJapaneseSave()` from textValidator.ts
+   *  which had hardcoded `generation === 1/2` branches.
+   *  Each adapter knows its own region detection logic.
+   *
+   *  @param save - A parsed save object (or raw data with generation info)
+   *  @returns 'international' | 'japanese' | 'korean'
+   */
+  detectRegion(save: { rawData?: Uint8Array; generation?: number; genExtension?: unknown }): 'international' | 'japanese' | 'korean';
+}
 
 // ============================================================================
 // Extension System Interfaces

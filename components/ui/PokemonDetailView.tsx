@@ -1,14 +1,10 @@
 
 import React from 'react';
 import { GameVersion } from '../../lib/parser/types';
-import { POKEMON_NAMES } from '../../lib/generations/gen1/data/pokemonNames';
-import { GEN2_POKEMON_NAMES } from '../../lib/generations/gen2/data/constants';
-import { getPokemonTypes } from '../../lib/generations/gen1/data/pokemonTypes';
-import { POKEDEX_ENTRIES } from '../../lib/generations/gen1/data/pokedexEntries';
-import { POKEMON_LOCATIONS } from '../../lib/generations/gen1/data/pokemonLocations';
 import { Check, Eye, Ban, X, MapPin, AlignLeft } from 'lucide-react';
 import { TypeBadge } from './PokemonBadges';
 import { useSpriteMode } from '../../context/SpriteContext';
+import { useSaveContextSafe } from '../../context/SaveContext';
 import { getPokemonSpriteUrl, getSpriteImgClasses, getIntegerScaleStyle } from '../../lib/sprites';
 
 interface PokemonDetailViewProps {
@@ -22,25 +18,16 @@ interface PokemonDetailViewProps {
 
 export const PokemonDetailView: React.FC<PokemonDetailViewProps> = ({ id, owned, seen, version, onClose, onToggleStatus }) => {
     const { mode: spriteMode } = useSpriteMode();
-    const isGen2 = ['Gold', 'Silver', 'Crystal'].includes(version);
-    const name = isGen2 ? (GEN2_POKEMON_NAMES[id] || `Species ${id}`) : POKEMON_NAMES[id];
-    const types = getPokemonTypes(id, isGen2 ? 2 : 1);
-    const entryData = POKEDEX_ENTRIES[id];
-    const locationData = POKEMON_LOCATIONS[id];
-    
-    // Determine Entry Text based on version
-    let flavorText = "Data not found.";
-    if (entryData) {
-        flavorText = version === 'Yellow' ? entryData.yellow : entryData.red_blue;
-    }
+    const ctx = useSaveContextSafe();
+    const adapter = ctx?.adapter;
 
-    // Determine Location Text
-    let locationText = "Unknown location.";
-    if (locationData) {
-        if (version === 'Yellow') locationText = locationData.yellow;
-        else if (version === 'Blue') locationText = locationData.blue;
-        else locationText = locationData.red;
-    }
+    // Adapter-driven data access — replaces all direct Gen-1/Gen-2 data imports.
+    // The adapter knows which generation we're in and returns version-correct data.
+    const name = adapter?.getPokemonName(id) ?? `Species ${id}`;
+    const typesInfo = adapter?.getTypes(id);
+    const types = typesInfo ? [typesInfo.type1Name, typesInfo.type2Name].filter((t, i, arr) => i === 0 || t !== arr[0]) : [];
+    const flavorText = adapter?.getPokedexEntry(id, version) ?? "Data not found.";
+    const locationText = adapter?.getEncounterLocations(id, version) ?? "Unknown location.";
 
     const spriteUrl = getPokemonSpriteUrl(id, spriteMode, version);
     // Compute integer-scaling style for pixel sprites in the large detail panel

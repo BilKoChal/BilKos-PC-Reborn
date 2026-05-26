@@ -10,7 +10,6 @@ import { MoveLocation } from '../../lib/utils/manipulation';
 import { SortScope, SortCriteria, SortDirection } from '../../lib/utils/sortManager';
 import { SortSettingsModal } from './SortSettingsModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { isJapaneseSave } from '../../lib/utils/textValidator';
 import { registry } from '../../lib/core/AdapterRegistry';
 
 import { DashboardTab as DashboardTabComponent } from './tabs/DashboardTab';
@@ -336,7 +335,7 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                 <PokemonEditorModal 
                     pokemon={selectedPokemon.mon} 
                     generation={data.generation} 
-                    isJapanese={isJapaneseSave(data)}
+                    isJapanese={registry.getAdapter(data.generation)?.detectRegion(data) === 'japanese'}
                     onClose={handleCloseEditor} 
                     onSave={handleSavePokemon}
                 />

@@ -1,4 +1,4 @@
-import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat } from '../../interfaces';
+import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
 import { ParsedSave, PokemonStats } from '../../parser/types';
 import { detectGameVersion, validateGen1Checksum, parseGen1Save, parsePk1 } from './parser';
 import { writeGen1Save, createPk1Binary } from './writer';
@@ -9,8 +9,9 @@ import { getItemName } from './data/items';
 import { getPokemonTypes } from './data/pokemonTypes';
 import { GEN1_BASE_STATS } from './data/baseStats';
 import { Gen1StandaloneFormat } from './StandaloneFormat';
-import { decodeText } from '../../utils/textDecoder';
-import { encodeGameBoyText } from '../../utils/textCodec';
+import { POKEDEX_ENTRIES } from './data/pokedexEntries';
+import { POKEMON_LOCATIONS } from './data/pokemonLocations';
+import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
 
 /**
  * Gen 1 Generation Adapter.
@@ -213,11 +214,55 @@ export class Gen1Adapter implements IGenerationAdapter {
     }).filter(Boolean) as string[];
   }
 
+  getPokedexEntry(dexId: number, version: string): string | undefined {
+    const entry = POKEDEX_ENTRIES[dexId];
+    if (!entry) return undefined;
+    // Gen 1: Red & Blue share the same entry; Yellow has unique text
+    if (version === 'Yellow') return entry.yellow;
+    return entry.red_blue;
+  }
+
+  getEncounterLocations(dexId: number, version: string): string | undefined {
+    const loc = POKEMON_LOCATIONS[dexId];
+    if (!loc) return undefined;
+    if (version === 'Yellow') return loc.yellow;
+    if (version === 'Blue') return loc.blue;
+    return loc.red;
+  }
+
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string {
-    return decodeText(buffer, offset, maxLength);
+    return this._codec.decode(buffer, offset, maxLength);
   }
 
   encodeText(text: string, length: number, terminator: number = 0x50): Uint8Array {
-    return encodeGameBoyText(text, length, terminator);
+    return this._codec.encode(text, length, terminator);
+  }
+
+  // ── Adapter-owned codec & region detection (A5) ──
+
+  private _codec: GameBoyTextCodec = new GameBoyTextCodec('international');
+
+  /** First-class text codec for Gen 1. Region is set when a save is parsed. */
+  get codec(): ITextCodec { return this._codec; }
+
+  /** Set the codec region based on save detection. Called by parser after detection. */
+  setCodecRegion(region: 'international' | 'japanese' | 'korean'): void {
+    this._codec = new GameBoyTextCodec(region);
+  }
+
+  detectRegion(save: { rawData?: Uint8Array; generation?: number; genExtension?: unknown }): 'international' | 'japanese' | 'korean' {
+    if (!save || !save.rawData) return 'international';
+    if (save.generation === 1) {
+      if (save.rawData.byteLength < 0x3524) return 'international';
+      const view = save.rawData;
+      const intPartyCount = view[0x2F2C]!;
+      const intFirstSpecies = view[0x2F2D]!;
+      const jpnPartyCount = view[0x2ED5]!;
+      const jpnFirstSpecies = view[0x2ED6]!;
+      const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
+      const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
+      if (jpnPartyValid && !intPartyValid) return 'japanese';
+    }
+    return 'international';
   }
 }

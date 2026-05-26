@@ -7,7 +7,7 @@ import { useSpriteMode } from '../../context/SpriteContext';
 import { getTrainerSpriteUrl, TRAINER_SPRITE_FALLBACK, getBadgeSpriteUrl } from '../../lib/sprites';
 import { Clock, Book, User, Heart, Coins, Trophy, Save, X, Swords } from 'lucide-react';
 import { REGION_BADGES } from '../../lib/data/gameData';
-import { sanitizePokemonText, isJapaneseSave } from '../../lib/utils/textValidator';
+
 
 interface TrainerCardProps {
     data: ParsedSave;
@@ -60,7 +60,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
     const adapter = ctx?.adapter;
     const { mode: spriteMode } = useSpriteMode();
 
-    const isJP = useMemo(() => isJapaneseSave(data), [data]);
+    const isJP = useMemo(() => (adapter?.detectRegion(data) === 'japanese'), [adapter, data]);
     const currentGen = data.generation || 1;
     const parsedTime = useMemo(() => parsePlayTime(t.playTime), [t.playTime]);
 
@@ -210,7 +210,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                         <input 
                             type="text"
                             value={editForm.name}
-                            onChange={(e) => setEditForm({...editForm, name: sanitizePokemonText(e.target.value, isJP).substring(0, isJP ? 5 : 7)})}
+                            onChange={(e) => setEditForm({...editForm, name: (adapter?.codec.sanitize(e.target.value) ?? e.target.value).substring(0, adapter?.codec.otNameMaxLength() ?? (isJP ? 5 : 7))})}
                             maxLength={isJP ? 5 : 7}
                             className="bg-black/15 text-theme-text-on-primary text-4xl font-black italic tracking-tighter rounded-lg border-2 border-theme-text-on-primary/35 focus:border-theme-text-on-primary px-3 py-0.5 w-48 outline-none focus:ring-2 focus:ring-theme-text-on-primary/20 placeholder-theme-text-on-primary/40 block"
                             placeholder="NAME"
@@ -317,7 +317,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                             <input 
                                 type="text" 
                                 value={editForm.rivalName}
-                                onChange={(e) => setEditForm({...editForm, rivalName: sanitizePokemonText(e.target.value, isJP).substring(0, isJP ? 5 : 7)})}
+                                onChange={(e) => setEditForm({...editForm, rivalName: (adapter?.codec.sanitize(e.target.value) ?? e.target.value).substring(0, adapter?.codec.otNameMaxLength() ?? (isJP ? 5 : 7))})}
                                 maxLength={isJP ? 5 : 7}
                                 className="text-xl font-black text-gray-900 dark:text-white tracking-tight text-right w-32 bg-white dark:bg-gray-850 border border-gray-300 dark:border-gray-700 rounded-lg outline-none px-2.5 py-0.5 focus:ring-2 focus:ring-theme-primary/30"
                             />

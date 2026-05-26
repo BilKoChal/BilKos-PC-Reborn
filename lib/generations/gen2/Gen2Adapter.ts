@@ -1,4 +1,4 @@
-import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat } from '../../interfaces';
+import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
 import { ParsedSave, PokemonStats, Gen2SaveExtension } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
 import { writeGen2Save, writeGen2PokemonStruct } from './writer';
@@ -18,8 +18,7 @@ import {
   type Gen2Version
 } from './data/offsets';
 import { Gen2StandaloneFormat } from './StandaloneFormat';
-import { decodeText } from '../../utils/textDecoder';
-import { encodeGameBoyText } from '../../utils/textCodec';
+import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
 import { getPokemonTypes } from '../gen1/data/pokemonTypes';
 import './extensions';
 
@@ -325,8 +324,8 @@ export class Gen2Adapter implements IGenerationAdapter {
       );
     }
 
-    const otName = decodeText(otRaw, 0, strLen);
-    const nickName = decodeText(nickRaw, 0, strLen);
+    const otName = this._codec.decode(otRaw, 0, strLen);
+    const nickName = this._codec.decode(nickRaw, 0, strLen);
     const isParty = monData.length >= 48;
 
     return parseGen2PokemonStruct(monData, 0, isParty, nickName, otName, nickRaw, otRaw);
@@ -365,11 +364,11 @@ export class Gen2Adapter implements IGenerationAdapter {
     writeGen2PokemonStruct(buffer, 3, mon, true);
 
     // Bytes 51-61: OT Name (11 bytes for INT)
-    const otBuf = encodeGameBoyText(mon.originalTrainerName || '?????', strLen, 0x50);
+    const otBuf = this._codec.encode(mon.originalTrainerName || '?????', strLen, 0x50);
     buffer.set(otBuf, 3 + SIZE_2PARTY);
 
     // Bytes 62-72: Nickname (11 bytes for INT)
-    const nickBuf = encodeGameBoyText(mon.nickname || mon.speciesName || '?????', strLen, 0x50);
+    const nickBuf = this._codec.encode(mon.nickname || mon.speciesName || '?????', strLen, 0x50);
     buffer.set(nickBuf, 3 + SIZE_2PARTY + strLen);
 
     return buffer;
@@ -466,12 +465,51 @@ export class Gen2Adapter implements IGenerationAdapter {
     return list;
   }
 
+  getPokedexEntry(dexId: number, version: string): string | undefined {
+    // Gen 2 Pokédex flavor text data files have not been created yet.
+    // When pokedexEntries.ts is added to gen2/data/, this method will
+    // look up version-specific entries (Gold/Silver/Crystal each have
+    // unique flavor text). For now, return undefined to signal no data.
+    void dexId; void version;
+    return undefined;
+  }
+
+  getEncounterLocations(dexId: number, version: string): string | undefined {
+    // Gen 2 encounter location data files have not been created yet.
+    // When pokemonLocations.ts is added to gen2/data/, this method will
+    // look up version-specific locations (Gold/Silver share many, Crystal
+    // differs). For now, return undefined to signal no data.
+    void dexId; void version;
+    return undefined;
+  }
+
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string {
-    return decodeText(buffer, offset, maxLength);
+    return this._codec.decode(buffer, offset, maxLength);
   }
 
   encodeText(text: string, length: number, terminator: number = 0x50): Uint8Array {
-    return encodeGameBoyText(text, length, terminator);
+    return this._codec.encode(text, length, terminator);
+  }
+
+  // ── Adapter-owned codec & region detection (A5) ──
+
+  private _codec: GameBoyTextCodec = new GameBoyTextCodec('international');
+
+  /** First-class text codec for Gen 2. Region is set when a save is parsed. */
+  get codec(): ITextCodec { return this._codec; }
+
+  /** Set the codec region based on save detection. Called by parser after detection. */
+  setCodecRegion(region: 'international' | 'japanese' | 'korean'): void {
+    this._codec = new GameBoyTextCodec(region);
+  }
+
+  detectRegion(save: { rawData?: Uint8Array; generation?: number; genExtension?: unknown }): 'international' | 'japanese' | 'korean' {
+    if (!save) return 'international';
+    // Gen 2: check via save extension's region field
+    const gen2Ext = save.genExtension as { region?: string } | null;
+    if (gen2Ext?.region === 'japanese') return 'japanese';
+    if (gen2Ext?.region === 'korean') return 'korean';
+    return 'international';
   }
 
   // ── Phase 2: Convenience Methods for Save-Level Data ──
