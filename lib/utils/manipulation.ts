@@ -17,12 +17,36 @@ export function isSameLocation(a: MoveLocation, b: MoveLocation): boolean {
 }
 
 // Helper to prepare stats when moving to/from Party/Box
-// Uses the Adapter Registry to correctly recalculate stats for any generation
+// Uses the Adapter Registry to correctly recalculate stats for any generation.
+//
+// Generation resolution order (PKHeX pattern — entity carries its own generation):
+//   1. mon.genExtension?.generation — most reliable, set by parser at parse time
+//   2. generation parameter — provided by the caller from ParsedSave.generation
+//   3. No generation found → skip recalculation (no-op) rather than guessing wrong
+//
+// We intentionally NEVER default to Gen 1. PKHeX never silently defaults to a
+// generation — it either uses the entity's own Context or skips recalculation.
+// Silently defaulting to Gen 1 would produce wrong stats for Gen 2+ mons (wrong
+// HP IV derivation, wrong Special vs SpAtk/SpDef, and completely wrong for Gen 3+).
 const prepareForLocation = (mon: PokemonStats, isGoingToParty: boolean, generation?: number) => {
     const newMon = { ...mon, isParty: isGoingToParty };
     if (isGoingToParty) {
-        // Determine the generation from the Pokemon data or the provided generation hint
-        const gen = generation || 1; // Default to Gen 1 if no generation info available
+        // Prefer the Pokemon entity's own generation (from genExtension, set at parse time),
+        // then fall back to the caller-provided generation hint.
+        // Uses ?? (nullish coalescing) instead of || to correctly handle generation === 0.
+        const gen = mon.genExtension?.generation ?? generation;
+
+        if (!gen) {
+            // Cannot determine generation — skip stat recalculation rather than guess wrong.
+            // PKHeX returns Generation=0 for unknown entities and flags them (GenU).
+            // We skip recalc entirely — stale stats are better than wrong stats.
+            console.warn(
+                `prepareForLocation: Cannot determine generation for Pokemon #${mon.dexId} (${mon.speciesName}). ` +
+                `Skipping stat recalculation — party stats may be stale.`
+            );
+            return newMon;
+        }
+
         const adapter = registry.getAdapter(gen);
 
         if (adapter) {
@@ -48,8 +72,11 @@ const prepareForLocation = (mon: PokemonStats, isGoingToParty: boolean, generati
                 }
             }
         } else {
-            // Fallback: if no adapter is registered for this generation, log a warning
-            console.warn(`No adapter registered for generation ${gen}. Cannot recalculate stats for Pokemon #${mon.dexId}.`);
+            // No adapter registered for this generation — skip recalculation
+            console.warn(
+                `No adapter registered for generation ${gen}. ` +
+                `Cannot recalculate stats for Pokemon #${mon.dexId} (${mon.speciesName}).`
+            );
         }
     }
     return newMon;
