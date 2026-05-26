@@ -531,8 +531,10 @@ export const PCStorage: React.FC<PCStorageProps> = ({
     const adapter = saveCtx?.adapter;
     const boxSlotCount = adapter?.boxSlotCount ?? 20;
 
-    // Compute the accept pattern from the adapter's standalone format
-    const acceptPattern = adapter?.standaloneFormat?.acceptPattern ?? (adapter?.generation === 2 ? '.pk2' : '.pk1');
+    // Compute the accept pattern and valid extension from the adapter's standalone format
+    const standaloneFormat = adapter?.standaloneFormat;
+    const validExtension = standaloneFormat?.fileExtension;
+    const acceptPattern = standaloneFormat?.acceptPattern ?? (validExtension ?? '.pk1');
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || !onImport) return;
@@ -542,13 +544,24 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
         for (const file of files) {
             const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-            if (extension !== '.pk1' && extension !== '.pk2') continue;
+
+            // A10: Adapter-driven extension filter — replaces hardcoded '.pk1'/''.pk2' check.
+            // Only accept files matching this adapter's standalone format extension.
+            // This also fixes B5: prevents importing a .pk2 into a Gen 1 save.
+            if (validExtension && extension !== validExtension) {
+                if (onToast) onToast(`Wrong format: expected ${validExtension}, got ${extension} (${file.name})`);
+                continue;
+            }
+            if (!validExtension && extension !== '.pk1' && extension !== '.pk2') {
+                // Defensive fallback when no adapter is available
+                continue;
+            }
 
             const buffer = new Uint8Array(await file.arrayBuffer());
 
-            // Validate using the standalone format if available
-            if (adapter?.standaloneFormat) {
-                const validation = adapter.standaloneFormat.validateFile(buffer);
+            // Validate using the standalone format
+            if (standaloneFormat) {
+                const validation = standaloneFormat.validateFile(buffer);
                 if (!validation.valid) {
                     if (onToast) onToast(validation.error || `Invalid ${extension} file (${file.name})`);
                     continue;
@@ -558,27 +571,22 @@ export const PCStorage: React.FC<PCStorageProps> = ({
             let mon: PokemonStats | null = null;
 
             try {
-                if (adapter?.standaloneFormat) {
-                    // Use the adapter's standalone format for parsing
-                    mon = adapter.standaloneFormat.parseFile(buffer);
-                } else if (extension === '.pk2' && adapter && adapter.generation === 2 && adapter.supportsStandalone) {
-                    // Use Gen2Adapter for .pk2 files
-                    mon = adapter.parseStandalonePokemon(buffer);
-                } else if (extension === '.pk1' && adapter && adapter.generation === 1 && adapter.supportsStandalone) {
-                    // Use Gen1Adapter for .pk1 files
-                    mon = adapter.parseStandalonePokemon(buffer);
+                if (standaloneFormat) {
+                    // A10: Use the adapter's standalone format for parsing — replaces
+                    // the generation === N ladder. Each adapter knows its own format.
+                    mon = standaloneFormat.parseFile(buffer);
                 } else {
-                    // Fallback: no adapter available, cannot parse
+                    // No adapter available, cannot parse
                     mon = null;
                 }
             } catch (err) {
                 console.error(`Error importing ${file.name}:`, err);
-                if (onToast) onToast(`Error: Invalid ${extension} file (${file.name})`);
+                if (onToast) onToast(`Error: Failed to parse ${extension} file (${file.name})`);
                 continue;
             }
 
             if (!mon) {
-                if (onToast) onToast(`Error: Invalid ${extension} file (${file.name})`);
+                if (onToast) onToast(`Error: No result from ${extension} file (${file.name})`);
                 continue;
             }
 
@@ -644,7 +652,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                             <button 
                                 onClick={handleImportClick}
                                 className={`p-1 rounded-lg transition-colors border bg-current/10 hover:bg-current/20 border-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'}`}
-                                title={`Import ${adapter?.standaloneFormat?.fileExtension ?? '.pk1'} files`}
+                                title={`Import ${validExtension ?? '.pk1'} files`}
                             >
                                 <Download size={16} />
                             </button>

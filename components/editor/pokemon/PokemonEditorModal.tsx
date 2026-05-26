@@ -191,12 +191,10 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                 return;
             }
 
-            // Use the adapter's createStandalonePokemon for all generations.
-            // Each adapter produces the correct PKHeX-compatible format:
-            //   Gen 1 → 69-byte PokeList1 (.pk1)
-            //   Gen 2 → 73-byte PokeList2 (.pk2)
+            // Use the adapter's standaloneFormat for file extension (A10: no `as any` cast).
+            // Each adapter's standaloneFormat.fileExtension is the PKHeX-compatible extension.
             const binary = adapter.createStandalonePokemon(mon);
-            const extension = (adapter as any).standaloneExtension || `.pk${generation}`;
+            const extension = adapter.standaloneFormat?.fileExtension ?? `.pk${generation}`;
             const filename = `${mon.nickname || mon.speciesName}${extension}`;
 
             const blob = new Blob([binary], { type: "application/octet-stream" });

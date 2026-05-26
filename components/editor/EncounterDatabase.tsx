@@ -137,7 +137,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                     {filteredEvents.length} of {allEvents.length} available
                 </span>
                 <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
-                    {adapter?.standaloneFormat?.fileExtension ?? (data.generation === 1 ? '.pk1' : '.pk2')} format
+                    {adapter?.standaloneFormat?.fileExtension ?? '.pk1'} format
                 </span>
             </div>
 
