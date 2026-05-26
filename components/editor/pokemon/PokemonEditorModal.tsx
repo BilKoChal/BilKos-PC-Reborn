@@ -54,6 +54,20 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
         return [mon.type1Name || 'Normal', mon.type2Name || 'Normal'];
     }, [adapter, mon.dexId, mon.type1Name, mon.type2Name]);
 
+    // ── Reverse name→dexId lookup (B3: replaces O(n) linear scan with O(1) map) ──
+    // Following PKHeX's SpeciesName.SpeciesDict pattern: a pre-built reverse
+    // dictionary maps species name strings → National Dex IDs for O(1) lookup.
+    const nameToDexId = useMemo(() => {
+        if (!adapter) return new Map<string, number>();
+        const names = adapter.getAllSpeciesNames();
+        const map = new Map<string, number>();
+        for (let i = 1; i < names.length; i++) {
+            const name = names[i];
+            if (name) map.set(name, i);
+        }
+        return map;
+    }, [adapter]);
+
     // Adapter-driven IV/EV limits (A2 fix: replaces hardcoded clamp values)
     const ivMax = adapter?.ivMax ?? 15;
     const evMax = adapter?.evMax ?? 65535;
@@ -88,24 +102,31 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     };
 
     const handleSpeciesChange = (name: string) => {
-        // Use adapter for species lookup when available
-        if (adapter) {
-            const maxDex = adapter.nationalDexMax;
-            for (let id = 1; id <= maxDex; id++) {
-                if (adapter.getPokemonName(id) === name) {
-                    const speciesTypes = adapter.getTypes(id);
-                    setMon(prev => ({ 
-                        ...prev, 
-                        speciesName: name, 
-                        dexId: id,
-                        type1Name: speciesTypes.type1Name || 'Normal',
-                        type2Name: speciesTypes.type2Name || speciesTypes.type1Name || 'Normal'
-                    }));
-                    setIsDirty(true);
-                    return;
-                }
-            }
-        }
+        // B3: O(1) reverse lookup via memoized name→dexId map (PKHeX SpeciesDict pattern)
+        // Previously: O(n) linear scan calling adapter.getPokemonName(id) for each id 1..maxDex.
+        if (!adapter) return;
+        const id = nameToDexId.get(name);
+        if (id === undefined) return;
+
+        // B3: Update ALL identity fields, not just dexId + type names.
+        // Previously: speciesId, type1, type2 were left stale — causing wrong binary
+        // output when writing the save (Gen1 writer uses mon.type1/type2 directly,
+        // Gen2 writer uses mon.speciesId directly).
+        // Following PKHeX's PK1.SetSpeciesValues() which updates species internal ID,
+        // types, and catch rate in a single atomic operation.
+        const speciesTypes = adapter.getTypes(id);
+        const speciesId = adapter.getInternalSpeciesId(id);
+        setMon(prev => ({
+            ...prev,
+            speciesName: name,
+            dexId: id,
+            speciesId,
+            type1: speciesTypes.type1,
+            type2: speciesTypes.type2,
+            type1Name: speciesTypes.type1Name || 'Normal',
+            type2Name: speciesTypes.type2Name || speciesTypes.type1Name || 'Normal'
+        }));
+        setIsDirty(true);
     };
 
     const handleLevelChange = (newLevel: number) => {

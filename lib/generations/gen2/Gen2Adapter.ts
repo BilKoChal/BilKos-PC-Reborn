@@ -372,6 +372,13 @@ export class Gen2Adapter implements IGenerationAdapter {
     return GEN2_POKEMON_NAMES;
   }
 
+  /** Convert National Dex ID → Gen 2 internal species ID.
+   *  Gen 2 species IDs directly equal National Dex numbers (identity mapping),
+   *  unlike Gen 1 which uses a different internal ordering. */
+  getInternalSpeciesId(dexId: number): number {
+    return dexId;
+  }
+
   getAllMoveNames(): string[] {
     return GEN2_MOVES_LIST;
   }

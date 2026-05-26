@@ -8,6 +8,7 @@ import { getMoveName, MOVES_LIST, MOVES_PP, MOVES_TYPE } from './data/moves';
 import { getItemName } from './data/items';
 import { getPokemonTypes } from './data/pokemonTypes';
 import { GEN1_BASE_STATS } from './data/baseStats';
+import { GEN1_INTERNAL_TO_DEX } from './data/offsets';
 import { Gen1StandaloneFormat } from './StandaloneFormat';
 import { POKEDEX_ENTRIES } from './data/pokedexEntries';
 import { POKEMON_LOCATIONS } from './data/pokemonLocations';
@@ -22,6 +23,18 @@ import { type EventPokemonData } from '../../data/eventPokemonTypes';
  * Adapts internal Red/Blue/Yellow binaries to conform with multi-gen abstract contracts.
  */
 export class Gen1Adapter implements IGenerationAdapter {
+  // ── Species ID conversion (PKHeX SpeciesConverter.GetInternal1/GetNational1 pattern) ──
+  // Reverse map: National Dex ID → Gen1 internal species ID.
+  // Gen 1 uses a completely different internal ordering (Rhydon=1, not Bulbasaur=1).
+  // This is built once from GEN1_INTERNAL_TO_DEX and shared across all instances.
+  private static readonly DEX_TO_INTERNAL: Record<number, number> = (() => {
+    const map: Record<number, number> = {};
+    GEN1_INTERNAL_TO_DEX.forEach((dex, internal) => {
+      if (dex !== 0) map[dex] = internal;
+    });
+    return map;
+  })();
+
   generation = 1;
   generationName = "Generation I";
   supportedVersions = ['Red', 'Blue', 'Yellow'];
@@ -209,6 +222,13 @@ export class Gen1Adapter implements IGenerationAdapter {
     return POKEMON_NAMES;
   }
 
+  /** Convert National Dex ID → Gen 1 internal species ID.
+   *  Gen 1 uses a different internal ordering (Rhydon=1, not Bulbasaur=1).
+   *  Following PKHeX's SpeciesConverter.GetInternal1() pattern. */
+  getInternalSpeciesId(dexId: number): number {
+    return Gen1Adapter.DEX_TO_INTERNAL[dexId] ?? dexId;
+  }
+
   getAllMoveNames(): string[] {
     return MOVES_LIST;
   }
@@ -276,18 +296,19 @@ export class Gen1Adapter implements IGenerationAdapter {
   }
 
   detectRegion(save: { rawData?: Uint8Array; generation?: number; genExtension?: unknown }): 'international' | 'japanese' | 'korean' {
+    // B4: Removed redundant `if (save.generation === 1)` guard — this method
+    // is on Gen1Adapter, so it's always called for Gen 1 saves. The generation
+    // check was a leftover from when this logic lived in the shared textValidator.ts.
     if (!save || !save.rawData) return 'international';
-    if (save.generation === 1) {
-      if (save.rawData.byteLength < 0x3524) return 'international';
-      const view = save.rawData;
-      const intPartyCount = view[0x2F2C]!;
-      const intFirstSpecies = view[0x2F2D]!;
-      const jpnPartyCount = view[0x2ED5]!;
-      const jpnFirstSpecies = view[0x2ED6]!;
-      const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
-      const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
-      if (jpnPartyValid && !intPartyValid) return 'japanese';
-    }
+    if (save.rawData.byteLength < 0x3524) return 'international';
+    const view = save.rawData;
+    const intPartyCount = view[0x2F2C]!;
+    const intFirstSpecies = view[0x2F2D]!;
+    const jpnPartyCount = view[0x2ED5]!;
+    const jpnFirstSpecies = view[0x2ED6]!;
+    const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
+    const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
+    if (jpnPartyValid && !intPartyValid) return 'japanese';
     return 'international';
   }
 }

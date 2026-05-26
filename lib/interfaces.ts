@@ -238,6 +238,18 @@ export interface IGenerationDataAccess {
   /** Get type1/type2 for a species by National Dex ID. */
   getTypes(dexId: number): { type1: number; type2: number; type1Name: string; type2Name: string };
 
+  /** Convert a National Dex ID to the internal species ID used by this generation.
+   *  Gen 1 uses a different internal ordering (e.g. Rhydon=1, not Bulbasaur=1),
+   *  while Gen 2+ species IDs directly equal National Dex numbers.
+   *
+   *  Following PKHeX's SpeciesConverter.GetInternal1() / GetNational1() pattern,
+   *  each adapter knows how to convert between the two ID spaces.
+   *
+   *  @param dexId - National Dex ID (e.g., 25 for Pikachu)
+   *  @returns Internal species ID for this generation
+   */
+  getInternalSpeciesId(dexId: number): number;
+
   // ── List enumeration (for Autocomplete, Pokédex grid, etc.) ──
 
   /** Full ordered array of species names. Index = National Dex ID.
@@ -417,9 +429,12 @@ export interface IGenerationAdapter extends
   readonly codec: ITextCodec;
 
   /** Detect the region of a save file.
-   *  Replaces the standalone `isJapaneseSave()` from textValidator.ts
-   *  which had hardcoded `generation === 1/2` branches.
-   *  Each adapter knows its own region detection logic.
+   *  Each adapter knows its own region detection logic, eliminating the need
+   *  for shared utilities with hardcoded generation branches.
+   *
+   *  Following PKHeX's ILangDeviantSave.Japanese/Korean pattern: each save
+   *  format knows its own region, detected at construction time rather than
+   *  via a global utility with per-gen branching.
    *
    *  @param save - A parsed save object (or raw data with generation info)
    *  @returns 'international' | 'japanese' | 'korean'

@@ -43,7 +43,7 @@ export function isValidPokemonChar(char: string, isJapanese?: boolean): boolean 
     return ALLOWED_JPN_CHARS.has(char);
   }
   // Standard English single quote alternatives can be treated as valid since we sanitize them
-  if (char === "'" || char === "’" || char === "`") {
+  if (char === "'" || char === "'" || char === "`") {
     return true;
   }
   return ALLOWED_ENG_CHARS.has(char);
@@ -62,7 +62,7 @@ export function sanitizePokemonText(text: string, isJapanese?: boolean): string 
         result += char;
       }
     } else {
-      if (char === "'" || char === "’" || char === "`") {
+      if (char === "'" || char === "'" || char === "`") {
         result += "'"; // Map to standard single quote representable in the game
       } else if (ALLOWED_ENG_CHARS.has(char)) {
         result += char;
@@ -70,36 +70,4 @@ export function sanitizePokemonText(text: string, isJapanese?: boolean): string 
     }
   }
   return result;
-}
-
-/**
- * Checks if a ParsedSave object corresponds to a Japanese save game
- */
-export function isJapaneseSave(save: { rawData?: Uint8Array; generation?: number; genExtension?: any }): boolean {
-  if (!save || !save.rawData) return false;
-  
-  if (save.generation === 1) {
-    if (save.rawData.byteLength < 0x3524) return false;
-    const view = save.rawData;
-    const intPartyCount = view[0x2F2C]!;
-    const intFirstSpecies = view[0x2F2D]!;
-    const jpnPartyCount = view[0x2ED5]!;
-    const jpnFirstSpecies = view[0x2ED6]!;
-    
-    const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
-    const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
-    
-    if (jpnPartyValid && !intPartyValid) {
-      return true;
-    }
-    return false;
-  }
-  
-  if (save.generation === 2) {
-    // Check via save extension's region field
-    const gen2Ext = save.genExtension as { generation?: number; region?: string } | null;
-    return gen2Ext?.region === 'japanese';
-  }
-  
-  return false;
 }
