@@ -1,6 +1,7 @@
 import { ParsedSave, PokemonStats } from '../parser/types';
 import { IGenerationAdapter } from '../interfaces';
 import { registry } from '../core/AdapterRegistry';
+import { convertPokemonForTransfer } from './crossGenConverter';
 
 export type SortCriteria = 'id' | 'species' | 'nickname' | 'level' | 'type';
 export type SortDirection = 'asc' | 'desc';
@@ -166,12 +167,33 @@ function sortLivingDex(
     // --- Phase 3: Construct Boxes ---
 
     // 3a. Place Keepers (Living Dex)
+    // FIX (B2): Apply cross-gen conversion for Pokemon from external saves.
+    // When pulling a Pokemon from a different-generation save, species IDs, move IDs,
+    // held items, types, and genExtension must be converted. Simply copying as-is
+    // produces corrupt data. Follows PKHeX's ConvertToType() pattern.
+    const targetGen = targetSave.generation;
     for (let id = 1; id <= maxDex; id++) {
         const keeper = dexKeepers.get(id);
         if (keeper) {
             const boxIndex = Math.floor((id - 1) / boxCapacity);
             if (boxIndex < overflowStartBox) {
-                newBoxes[boxIndex]!.push(keeper.mon);
+                // Convert cross-gen Pokemon before placing them
+                let monToPlace = keeper.mon;
+                const sourceGen = keeper.sourceTabId === 'current' ? targetGen : (externalSaves.find(e => e.id === keeper.sourceTabId)?.data.generation ?? targetGen);
+                if (sourceGen !== targetGen) {
+                    const result = convertPokemonForTransfer(keeper.mon, sourceGen, targetGen);
+                    if (!result.mon) {
+                        // Impossible transfer — skip this mon, send to overflow
+                        console.warn(`Living-dex cross-gen transfer blocked: ${result.error}`);
+                        overflow.push(keeper);
+                        continue;
+                    }
+                    if (result.warnings.length > 0) {
+                        console.warn(`Living-dex cross-gen warnings for ${keeper.mon.speciesName}:`, result.warnings);
+                    }
+                    monToPlace = result.mon;
+                }
+                newBoxes[boxIndex]!.push(monToPlace);
             } else {
                 overflow.push(keeper);
             }

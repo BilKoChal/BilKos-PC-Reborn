@@ -1,5 +1,6 @@
 import { ParsedSave, PokemonStats } from '../parser/types';
 import { registry } from '../core/AdapterRegistry';
+import { convertPokemonForTransfer } from './crossGenConverter';
 
 export type MoveLocation = 
   | { type: 'party'; index: number }
@@ -274,11 +275,57 @@ export function transferPokemonBatch(
         // Use source save's generation for source mon, target save's generation for target mon
         const sourceGen = sourceSave.generation;
         const targetGen = sameSave ? sourceSave.generation : targetSave.generation;
-        const readySource = prepareForLocation({ ...srcMon }, isTgtParty, isTgtParty ? targetGen : sourceGen) as PokemonStats;
+
+        // FIX (Phase 5 — B2): Cross-gen conversion.
+        // When transferring between different generations, species IDs, move IDs,
+        // held items, types, and genExtension must be converted. Simply copying
+        // the CanonicalPokemon as-is produces corrupt data because Gen1 uses
+        // internal species ordering while Gen2 uses National Dex order, and
+        // Gen2 has moves/items/types that don't exist in Gen1.
+        // Follows PKHeX's PK1.ConvertToPK2() / PK2.ConvertToPK1() pattern.
+        let sourceMonForTarget: PokemonStats;
+        if (!sameSave && sourceGen !== targetGen) {
+            const result = convertPokemonForTransfer({ ...srcMon }, sourceGen, targetGen);
+            if (!result.mon) {
+                // Impossible transfer (e.g., Gen2-only species to Gen1) — skip this mon
+                console.warn(`Cross-gen transfer blocked: ${result.error}`);
+                continue;
+            }
+            // Log any warnings about data loss
+            if (result.warnings.length > 0) {
+                console.warn(`Cross-gen transfer warnings for ${srcMon.speciesName}:`, result.warnings);
+            }
+            sourceMonForTarget = result.mon;
+        } else {
+            sourceMonForTarget = { ...srcMon };
+        }
+        const readySource = prepareForLocation(sourceMonForTarget, isTgtParty, isTgtParty ? targetGen : sourceGen) as PokemonStats;
         
         if (tgtMon) {
             // --- SWAP ---
-            const readyTarget = prepareForLocation({ ...tgtMon }, isSrcParty, isSrcParty ? sourceGen : targetGen) as PokemonStats;
+            // Also convert the swapped target mon if it's going to a different gen
+            let targetMonForSource: PokemonStats;
+            if (!sameSave && sourceGen !== targetGen) {
+                const result = convertPokemonForTransfer({ ...tgtMon }, targetGen, sourceGen);
+                if (!result.mon) {
+                    // Can't swap — target mon can't exist in source gen. Fall back to move-only.
+                    console.warn(`Cross-gen swap blocked for target mon: ${result.error}. Falling back to move-only.`);
+                    if (tgtLoc.index >= tgtList.length) {
+                        tgtList.push(readySource);
+                    } else {
+                        tgtList[tgtLoc.index] = readySource;
+                    }
+                    (srcList as (PokemonStats | null)[])[srcLoc.index] = null;
+                    continue;
+                }
+                if (result.warnings.length > 0) {
+                    console.warn(`Cross-gen transfer warnings for ${tgtMon.speciesName}:`, result.warnings);
+                }
+                targetMonForSource = result.mon;
+            } else {
+                targetMonForSource = { ...tgtMon };
+            }
+            const readyTarget = prepareForLocation(targetMonForSource, isSrcParty, isSrcParty ? sourceGen : targetGen) as PokemonStats;
             
             srcList[srcLoc.index] = readyTarget;
             tgtList[tgtLoc.index] = readySource;
