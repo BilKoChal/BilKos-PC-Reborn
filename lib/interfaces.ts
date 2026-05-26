@@ -119,6 +119,25 @@ export interface IGenerationMetadata {
    *  'text' = "12h 34m 56s" (Gen1), 'clock' = "12:34:56" (Gen2+) */
   playTimeFormat: 'text' | 'clock';
 
+  // ── IV/EV metadata (replaces hardcoded clamp values in editor) ──
+
+  /** Maximum IV value for this generation.
+   *  Gen1/2: 15 (4-bit DVs), Gen3+: 31 (5-bit IVs). */
+  ivMax: number;
+
+  /** Maximum EV value per stat for this generation.
+   *  Gen1/2: 65535 (StatExp, u16), Gen3-5: 255, Gen6+: 252. */
+  evMax: number;
+
+  /** Maximum total EVs across all stats, or undefined if no total cap.
+   *  Gen1/2: undefined (no cap, all stats can be maxed),
+   *  Gen3+: 510 (enforced by the game). */
+  evTotalCap: number | undefined;
+
+  /** Display label for the IV/DV concept in this generation.
+   *  'DV' for Gen1/2 (Determinant Values), 'IV' for Gen3+ (Individual Values). */
+  statTermLabel: 'DV' | 'IV';
+
   /** Returns the URL of the trainer sprite image for this generation/version/gender.
    *  Used by TrainerCard to display the correct trainer portrait.
    *  @param gender - Player gender string ('Male' | 'Female')

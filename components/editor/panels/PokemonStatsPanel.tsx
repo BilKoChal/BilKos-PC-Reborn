@@ -11,6 +11,10 @@ interface PokemonStatsPanelProps {
     adapter?: IGenerationAdapter;
     updateIV: (stat: keyof PokemonStats['iv'], value: number) => void;
     updateEV: (stat: keyof PokemonStats['ev'], value: number) => void;
+    /** Maximum IV value for the active generation (adapter-driven). Default: 15 */
+    ivMax?: number;
+    /** Maximum EV value for the active generation (adapter-driven). Default: 65535 */
+    evMax?: number;
 }
 
 const StatsChart: React.FC<{ 
@@ -115,7 +119,7 @@ function dShort(label: string): string {
     return label.substring(0, 3).toUpperCase();
 }
 
-export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, generation: generationProp, adapter: adapterProp, updateIV, updateEV }) => {
+export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, generation: generationProp, adapter: adapterProp, updateIV, updateEV, ivMax: ivMaxProp, evMax: evMaxProp }) => {
     const ctx = useSaveContextSafe();
     const generation = (generationProp ?? ctx?.generation ?? 1) as Generation;
     const adapter = adapterProp ?? ctx?.adapter;
@@ -123,6 +127,11 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
 
     // Adapter-driven: replaces `generation === 1` branching for stat display
     const hasSplitSpecial = adapter?.hasSplitSpecial ?? (generation !== 1);
+
+    // Adapter-driven IV/EV limits (A2 fix)
+    const ivMax = ivMaxProp ?? adapter?.ivMax ?? 15;
+    const evMax = evMaxProp ?? adapter?.evMax ?? 65535;
+    const statTermLabel = adapter?.statTermLabel ?? 'DV';
 
     // Dynamically choose stats array based on whether this generation has split Special
     // Type ivKey/evKey as keyof PokemonIVs / keyof PokemonEVs so updateIV/updateEV
@@ -154,7 +163,7 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
         <div className="bg-gray-50/50 dark:bg-gray-900/50 overflow-y-auto h-full">
             <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black text-gray-400 tracking-widest uppercase flex items-center gap-2">
-                    <LineChart size={16} /> Stats & DVs/EVs
+                    <LineChart size={16} /> Stats & {statTermLabel}s/EVs
                 </h3>
                 <div className="flex bg-gray-200 dark:bg-gray-800 p-0.5 rounded-lg">
                     <button 
@@ -184,8 +193,8 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6">
                 <div className="grid grid-cols-[1fr_60px_80px] gap-0 text-xs font-bold text-gray-400 uppercase bg-gray-50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-700 py-2 px-4">
                     <span>Stat</span>
-                    <span className="text-center">DV (0-15)</span>
-                    <span className="text-center">EV (Max)</span>
+                    <span className="text-center">{statTermLabel} (0-{ivMax})</span>
+                    <span className="text-center">EV (0-{evMax})</span>
                 </div>
                 <div className="divide-y divide-gray-100 dark:divide-gray-800">
                     {statData.map((row, i) => (

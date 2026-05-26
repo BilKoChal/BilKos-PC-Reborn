@@ -31,6 +31,12 @@ export class Gen1Adapter implements IGenerationAdapter {
   hasMultiRegionBadges = false;
   playTimeFormat: 'text' | 'clock' = 'text';
 
+  // IV/EV metadata
+  ivMax = 15;           // Gen1/2: 4-bit DVs (0-15)
+  evMax = 65535;        // Gen1/2: StatExp (0-65535, u16)
+  evTotalCap = undefined; // Gen1/2: No total EV cap
+  statTermLabel: 'DV' | 'IV' = 'DV'; // Gen1/2 uses DV terminology
+
   getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
     // Yellow uses the anime-style Red sprite; Red/Blue use the classic sprite
     if (gameVersion === 'Yellow') {

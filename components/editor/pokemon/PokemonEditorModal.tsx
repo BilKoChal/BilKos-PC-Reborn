@@ -3,7 +3,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { useTheme } from '../../../context/ThemeContext';
 import { X, Save, Download, Book } from 'lucide-react';
-import { deriveBaseStats, recalculateStats } from '../../../lib/utils/statCalculator';
+// NOTE: deriveBaseStats and recalculateStats from statCalculator are intentionally NOT used here.
+// Stat recalculation is now routed through the adapter (adapter.recalculateStats)
+// which uses the correct generation-specific formula. The shared statCalculator uses
+// the Gen 1 formula for all generations, which produces wrong results for Gen 3+.
 import { getGrowthRate, getLevelFromExp as calculateLevel, getExpAtLevel as calculateMinExp } from '../../../lib/utils/experience';
 import { getPokemonTypes } from '../../../lib/generations/gen1/data/pokemonTypes';
 // NOTE: Generation-specific name lists are now accessed via adapter.getAllSpeciesNames() instead of
@@ -44,12 +47,18 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
         return getPokemonTypes(mon.dexId, generation);
     }, [mon.dexId, generation]);
 
-    // Recalculate Stats when EVs/DVs/Level change
-    const baseStats = useMemo(() => deriveBaseStats(initialData, generation), [initialData.speciesId, generation]);
+    // Adapter-driven IV/EV limits (A2 fix: replaces hardcoded clamp values)
+    const ivMax = adapter?.ivMax ?? 15;
+    const evMax = adapter?.evMax ?? 65535;
+
+    // Recalculate Stats when EVs/DVs/Level change (A3 fix: routed through adapter)
+    // Use adapter.getBaseStats() for species data lookup (correct per-generation),
+    // and adapter.recalculateStats() for the generation-correct stat formula.
+    const baseStats = useMemo(() => adapter?.getBaseStats(mon.dexId), [adapter, mon.dexId]);
 
     useEffect(() => {
-        if (!baseStats) return;
-        const newStats = recalculateStats(mon, baseStats, generation);
+        if (!adapter || !baseStats) return;
+        const newStats = adapter.recalculateStats(mon, baseStats);
         if (
             newStats.hp !== mon.hp || newStats.attack !== mon.attack || 
             newStats.speed !== mon.speed || newStats.special !== mon.special
@@ -61,7 +70,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                 spDef: newStats.spDef, special: newStats.special
             }));
         }
-    }, [mon.level, mon.iv, mon.ev, baseStats, generation]);
+    }, [mon.level, mon.iv, mon.ev, baseStats, adapter]);
 
     // Helper to safely clamp values
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
@@ -118,13 +127,13 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     };
 
     const updateIV = (stat: keyof typeof mon.iv, value: number) => {
-        const val = clamp(value, 0, 15);
+        const val = clamp(value, 0, ivMax);
         setMon(prev => ({ ...prev, iv: { ...prev.iv, [stat]: val } }));
         setIsDirty(true);
     };
 
     const updateEV = (stat: keyof typeof mon.ev, value: number) => {
-        const val = clamp(value, 0, 65535);
+        const val = clamp(value, 0, evMax);
         setMon(prev => ({ ...prev, ev: { ...prev.ev, [stat]: val } }));
         setIsDirty(true);
     };
@@ -305,6 +314,8 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                                 generation={generation}
                                 updateIV={updateIV}
                                 updateEV={updateEV}
+                                ivMax={ivMax}
+                                evMax={evMax}
                             />
                         </div>
 

@@ -108,6 +108,12 @@ export class Gen2Adapter implements IGenerationAdapter {
   hasMultiRegionBadges = true;
   playTimeFormat: 'text' | 'clock' = 'clock';
 
+  // IV/EV metadata
+  ivMax = 15;           // Gen1/2: 4-bit DVs (0-15)
+  evMax = 65535;        // Gen1/2: StatExp (0-65535, u16)
+  evTotalCap = undefined; // Gen1/2: No total EV cap
+  statTermLabel: 'DV' | 'IV' = 'DV'; // Gen1/2 uses DV terminology
+
   getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
     // Gen 2: Ethan (male) or Kris (female)
     if (gender === 'Female') {
