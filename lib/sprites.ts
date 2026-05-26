@@ -10,24 +10,93 @@
  * - 'master': Standard PokeAPI "master" pixel sprites (same for all versions)
  * - 'artwork': Official artwork (high-res illustrations)
  *
- * Shiny support:
- * - Artwork shiny: /sprites/pokemon/other/official-artwork/shiny/{id}.png
- * - Master shiny:  /sprites/pokemon/shiny/{id}.png
- * - Game-specific shiny (Gen 2+): /sprites/pokemon/versions/generation-ii/{game}/shiny/{id}.png
- * - Game-specific shiny (Gen 1): NOT available on PokeAPI — falls back to master shiny
- *
- * Unown form support:
- * - Unown (species 201) has 28 forms (A-Z, !, ?) with individual sprites
- * - Form sprites use format: /pokemon/{dexId}-{form}.png (master)
- * - Game-specific: /pokemon/versions/generation-ii/{game}/transparent/{dexId}-{form}.png
- *
- * Gen 2 shiny sprite sizing:
- * - Gen 2 game-specific shiny sprites from PokeAPI are 40x40px (half the 80x80 regular size)
- * - The PokemonSprite component handles Canvas padding to normalize sizing
+ * A12: Version-to-sprite-folder mapping is now DATA-DRIVEN via VERSION_SPRITE_MAP.
+ * Adding a generation requires only adding rows to the table — zero control-flow edits.
+ * Previously, 4 switch(gameVersion) statements were duplicated across multiple functions.
+ * Now each function does a single lookup and constructs the URL from the result.
  */
 
 import { SpriteMode } from '../context/SpriteContext';
 import { GameVersion } from './parser/types';
+
+// ─── Version → Sprite Folder Data Table (A12: replaces all switch(gameVersion)) ───
+
+/**
+ * Maps each game version to its PokeAPI sprite folder path and capabilities.
+ *
+ * PokeAPI URL structure:
+ *   Regular:  /sprites/pokemon/versions/{gen}/{folder}/transparent/{id}.png
+ *   Shiny:    /sprites/pokemon/versions/{gen}/{folder}/shiny/{id}.png
+ *   Unown:    /sprites/pokemon/versions/{gen}/{folder}/transparent/201-{form}.png
+ *
+ * Adding Gen 3+ = adding rows to this table. No switch/case edits needed.
+ * The `hasShiny` flag indicates whether PokeAPI provides game-specific shiny sprites
+ * for this version (Gen 1 does NOT have game-specific shiny sprites).
+ */
+const VERSION_SPRITE_MAP: Record<string, { gen: string; folder: string; hasShiny: boolean }> = {
+  // Gen 1
+  Red:   { gen: 'generation-i', folder: 'red-blue', hasShiny: false },
+  Blue:  { gen: 'generation-i', folder: 'red-blue', hasShiny: false },
+  Yellow: { gen: 'generation-i', folder: 'yellow', hasShiny: false },
+  // Gen 2
+  Gold:    { gen: 'generation-ii', folder: 'gold', hasShiny: true },
+  Silver:  { gen: 'generation-ii', folder: 'silver', hasShiny: true },
+  Crystal: { gen: 'generation-ii', folder: 'crystal', hasShiny: true },
+  // Gen 3 — add when supported:
+  // Ruby:     { gen: 'generation-iii', folder: 'ruby-sapphire', hasShiny: true },
+  // Sapphire: { gen: 'generation-iii', folder: 'ruby-sapphire', hasShiny: true },
+  // Emerald:  { gen: 'generation-iii', folder: 'emerald', hasShiny: true },
+  // FireRed:  { gen: 'generation-iii', folder: 'firered-leafgreen', hasShiny: true },
+  // LeafGreen: { gen: 'generation-iii', folder: 'firered-leafgreen', hasShiny: true },
+  // Gen 4 — add when supported:
+  // Diamond:     { gen: 'generation-iv', folder: 'diamond-pearl', hasShiny: true },
+  // Pearl:       { gen: 'generation-iv', folder: 'diamond-pearl', hasShiny: true },
+  // Platinum:    { gen: 'generation-iv', folder: 'platinum', hasShiny: true },
+  // HeartGold:   { gen: 'generation-iv', folder: 'heartgold-soulsilver', hasShiny: true },
+  // SoulSilver:  { gen: 'generation-iv', folder: 'heartgold-soulsilver', hasShiny: true },
+  // Gen 5:
+  // Black:  { gen: 'generation-v', folder: 'black-white', hasShiny: true },
+  // White:  { gen: 'generation-v', folder: 'black-white', hasShiny: true },
+  // Gen 6:
+  // X:              { gen: 'generation-vi', folder: 'x-y', hasShiny: true },
+  // Y:              { gen: 'generation-vi', folder: 'x-y', hasShiny: true },
+  // OmegaRuby:      { gen: 'generation-vi', folder: 'omegaruby-alphasapphire', hasShiny: true },
+  // AlphaSapphire:  { gen: 'generation-vi', folder: 'omegaruby-alphasapphire', hasShiny: true },
+  // Gen 7:
+  // UltraSun:  { gen: 'generation-vii', folder: 'ultra-sun-ultra-moon', hasShiny: true },
+  // UltraMoon: { gen: 'generation-vii', folder: 'ultra-sun-ultra-moon', hasShiny: true },
+  // Gen 8:
+  // BrilliantDiamond: { gen: 'generation-viii', folder: 'brilliant-diamond-shining-pearl', hasShiny: true },
+  // ShiningPearl:     { gen: 'generation-viii', folder: 'brilliant-diamond-shining-pearl', hasShiny: true },
+  // Gen 9:
+  // Scarlet: { gen: 'generation-ix', folder: 'scarlet-violet', hasShiny: true },
+  // Violet:  { gen: 'generation-ix', folder: 'scarlet-violet', hasShiny: true },
+};
+
+// ─── Trainer Sprite Data Table ──────────────────────────────────────────────
+
+/**
+ * Maps each game version to its trainer sprite file on PokemonShowdown.
+ *
+ * Each entry specifies:
+ * - `gameSpecific`: Filename for game-specific (gen-suffixed) mode
+ * - `master`: { male, female } filenames for master (non-suffixed) mode
+ *
+ * Adding Gen 3+ = adding rows. No switch edits needed.
+ */
+const TRAINER_SPRITE_MAP: Record<string, {
+  gameSpecific: string | { male: string; female: string };
+  master: { male: string; female: string };
+}> = {
+  // Gen 1
+  Red:   { gameSpecific: 'red-gen1rb.png', master: { male: 'red.png', female: 'red.png' } },
+  Blue:  { gameSpecific: 'red-gen1rb.png', master: { male: 'red.png', female: 'red.png' } },
+  Yellow: { gameSpecific: 'red-gen1.png', master: { male: 'red.png', female: 'red.png' } },
+  // Gen 2
+  Gold:    { gameSpecific: { male: 'ethan-gen2.png', female: 'kris-gen2.png' }, master: { male: 'ethan.png', female: 'kris.png' } },
+  Silver:  { gameSpecific: { male: 'ethan-gen2.png', female: 'kris-gen2.png' }, master: { male: 'ethan.png', female: 'kris.png' } },
+  Crystal: { gameSpecific: { male: 'ethan-gen2.png', female: 'kris-gen2.png' }, master: { male: 'ethan.png', female: 'kris.png' } },
+};
 
 // ─── Unown Form Helper ──────────────────────────────────────────────────────
 
@@ -55,6 +124,26 @@ export function getUnownFormLetter(dexId: number, iv: { attack: number; defense:
 
 const POKEAPI_SPRITES_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites';
 const TRAINERS_BASE = 'https://play.pokemonshowdown.com/sprites/trainers';
+
+// ─── Internal Helpers ────────────────────────────────────────────────────────
+
+/**
+ * Looks up the version sprite info from the data table.
+ * Returns undefined if the version is not in the map.
+ */
+function getVersionSpriteInfo(gameVersion?: GameVersion) {
+  if (!gameVersion) return undefined;
+  return VERSION_SPRITE_MAP[gameVersion];
+}
+
+/**
+ * Looks up the trainer sprite info from the data table.
+ * Returns undefined if the version is not in the map.
+ */
+function getTrainerSpriteInfo(gameVersion?: GameVersion) {
+  if (!gameVersion) return undefined;
+  return TRAINER_SPRITE_MAP[gameVersion];
+}
 
 // ─── Pokemon Sprites ─────────────────────────────────────────────────────────
 
@@ -104,14 +193,14 @@ export function getPokemonSpriteUrl(
  *
  * Artwork shiny: /sprites/pokemon/other/official-artwork/shiny/{id}.png
  * Master shiny:  /sprites/pokemon/shiny/{id}.png
- * Game-specific shiny (Gen 2+): /sprites/pokemon/versions/generation-ii/{game}/shiny/{id}.png
+ * Game-specific shiny (Gen 2+): /sprites/pokemon/versions/{gen}/{folder}/shiny/{id}.png
  * Game-specific shiny (Gen 1): Falls back to master shiny (no game-specific shiny sprites exist)
  */
 function getShinyPokemonSpriteUrl(
   dexId: number,
   mode: SpriteMode,
   gameVersion?: GameVersion,
-  form?: string
+  _form?: string
 ): string {
   switch (mode) {
     case 'game-specific':
@@ -127,72 +216,31 @@ function getShinyPokemonSpriteUrl(
 }
 
 /**
- * Game-specific Pokemon sprite URLs.
- * Uses PokeAPI's version-specific sprite folders:
- *   Gen 1 Red/Blue → generation-i/red-blue/transparent/
- *   Gen 1 Yellow   → generation-i/yellow/transparent/
- *   Gen 2 Gold     → generation-ii/gold/transparent/
- *   Gen 2 Silver   → generation-ii/silver/transparent/
- *   Gen 2 Crystal  → generation-ii/crystal/transparent/
- *
+ * Game-specific Pokemon sprite URL — DATA-DRIVEN (A12).
+ * Looks up the version in VERSION_SPRITE_MAP and constructs the URL.
  * Falls back to master sprite for unknown versions.
  */
 function getGameSpecificPokemonUrl(dexId: number, gameVersion?: GameVersion): string {
-  switch (gameVersion) {
-    case 'Red':
-    case 'Blue':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-i/red-blue/transparent/${dexId}.png`;
-
-    case 'Yellow':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-i/yellow/transparent/${dexId}.png`;
-
-    case 'Gold':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/gold/transparent/${dexId}.png`;
-
-    case 'Silver':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/silver/transparent/${dexId}.png`;
-
-    case 'Crystal':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/crystal/transparent/${dexId}.png`;
-
-    default:
-      // Unknown version → fall back to master sprite
-      return `${POKEAPI_SPRITES_BASE}/pokemon/${dexId}.png`;
+  const info = getVersionSpriteInfo(gameVersion);
+  if (info) {
+    return `${POKEAPI_SPRITES_BASE}/pokemon/versions/${info.gen}/${info.folder}/transparent/${dexId}.png`;
   }
+  // Unknown version → fall back to master sprite
+  return `${POKEAPI_SPRITES_BASE}/pokemon/${dexId}.png`;
 }
 
 /**
- * Game-specific shiny Pokemon sprite URLs.
- *
- * Gen 2+ games have version-specific shiny sprites in PokeAPI:
- *   Gold    → generation-ii/gold/shiny/
- *   Silver  → generation-ii/silver/shiny/
- *   Crystal → generation-ii/crystal/shiny/
- *
- * Gen 1 games do NOT have game-specific shiny sprites on PokeAPI,
- * so we fall back to the master shiny sprite (/sprites/pokemon/shiny/{id}.png).
+ * Game-specific shiny Pokemon sprite URL — DATA-DRIVEN (A12).
+ * Uses VERSION_SPRITE_MAP.hasShiny to determine if game-specific shiny exists.
+ * Falls back to master shiny for versions without game-specific shiny sprites.
  */
 function getGameSpecificShinyPokemonUrl(dexId: number, gameVersion?: GameVersion): string {
-  switch (gameVersion) {
-    // Gen 1: No game-specific shiny sprites exist → fall back to master shiny
-    case 'Red':
-    case 'Blue':
-    case 'Yellow':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/shiny/${dexId}.png`;
-
-    case 'Gold':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/gold/shiny/${dexId}.png`;
-
-    case 'Silver':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/silver/shiny/${dexId}.png`;
-
-    case 'Crystal':
-      return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/crystal/shiny/${dexId}.png`;
-
-    default:
-      // Unknown version → fall back to master shiny sprite
-      return `${POKEAPI_SPRITES_BASE}/pokemon/shiny/${dexId}.png`;
+  const info = getVersionSpriteInfo(gameVersion);
+  if (info && info.hasShiny) {
+    return `${POKEAPI_SPRITES_BASE}/pokemon/versions/${info.gen}/${info.folder}/shiny/${dexId}.png`;
   }
+  // No game-specific shiny (Gen 1 or unknown) → fall back to master shiny
+  return `${POKEAPI_SPRITES_BASE}/pokemon/shiny/${dexId}.png`;
 }
 
 // ─── Trainer Sprites ─────────────────────────────────────────────────────────
@@ -225,48 +273,35 @@ export function getTrainerSpriteUrl(
 }
 
 /**
- * Game-specific trainer sprite URLs.
- * Uses PokemonShowdown's generation-suffixed trainer sprites.
+ * Game-specific trainer sprite URL — DATA-DRIVEN (A12).
+ * Looks up the version in TRAINER_SPRITE_MAP and resolves the filename.
  */
 function getGameSpecificTrainerUrl(gender: string, gameVersion?: GameVersion): string {
-  const isFemale = gender === 'Female';
-
-  switch (gameVersion) {
-    case 'Red':
-    case 'Blue':
-      return `${TRAINERS_BASE}/red-gen1rb.png`;
-
-    case 'Yellow':
-      return `${TRAINERS_BASE}/red-gen1.png`;
-
-    case 'Gold':
-    case 'Silver':
-    case 'Crystal':
-      return isFemale
-        ? `${TRAINERS_BASE}/kris-gen2.png`
-        : `${TRAINERS_BASE}/ethan-gen2.png`;
-
-    default:
-      // Fallback: master style
-      return getMasterTrainerUrl(gender, gameVersion);
+  const info = getTrainerSpriteInfo(gameVersion);
+  if (info) {
+    const entry = info.gameSpecific;
+    if (typeof entry === 'string') {
+      // Version has a single sprite (no gender differentiation)
+      return `${TRAINERS_BASE}/${entry}`;
+    }
+    // Version has gendered sprites
+    return `${TRAINERS_BASE}/${gender === 'Female' ? entry.female : entry.male}`;
   }
+  // Unknown version → fall back to master style
+  return getMasterTrainerUrl(gender, gameVersion);
 }
 
 /**
- * Master trainer sprite URLs.
- * Uses PokemonShowdown's non-generation-suffixed trainer sprites.
+ * Master trainer sprite URL — DATA-DRIVEN (A12).
+ * Looks up the version in TRAINER_SPRITE_MAP and resolves the filename.
  */
 function getMasterTrainerUrl(gender: string, gameVersion?: GameVersion): string {
-  const isGen2 = gameVersion && ['Gold', 'Silver', 'Crystal'].includes(gameVersion);
-  const isFemale = gender === 'Female';
-
-  if (isGen2) {
-    return isFemale
-      ? `${TRAINERS_BASE}/kris.png`
-      : `${TRAINERS_BASE}/ethan.png`;
+  const info = getTrainerSpriteInfo(gameVersion);
+  if (info) {
+    const isFemale = gender === 'Female';
+    return `${TRAINERS_BASE}/${isFemale ? info.master.female : info.master.male}`;
   }
-
-  // Gen 1 (or unknown)
+  // Unknown version → default to Red (Gen 1 male trainer)
   return `${TRAINERS_BASE}/red.png`;
 }
 
@@ -400,10 +435,9 @@ export function getEffectiveSpriteMode(
 // ─── Unown Form Sprites ────────────────────────────────────────────────────
 
 /**
- * Returns the sprite URL for a specific Unown form.
- * Unown (species 201) has 28 forms: A-Z (26), !, ?.
- * PokeAPI serves form sprites as /pokemon/201-{letter}.png
- * and game-specific as /pokemon/versions/generation-ii/{game}/transparent/201-{letter}.png
+ * Returns the sprite URL for a specific Unown form — DATA-DRIVEN (A12).
+ * Looks up the version in VERSION_SPRITE_MAP and constructs the URL.
+ * Falls back to master form sprite for unknown versions.
  *
  * @param form        The form letter (lowercase: 'a'-'z', '!', '?')
  * @param mode        Current sprite mode
@@ -412,22 +446,14 @@ export function getEffectiveSpriteMode(
 function getUnownFormSpriteUrl(form: string, mode: SpriteMode, gameVersion?: GameVersion): string {
   const f = form.toLowerCase();
   switch (mode) {
-    case 'game-specific':
-      switch (gameVersion) {
-        case 'Red':
-        case 'Blue':
-          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-i/red-blue/transparent/201-${f}.png`;
-        case 'Yellow':
-          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-i/yellow/transparent/201-${f}.png`;
-        case 'Gold':
-          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/gold/transparent/201-${f}.png`;
-        case 'Silver':
-          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/silver/transparent/201-${f}.png`;
-        case 'Crystal':
-          return `${POKEAPI_SPRITES_BASE}/pokemon/versions/generation-ii/crystal/transparent/201-${f}.png`;
-        default:
-          return `${POKEAPI_SPRITES_BASE}/pokemon/201-${f}.png`;
+    case 'game-specific': {
+      const info = getVersionSpriteInfo(gameVersion);
+      if (info) {
+        return `${POKEAPI_SPRITES_BASE}/pokemon/versions/${info.gen}/${info.folder}/transparent/201-${f}.png`;
       }
+      // Unknown version → fall back to master form sprite
+      return `${POKEAPI_SPRITES_BASE}/pokemon/201-${f}.png`;
+    }
     case 'artwork':
       // No artwork per-form — fall back to default Unown artwork
       return `${POKEAPI_SPRITES_BASE}/pokemon/other/official-artwork/201.png`;
@@ -444,6 +470,9 @@ function getUnownFormSpriteUrl(form: string, mode: SpriteMode, gameVersion?: Gam
  * game-specific shiny sprite URL. These sprites are 40x40px (half the
  * 80x80 regular size) and need Canvas padding to normalize sizing.
  *
+ * DATA-DRIVEN (A12): Uses VERSION_SPRITE_MAP.hasShiny instead of
+ * hardcoded version name checks.
+ *
  * @param mode        Current sprite mode
  * @param gameVersion Active game version
  * @param isShiny     Whether the Pokemon is shiny
@@ -454,5 +483,6 @@ export function isGen2GameSpecificShiny(
   isShiny: boolean = false
 ): boolean {
   if (!isShiny || mode !== 'game-specific') return false;
-  return gameVersion === 'Gold' || gameVersion === 'Silver' || gameVersion === 'Crystal';
+  const info = getVersionSpriteInfo(gameVersion);
+  return info?.hasShiny === true;
 }
