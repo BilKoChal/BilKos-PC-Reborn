@@ -64,6 +64,8 @@ const prepareForLocation = (mon: PokemonStats, isGoingToParty: boolean, generati
                 newMon.spDef = updated.spDef;
                 newMon.hp = Math.min(newMon.hp, newMon.maxHp);
                 // Also update IVs if the adapter derived them (e.g., Gen2 HP IV derivation)
+                // Note: recalculateStats now deep-clones iv/ev internally (B6 fix),
+                // so this spread is defensive but no longer strictly necessary.
                 if (updated.iv) {
                     newMon.iv = { ...updated.iv };
                 }

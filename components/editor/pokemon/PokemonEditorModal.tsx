@@ -240,7 +240,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                     id={mon.dexId}
                     owned={true} // Contextual: in editor means owned
                     seen={true}
-                    version={'Red'} // Default for viewing purposes, doesn't matter much for text
+                    version={saveCtx?.gameVersion ?? 'Red'}
                     onClose={() => setShowDexEntry(false)}
                 />
             )}

@@ -311,6 +311,8 @@ export function convertPokemonForTransfer(
         converted.hp = Math.min(converted.hp, converted.maxHp);
 
         // Update IVs if the adapter derived them (e.g., Gen2 HP IV derivation)
+        // Note: recalculateStats now deep-clones iv/ev internally (B6 fix),
+        // so this spread is defensive but no longer strictly necessary.
         if (recalcMon.iv) {
             converted.iv = { ...recalcMon.iv };
         }

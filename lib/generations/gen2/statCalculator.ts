@@ -17,7 +17,13 @@ export function calculateGen2Stat(base: number, iv: number, ev: number, level: n
  * fully resolving SpAtk and SpDef separately.
  */
 export function recalculateGen2Stats(mon: PokemonStats, baseStats: BaseStats): PokemonStats {
-    const newMon = { ...mon };
+    // B6: Deep-clone iv and ev to prevent mutating the caller's objects.
+    // Previously, { ...mon } was a shallow clone — newMon.iv and mon.iv were
+    // the same reference, so newMon.iv.hp = hpIv mutated the caller's mon.iv.hp.
+    // Following PKHeX's pattern: PKM.LoadStats() is a pure read operation that
+    // fills a buffer, then PKM.SetStats() writes it back. Our equivalent is to
+    // return a fully independent clone with no shared references to nested objects.
+    const newMon = { ...mon, iv: { ...mon.iv }, ev: { ...mon.ev } };
 
     // GSC shares Defense DVs/IVs, Speed DVs/IVs, and Special DVs/IVs.
     // HP DV/IV is derived from the other 4 DVs/IVs just like Gen 1.

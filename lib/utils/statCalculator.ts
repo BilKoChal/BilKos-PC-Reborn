@@ -42,7 +42,12 @@ export function deriveBaseStats(mon: PokemonStats, generation: Generation): Base
 }
 
 export function recalculateStats(mon: PokemonStats, baseStats: BaseStats, generation: Generation): PokemonStats {
-    const newMon = { ...mon };
+    // B6: Deep-clone iv and ev to prevent latent shared-reference bugs.
+    // Even though this function currently only reads mon.iv/mon.ev (doesn't write),
+    // the shallow clone means any caller that later writes to newMon.iv would
+    // corrupt the original mon. Proactively deep-clone for safety, matching
+    // the fix applied to recalculateGen2Stats.
+    const newMon = { ...mon, iv: { ...mon.iv }, ev: { ...mon.ev } };
 
     if (generation >= 2) {
       // Gen 2+: Use split SpAtk/SpDef
