@@ -245,6 +245,34 @@ export interface IGenerationDataAccess {
    *  @param version - Game version string
    */
   getEncounterLocations(dexId: number, version: string): string | undefined;
+
+  // ── Event distributions & game events (replaces direct gen1/gen2 data imports in UI) ──
+
+  /** Get event/encounter Pokemon distributions for this generation.
+   *  Returns the full list of pre-built event Pokemon (gift legendaries,
+   *  fossils, eggs, mystery gifts, etc.) available in this generation.
+   *  Each distribution includes a byte blob that can be parsed with
+   *  parseStandalonePokemon() or standaloneFormat.parseFile().
+   *
+   *  Replaces direct imports of GEN1_EVENT_DISTRIBUTIONS / GEN2_EVENT_DISTRIBUTIONS
+   *  in EncounterDatabase.tsx, following PKHeX's per-generation Encounters pattern.
+   */
+  getEventDistributions(): import('./data/eventPokemonTypes').EventPokemonData[];
+
+  /** Get named game event definitions for this generation, optionally filtered by version.
+   *  Returns event flag entries (named, categorized) that describe in-game events
+   *  like legendary encounters, gift Pokemon, story progression, and interactions.
+   *
+   *  The version parameter enables version-specific filtering within a generation
+   *  (e.g., Crystal-only events in Gen 2). If omitted, returns all events for the
+   *  generation.
+   *
+   *  Replaces direct imports of GEN1_EVENTS / GEN2_EVENTS in EventFlagsManager.tsx,
+   *  following PKHeX's IEventFlagArray pattern where each save class owns its flag data.
+   *
+   *  @param version - Optional game version string (e.g., 'Gold', 'Crystal')
+   */
+  getGameEvents(version?: string): import('./data/gameEvents').GameEventDefinition[];
 }
 
 /**

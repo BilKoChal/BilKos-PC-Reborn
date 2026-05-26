@@ -1,10 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
-import { GEN1_EVENTS, GameEvent } from '../../lib/generations/gen1/data/events';
-import { GEN2_EVENTS } from '../../lib/generations/gen2/data/events';
 import { ParsedSave, Gen2SaveExtension } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { MapPin, Gift, Zap, Flag, Swords } from 'lucide-react';
+// A7: Game events now accessed through adapter — no direct imports from gen1/gen2 data files.
+import { useSaveContextSafe } from '../../context/SaveContext';
+import { type GameEventDefinition } from '../../lib/data/gameEvents';
 
 interface EventFlagsManagerProps {
     data: ParsedSave;
@@ -14,36 +15,28 @@ interface EventFlagsManagerProps {
 export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUpdate }) => {
     const { getGameTheme } = useTheme();
     const theme = getGameTheme();
+    const saveCtx = useSaveContextSafe();
+    const adapter = saveCtx?.adapter;
     const [flags, setFlags] = useState<boolean[]>([...data.eventFlags]);
 
-    // Select the correct event database based on generation
-    // For Gen 2, filter by version (Gold/Silver vs Crystal)
-    const eventsData: GameEvent[] = useMemo(() => {
-        if (data.generation === 1) return GEN1_EVENTS;
-        if (data.generation === 2) {
+    // A7: Get the correct event database from the adapter, with version filtering for Gen 2+
+    const eventsData: GameEventDefinition[] = useMemo(() => {
+        if (!adapter) return [];
+        // Determine version for filtering (Gen 2+ needs version-aware filtering)
+        let version: string | undefined;
+        if (data.generation >= 2) {
             const gen2Ext = data.genExtension as Gen2SaveExtension | null;
-            const version = gen2Ext?.gameVersion || 'Gold';
-            const isCrystal = version === 'Crystal';
-            // Filter Gen 2 events by version compatibility
-            return GEN2_EVENTS.filter(e => 
-                e.version === 'all' || 
-                (isCrystal && e.version === 'crystal') ||
-                (!isCrystal && e.version === 'gs')
-            ).map(e => ({
-                ...e,
-                // Remove the version field since Gen1 GameEvent doesn't have it
-                // but we're using the same interface, so just pass through
-            }));
+            version = gen2Ext?.gameVersion;
         }
-        return [];
-    }, [data.generation, data.genExtension]);
+        return adapter.getGameEvents(version);
+    }, [adapter, data.generation, data.genExtension]);
 
     // Group events by category
     const groupedEvents = eventsData.reduce((acc, event) => {
         if (!acc[event.category]) acc[event.category] = [];
         acc[event.category]!.push(event);
         return acc;
-    }, {} as Record<string, GameEvent[]>);
+    }, {} as Record<string, GameEventDefinition[]>);
 
     const handleToggle = (offset: number) => {
         if (offset >= flags.length) return;
@@ -90,7 +83,7 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
                     <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                         {eventsData.length} named events &middot; {data.eventFlags.length} total flags
                     </div>
-                    {data.generation === 2 && (
+                    {adapter?.hasGender && (
                         <div className="text-[10px] bg-cyan-100 dark:bg-cyan-900/30 text-cyan-600 dark:text-cyan-400 px-2 py-0.5 rounded-full font-bold">
                             {(data.genExtension as Gen2SaveExtension)?.gameVersion || 'GSC'}
                         </div>
@@ -144,7 +137,7 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
                 </div>
                 
                 <div className="mt-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/30 rounded-lg text-xs text-yellow-700 dark:text-yellow-400">
-                    <strong>Note:</strong> {data.generation === 1 ? (
+                    <strong>Note:</strong> {!adapter?.hasSplitSpecial ? (
                         <>"Available" (Green) means the Pokemon or Item will appear in the game world. 
                         "Defeated/Taken" (Grey) means it has already been interacted with. 
                         If you killed a legendary by mistake, toggle it back to Green to make it reappear!</>

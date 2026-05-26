@@ -12,6 +12,10 @@ import { Gen1StandaloneFormat } from './StandaloneFormat';
 import { POKEDEX_ENTRIES } from './data/pokedexEntries';
 import { POKEMON_LOCATIONS } from './data/pokemonLocations';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
+import { GEN1_EVENT_DISTRIBUTIONS } from './data/eventDistributions';
+import { GEN1_EVENTS } from './data/events';
+import { type GameEventDefinition } from '../../data/gameEvents';
+import { type EventPokemonData } from '../../data/eventPokemonTypes';
 
 /**
  * Gen 1 Generation Adapter.
@@ -228,6 +232,17 @@ export class Gen1Adapter implements IGenerationAdapter {
     if (version === 'Yellow') return loc.yellow;
     if (version === 'Blue') return loc.blue;
     return loc.red;
+  }
+
+  // ── Event distributions & game events (A7) ──
+
+  getEventDistributions(): EventPokemonData[] {
+    return GEN1_EVENT_DISTRIBUTIONS;
+  }
+
+  getGameEvents(_version?: string): GameEventDefinition[] {
+    // Gen 1 has no version-specific events — all events apply to R/B/Y equally
+    return GEN1_EVENTS;
   }
 
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string {

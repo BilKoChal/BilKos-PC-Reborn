@@ -14,14 +14,9 @@
  * When a flag applies to all versions, it's marked as 'all'.
  */
 
-export interface GameEvent {
-    id: string;
-    name: string;
-    description: string;
-    offset: number; // Global bit index (0-1999) in the event flags array
-    category: 'Legendary' | 'Interaction' | 'Gift' | 'Story';
-    version: 'all' | 'gs' | 'crystal'; // Which versions this flag applies to
-}
+// Re-export the shared GameEventDefinition type for backward compatibility
+export type { GameEventDefinition as GameEvent } from '../../../data/gameEvents';
+import { type GameEventDefinition } from '../../../data/gameEvents';
 
 /**
  * Gen 2 event flags database.
@@ -36,7 +31,7 @@ export interface GameEvent {
  * - Gift: Gift Pokemon, key item pickups, one-time choices
  * - Story: Major story progression flags
  */
-export const GEN2_EVENTS: GameEvent[] = [
+export const GEN2_EVENTS: GameEventDefinition[] = [
     // ── Legendary Pokemon ──
     { id: 'hooh', name: 'Ho-Oh', description: 'Tin Tower summit encounter', offset: 1247, category: 'Legendary', version: 'all' },
     { id: 'lugia', name: 'Lugia', description: 'Whirl Islands encounter', offset: 1246, category: 'Legendary', version: 'all' },

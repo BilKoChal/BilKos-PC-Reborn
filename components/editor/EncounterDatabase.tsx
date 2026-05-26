@@ -1,10 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { GEN1_EVENT_DISTRIBUTIONS } from '../../lib/generations/gen1/data/eventDistributions';
-import { GEN2_EVENT_DISTRIBUTIONS } from '../../lib/generations/gen2/data/eventDistributions';
 import { EventPokemonData } from '../../lib/data/eventPokemonTypes';
-import { parsePk1 } from '../../lib/generations/gen1/parser';
-import { parsePk2 } from '../../lib/generations/gen2/parser';
 import { ParsedSave, PokemonStats } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
@@ -12,18 +8,11 @@ import { getPokemonSpriteUrl, getSpriteImgClasses } from '../../lib/sprites';
 import { PokemonSprite } from '../ui/PokemonSprite';
 import { Search, Gift, Database, Tag, ExternalLink, User, Plus, Box } from 'lucide-react';
 import { TypeBadge } from '../ui/PokemonBadges';
-// A6: Type lookup now uses adapter.getTypes() instead of direct gen1/data import.
-// The adapter provides generation-correct type data without cross-gen coupling.
+// A7: All gen-specific data now accessed through adapter — no direct imports from gen1/gen2.
 import { useSaveContextSafe } from '../../context/SaveContext';
 
-// Merge all distributions into a single array for the current generation
-function getEventDistributions(generation: number): EventPokemonData[] {
-  switch (generation) {
-    case 1: return GEN1_EVENT_DISTRIBUTIONS;
-    case 2: return GEN2_EVENT_DISTRIBUTIONS;
-    default: return [];
-  }
-}
+// A7: Event distributions are now adapter-driven — no more switch on generation number.
+// The adapter.getEventDistributions() method returns the correct list per generation.
 
 interface EncounterDatabaseProps {
     data: ParsedSave;
@@ -40,8 +29,8 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
     
     const [search, setSearch] = useState('');
 
-    // Get all event distributions for current generation
-    const allEvents = useMemo(() => getEventDistributions(data.generation), [data.generation]);
+    // Get all event distributions for current generation via adapter
+    const allEvents = useMemo(() => adapter?.getEventDistributions() ?? [], [adapter]);
 
     // Filtered Events — generation-filtered + search
     const filteredEvents = useMemo(() => {
@@ -49,7 +38,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
             const searchLower = search.toLowerCase();
             return (
                 evt.title.toLowerCase().includes(searchLower) ||
-                evt.tags.some(t => t.toLowerCase().includes(searchLower)) ||
+                evt.tags.some((t: string) => t.toLowerCase().includes(searchLower)) ||
                 evt.description.toLowerCase().includes(searchLower)
             );
         });
@@ -58,18 +47,15 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
     const handleAddEvent = (event: EventPokemonData) => {
         let mon: PokemonStats | null = null;
 
-        // Parse based on format
-        if (event.format === 'pk2' && event.generation === 2) {
-            mon = parsePk2(new Uint8Array(event.bytes));
-        } else if (event.format === 'pk1' && event.generation === 1) {
-            mon = parsePk1(new Uint8Array(event.bytes));
-        } else {
-            // Fallback: try pk1 for gen1, pk2 for gen2
-            if (event.generation === 2) {
-                mon = parsePk2(new Uint8Array(event.bytes));
-            } else {
-                mon = parsePk1(new Uint8Array(event.bytes));
+        // A7: Parse event Pokemon through the adapter — no more direct parsePk1/parsePk2 imports
+        try {
+            if (adapter?.standaloneFormat) {
+                mon = adapter.standaloneFormat.parseFile(new Uint8Array(event.bytes));
+            } else if (adapter?.supportsStandalone) {
+                mon = adapter.parseStandalonePokemon(new Uint8Array(event.bytes));
             }
+        } catch {
+            // Parsing failed — show error below
         }
         
         if (mon) {
@@ -151,7 +137,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
                     {filteredEvents.length} of {allEvents.length} available
                 </span>
                 <span className="text-[10px] font-mono text-gray-400 dark:text-gray-500">
-                    {data.generation === 1 ? 'pk1' : 'pk2'} format
+                    {adapter?.standaloneFormat?.fileExtension ?? (data.generation === 1 ? '.pk1' : '.pk2')} format
                 </span>
             </div>
 
@@ -206,7 +192,7 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
 
                                         {/* Tags */}
                                         <div className="flex flex-wrap gap-1.5 mt-1">
-                                            {evt.tags.map(tag => {
+                                            {evt.tags.map((tag: string) => {
                                                 const icon = getTagIcon(tag);
                                                 return (
                                                     <span key={tag} className={`flex items-center gap-1 text-[9px] uppercase font-bold px-2 py-0.5 rounded-md border ${getTagColor(tag)}`}>

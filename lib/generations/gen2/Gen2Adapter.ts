@@ -21,6 +21,10 @@ import { Gen2StandaloneFormat } from './StandaloneFormat';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
 import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
+import { GEN2_EVENT_DISTRIBUTIONS } from './data/eventDistributions';
+import { GEN2_EVENTS } from './data/events';
+import { type GameEventDefinition } from '../../data/gameEvents';
+import { type EventPokemonData } from '../../data/eventPokemonTypes';
 import './extensions';
 
 export class Gen2Adapter implements IGenerationAdapter {
@@ -407,6 +411,23 @@ export class Gen2Adapter implements IGenerationAdapter {
     // differs). For now, return undefined to signal no data.
     void dexId; void version;
     return undefined;
+  }
+
+  // ── Event distributions & game events (A7) ──
+
+  getEventDistributions(): EventPokemonData[] {
+    return GEN2_EVENT_DISTRIBUTIONS;
+  }
+
+  getGameEvents(version?: string): GameEventDefinition[] {
+    if (!version) return GEN2_EVENTS;
+    // Filter by version compatibility
+    const isCrystal = version === 'Crystal';
+    return GEN2_EVENTS.filter(e =>
+      e.version === 'all' ||
+      (isCrystal && e.version === 'crystal') ||
+      (!isCrystal && e.version === 'gs')
+    );
   }
 
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string {

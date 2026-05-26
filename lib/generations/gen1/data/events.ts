@@ -1,13 +1,8 @@
-export interface GameEvent {
-    id: string;
-    name: string;
-    description: string;
-    offset: number; // Global Bit Index in the event flags array
-    category: 'Legendary' | 'Interaction' | 'Gift' | 'Story';
-    version?: 'all' | 'gs' | 'crystal'; // Which versions this flag applies to (Gen 2 only)
-}
+// Re-export the shared GameEventDefinition type for backward compatibility
+export type { GameEventDefinition as GameEvent } from '../../../data/gameEvents';
+import { type GameEventDefinition } from '../../../data/gameEvents';
 
-export const GEN1_EVENTS: GameEvent[] = [
+export const GEN1_EVENTS: GameEventDefinition[] = [
     // Legendaries
     { id: 'articuno', name: 'Articuno', description: 'Seafoam Islands stationary battle', offset: 227, category: 'Legendary' },
     { id: 'zapdos', name: 'Zapdos', description: 'Power Plant stationary battle', offset: 85, category: 'Legendary' },

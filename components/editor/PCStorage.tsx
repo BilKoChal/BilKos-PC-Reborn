@@ -8,7 +8,7 @@ import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircl
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
 import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
-import { parsePk1 } from '../../lib/generations/gen1/parser';
+// A7: parsePk1 import removed — adapter.standaloneFormat.parseFile() handles all parsing
 import { useSaveContextSafe } from '../../context/SaveContext';
 import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
 import { sanitizePokemonText, isValidPokemonChar } from '../../lib/utils/textValidator';
@@ -567,8 +567,8 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                     // Use Gen1Adapter for .pk1 files
                     mon = adapter.parseStandalonePokemon(buffer);
                 } else {
-                    // Fallback: try parsePk1 for .pk1 files with old parser
-                    mon = parsePk1(buffer);
+                    // Fallback: no adapter available, cannot parse
+                    mon = null;
                 }
             } catch (err) {
                 console.error(`Error importing ${file.name}:`, err);
