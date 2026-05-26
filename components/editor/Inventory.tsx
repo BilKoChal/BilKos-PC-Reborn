@@ -63,7 +63,9 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const currentList = activeTab === 'bag' ? items : pcItems;
-    const capacity = activeTab === 'bag' ? 20 : 50;
+    const capacity = activeTab === 'bag' 
+        ? (adapter?.bagItemCapacity ?? 20) 
+        : (adapter?.pcItemCapacity ?? 50);
 
     // Reset move source if mode is disabled
     useEffect(() => {
@@ -292,7 +294,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
                     className={`flex-1 py-3 text-sm font-black uppercase flex items-center justify-center gap-2 transition-colors relative ${activeTab === 'bag' ? 'bg-white dark:bg-gray-800 text-theme-primary' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900/80'}`}
                 >
                     <Backpack size={18} />
-                    BAG <span className="text-[10px] opacity-60 ml-1">{items.length}/20</span>
+                    BAG <span className="text-[10px] opacity-60 ml-1">{items.length}/{adapter?.bagItemCapacity ?? 20}</span>
                     {activeTab === 'bag' && (
                         <div 
                             className="absolute bottom-0 left-0 right-0 h-1 bg-theme-primary"
@@ -304,7 +306,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
                     className={`flex-1 py-3 text-sm font-black uppercase flex items-center justify-center gap-2 transition-colors relative ${activeTab === 'pc' ? 'bg-white dark:bg-gray-800 text-theme-primary' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900/80'}`}
                 >
                     <Monitor size={18} />
-                    PC <span className="text-[10px] opacity-60 ml-1">{pcItems.length}/50</span>
+                    PC <span className="text-[10px] opacity-60 ml-1">{pcItems.length}/{adapter?.pcItemCapacity ?? 50}</span>
                     {activeTab === 'pc' && (
                         <div 
                             className="absolute bottom-0 left-0 right-0 h-1 bg-theme-primary"

@@ -529,6 +529,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
     const saveCtx = useSaveContextSafe();
     const adapter = saveCtx?.adapter;
+    const boxSlotCount = adapter?.boxSlotCount ?? 20;
 
     // Compute the accept pattern from the adapter's standalone format
     const acceptPattern = adapter?.standaloneFormat?.acceptPattern ?? (adapter?.generation === 2 ? '.pk2' : '.pk1');
@@ -583,11 +584,11 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
             let targetBoxIndex = viewedBoxIndex;
             
-            if (boxes[targetBoxIndex]!.length >= 20) {
+            if (boxes[targetBoxIndex]!.length >= boxSlotCount) {
                 let foundIndex = -1;
                 for (let i = 1; i < MAX_BOXES; i++) {
                     const checkIndex = (viewedBoxIndex + i) % MAX_BOXES;
-                    if (boxes[checkIndex]!.length < 20) {
+                    if (boxes[checkIndex]!.length < boxSlotCount) {
                         foundIndex = checkIndex;
                         break;
                     }
@@ -643,7 +644,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                             <button 
                                 onClick={handleImportClick}
                                 className={`p-1 rounded-lg transition-colors border bg-current/10 hover:bg-current/20 border-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'}`}
-                                title="Import .pk1 / .pk2"
+                                title={`Import ${adapter?.standaloneFormat?.fileExtension ?? '.pk1'} files`}
                             >
                                 <Download size={16} />
                             </button>
@@ -823,7 +824,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                     )}
                 </div>
                 <div className="text-gray-400 font-mono font-bold">
-                    {activeBox.length} / 20 <span className="text-[10px] font-normal opacity-70">POKÉMON</span>
+                    {activeBox.length} / {boxSlotCount} <span className="text-[10px] font-normal opacity-70">POKÉMON</span>
                 </div>
             </div>
 
@@ -831,7 +832,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
             <div className="p-4 bg-gray-100 dark:bg-black/20">
                 {viewMode === 'grid' ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                        {Array.from({ length: 20 }).map((_, slotIndex) => (
+                        {Array.from({ length: boxSlotCount }).map((_, slotIndex) => (
                             <BoxSlot 
                                 key={slotIndex}
                                 mon={activeBox[slotIndex]}
@@ -857,7 +858,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                 ) : (
                     // List View
                     <div className="flex flex-col gap-3">
-                         {Array.from({ length: 20 }).map((_, slotIndex) => (
+                         {Array.from({ length: boxSlotCount }).map((_, slotIndex) => (
                             <BoxSlot 
                                 key={slotIndex}
                                 mon={activeBox[slotIndex]}

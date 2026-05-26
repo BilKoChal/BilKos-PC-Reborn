@@ -48,6 +48,16 @@ export class Gen2Adapter implements IGenerationAdapter {
   evTotalCap = undefined; // Gen1/2: No total EV cap
   statTermLabel: 'DV' | 'IV' = 'DV'; // Gen1/2 uses DV terminology
 
+  // Inventory capacities
+  bagItemCapacity = 20;   // Gen2: 20 items per pocket
+  pcItemCapacity = 50;    // Gen2: 50 items in PC storage
+
+  // Feature capabilities
+  hasHallOfFame = true;     // Gen2 has Hall of Fame
+  hasMailbox = true;        // Gen2 has a mailbox system
+  supportsBoxNames = true;  // Gen2 supports custom box names
+  boxNameMaxLength = 8;     // Gen2 INT/JPN: 8 chars (KOR: 16, handled dynamically)
+
   getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
     // Gen 2: Ethan (male) or Kris (female)
     if (gender === 'Female') {

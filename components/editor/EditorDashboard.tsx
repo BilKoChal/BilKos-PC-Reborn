@@ -107,11 +107,16 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     };
 
     // Handler to Add Pokemon from Encounter DB (Single Mon)
+    const adapter = registry.getAdapter(data.generation);
+    const partySize = adapter?.partySize ?? 6;
+    const boxSlotCount = adapter?.boxSlotCount ?? 20;
+    const boxCount = adapter?.boxCount ?? 12;
+
     const handleAddPokemon = (mon: PokemonStats, target: 'party' | 'pc') => {
         const newData = { ...data };
         
         if (target === 'party') {
-            if (newData.party.length < 6) {
+            if (newData.party.length < partySize) {
                 mon.isParty = true;
                 newData.party.push(mon);
                 newData.partyCount = newData.party.length;
@@ -125,13 +130,13 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             let added = false;
 
             // Check current box
-            if (newData.pcBoxes[targetBoxIndex]!.length < 20) {
+            if (newData.pcBoxes[targetBoxIndex]!.length < boxSlotCount) {
                 newData.pcBoxes[targetBoxIndex]!.push(mon);
                 added = true;
             } else {
                 // Find any box
-                for (let i = 0; i < 12; i++) {
-                    if (newData.pcBoxes[i]!.length < 20) {
+                for (let i = 0; i < boxCount; i++) {
+                    if (newData.pcBoxes[i]!.length < boxSlotCount) {
                         newData.pcBoxes[i]!.push(mon);
                         targetBoxIndex = i;
                         added = true;
@@ -237,7 +242,6 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
 
     const handlePokedexUpdate = (owned: boolean[], seen: boolean[]) => {
         // Adapter-driven: replaces hardcoded `data.generation === 2 ? 251 : 151`
-        const adapter = registry.getAdapter(data.generation);
         const generationLimit = adapter?.nationalDexMax ?? (data.generation === 2 ? 251 : 151);
         const ownedCount = owned.filter((f, i) => i > 0 && i <= generationLimit && f).length;
         const seenCount = seen.filter((f, i) => i > 0 && i <= generationLimit && f).length;
@@ -264,30 +268,30 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
 
     const handleBoxNameChange = (boxIndex: number, newName: string) => {
         const newData = { ...data };
-        // Update the Gen2SaveExtension boxNames
-        if (newData.genExtension && (newData.genExtension as any).generation === 2) {
+        // Update the save extension boxNames if this generation supports them
+        if (adapter?.supportsBoxNames && newData.genExtension) {
             const gen2Ext = newData.genExtension as import('../../lib/canonicalModel').Gen2SaveExtension;
-            const updatedNames = [...(gen2Ext.boxNames || [])];
-            // Ensure array is long enough
-            while (updatedNames.length <= boxIndex) {
-                updatedNames.push('');
+            if (gen2Ext.generation === 2) {
+                const updatedNames = [...(gen2Ext.boxNames || [])];
+                while (updatedNames.length <= boxIndex) {
+                    updatedNames.push('');
+                }
+                updatedNames[boxIndex] = newName;
+                gen2Ext.boxNames = updatedNames;
+                newData.genExtension = { ...gen2Ext, boxNames: updatedNames } as import('../../lib/canonicalModel').Gen2SaveExtension;
             }
-            updatedNames[boxIndex] = newName;
-            gen2Ext.boxNames = updatedNames;
-            // Need to create a new genExtension reference to trigger re-render
-            newData.genExtension = { ...gen2Ext, boxNames: updatedNames } as import('../../lib/canonicalModel').Gen2SaveExtension;
         }
         updateData(newData);
     };
 
-    // Box name support (Gen 2+)
-    const boxNames = data.generation === 2
+    // Box name support — adapter-driven (replaces generation === 2 / >= 2 checks)
+    const boxNames = adapter?.supportsBoxNames
         ? (data.genExtension as any)?.boxNames || []
         : undefined;
-    const canEditBoxNames = data.generation >= 2;
-    // Max box name length: Gen2 INT/JPN = 8, Gen2 KOR = 16
-    const boxNameMaxLength = data.generation === 2
-        ? ((data.genExtension as any)?.region === 'korean' ? 16 : 8)
+    const canEditBoxNames = adapter?.supportsBoxNames ?? false;
+    // Max box name length: adapter declares default, Korean override for Gen2
+    const boxNameMaxLength = adapter?.supportsBoxNames
+        ? ((data.genExtension as any)?.region === 'korean' ? 16 : (adapter?.boxNameMaxLength ?? 8))
         : undefined;
 
     const TabButton = ({ id, icon: Icon, label }: { id: DashboardTab, icon: React.ElementType, label: string }) => {
@@ -364,8 +368,8 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                     <TabButton id="pokedex" icon={Book} label="Pokédex" />
                     <TabButton id="battle" icon={Swords} label="Battle Guide" /> {/* Updated Icon */}
                     <TabButton id="events" icon={Map} label="Events & Extras" />
-                    {data.generation === 1 && <TabButton id="hof" icon={Trophy} label="Hall of Fame" />}
-                    {data.generation === 2 && <TabButton id="mailbox" icon={Mail} label="Mailbox" />}
+                    {adapter?.hasHallOfFame && <TabButton id="hof" icon={Trophy} label="Hall of Fame" />}
+                    {adapter?.hasMailbox && <TabButton id="mailbox" icon={Mail} label="Mailbox" />}
                 </div>
             </div>
 

@@ -10,6 +10,7 @@ import { MoveLocation } from '../../lib/utils/manipulation';
 import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
 import { startTouchDrag, moveTouchDrag, endTouchDrag, cancelTouchDrag } from '../../lib/hooks/touchDnD';
+import { useSaveContextSafe } from '../../context/SaveContext';
 
 interface PartyListProps {
     party: PokemonStats[];
@@ -325,6 +326,9 @@ export const PartyList: React.FC<PartyListProps> = ({
     const { mode: spriteMode } = useSpriteMode();
     const theme = getGameTheme();
     const themeColors = getVersionThemeColor(gameVersion);
+    const ctx = useSaveContextSafe();
+    const adapter = ctx?.adapter;
+    const partySize = adapter?.partySize ?? 6;
 
     const isSlotSelected = (idx: number) => {
         return selectedMoveSources.some(s => s.type === 'party' && s.index === idx);
@@ -348,7 +352,7 @@ export const PartyList: React.FC<PartyListProps> = ({
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-sm font-mono bg-black/20 px-3 py-1.5 rounded-full font-bold backdrop-blur-sm border border-white/10">
-                        {party.length} / 6
+                        {party.length} / {partySize}
                     </span>
                 </div>
             </div>
@@ -376,7 +380,7 @@ export const PartyList: React.FC<PartyListProps> = ({
                 ))}
                 
                 {/* Modern Empty Party Slots */}
-                {Array.from({ length: 6 - party.length }).map((_, i) => {
+                {Array.from({ length: partySize - party.length }).map((_, i) => {
                     const actualIdx = party.length + i;
                     return (
                         <EmptyPartySlot

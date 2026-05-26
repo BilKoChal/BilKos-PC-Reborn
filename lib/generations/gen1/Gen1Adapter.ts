@@ -42,6 +42,16 @@ export class Gen1Adapter implements IGenerationAdapter {
   evTotalCap = undefined; // Gen1/2: No total EV cap
   statTermLabel: 'DV' | 'IV' = 'DV'; // Gen1/2 uses DV terminology
 
+  // Inventory capacities
+  bagItemCapacity = 20;   // Gen1: 20 items in bag
+  pcItemCapacity = 50;    // Gen1: 50 items in PC storage
+
+  // Feature capabilities
+  hasHallOfFame = true;    // Gen1 has Hall of Fame
+  hasMailbox = false;      // Gen1 has no mail system
+  supportsBoxNames = false; // Gen1 has no custom box names
+  boxNameMaxLength = 0;    // N/A — Gen1 doesn't support box names
+
   getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
     // Yellow uses the anime-style Red sprite; Red/Blue use the classic sprite
     if (gameVersion === 'Yellow') {

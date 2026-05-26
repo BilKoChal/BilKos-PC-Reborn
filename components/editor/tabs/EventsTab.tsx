@@ -47,7 +47,8 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     handleOptionsUpdate
 }) => {
     // Get Gen 2 save extension for save-level data display
-    const gen2Ext = data.generation === 2 ? (data.genExtension as Gen2SaveExtension | null) : null;
+    // Adapter-driven: use adapter capability flags instead of hardcoded generation checks
+    const gen2Ext = data.genExtension && (data.genExtension as Gen2SaveExtension).generation === 2 ? (data.genExtension as Gen2SaveExtension | null) : null;
     const isCrystal = gen2Ext?.gameVersion === 'Crystal';
 
     return (
@@ -132,7 +133,7 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                 pokemon-info panel where they could never render (they need
                 save-level context, not individual Pokemon context).
             ══════════════════════════════════════════════════════════════════ */}
-            {data.generation === 2 && gen2Ext && (
+            {gen2Ext && (
                 <>
                     {/* ── Real-Time Clock ── */}
                     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">

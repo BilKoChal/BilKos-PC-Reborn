@@ -138,6 +138,37 @@ export interface IGenerationMetadata {
    *  'DV' for Gen1/2 (Determinant Values), 'IV' for Gen3+ (Individual Values). */
   statTermLabel: 'DV' | 'IV';
 
+  // ── Inventory capacities (replaces hardcoded 20/50 in Inventory.tsx) ──
+
+  /** Maximum number of items in the bag (items pocket).
+   *  Gen1/2: 20, Gen3 RSE: 20-30 (pocket-based), Gen4+: unlimited (pocket-based).
+   *  For pocket-based generations, this is the items-pocket capacity. */
+  bagItemCapacity: number;
+
+  /** Maximum number of items in PC item storage.
+   *  Gen1/2: 50, Gen3+: 0 (no PC item storage — removed in Gen4+). */
+  pcItemCapacity: number;
+
+  // ── Feature capabilities (replaces `generation === N` checks for tab visibility) ──
+
+  /** Whether this generation supports the Hall of Fame record.
+   *  true for Gen1/2/3/5/6/7/9, varies for Gen4/8. */
+  hasHallOfFame: boolean;
+
+  /** Whether this generation has a mailbox / mail system.
+   *  true for Gen2/3/4/5, false for Gen1/6+. */
+  hasMailbox: boolean;
+
+  /** Whether this generation supports custom box names.
+   *  false for Gen1 (no box names), true for Gen2+.
+   *  Replaces `data.generation === 2` / `data.generation >= 2` checks. */
+  supportsBoxNames: boolean;
+
+  /** Maximum character length for box names in this generation.
+   *  Gen2: 8 (INT/JPN), 16 (KOR); Gen3-5: 8; Gen6-8: 14; Gen9: 16.
+   *  Only meaningful when supportsBoxNames is true. */
+  boxNameMaxLength: number;
+
   /** Returns the URL of the trainer sprite image for this generation/version/gender.
    *  Used by TrainerCard to display the correct trainer portrait.
    *  @param gender - Player gender string ('Male' | 'Female')
