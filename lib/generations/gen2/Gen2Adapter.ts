@@ -23,6 +23,7 @@ import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
 import { GEN2_EVENT_DISTRIBUTIONS } from './data/eventDistributions';
 import { GEN2_EVENTS } from './data/events';
+import { POKEDEX_ENTRIES } from './data/pokedexEntries';
 import { type GameEventDefinition } from '../../data/gameEvents';
 import { type EventPokemonData } from '../../data/eventPokemonTypes';
 import './extensions';
@@ -421,12 +422,13 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   getPokedexEntry(dexId: number, version: string): string | undefined {
-    // Gen 2 Pokédex flavor text data files have not been created yet.
-    // When pokedexEntries.ts is added to gen2/data/, this method will
-    // look up version-specific entries (Gold/Silver/Crystal each have
-    // unique flavor text). For now, return undefined to signal no data.
-    void dexId; void version;
-    return undefined;
+    const entry = POKEDEX_ENTRIES[dexId];
+    if (!entry) return undefined;
+    const v = version.toLowerCase();
+    if (v === 'gold') return entry.gold;
+    if (v === 'silver') return entry.silver;
+    if (v === 'crystal') return entry.crystal;
+    return entry.gold; // fallback to Gold entry for unrecognized versions
   }
 
   getEncounterLocations(dexId: number, version: string): string | undefined {
