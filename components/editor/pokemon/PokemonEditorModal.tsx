@@ -1,8 +1,9 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { useTheme } from '../../../context/ThemeContext';
 import { X, Save, Download, Book } from 'lucide-react';
+import { useModalA11y } from '../../../lib/hooks/useModalA11y';
 // NOTE: deriveBaseStats and recalculateStats from statCalculator are intentionally NOT used here.
 // Stat recalculation is now routed through the adapter (adapter.recalculateStats)
 // which uses the correct generation-specific formula. The shared statCalculator uses
@@ -42,6 +43,18 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     
     // Modal states
     const [showDexEntry, setShowDexEntry] = useState(false);
+
+    // G1: Modal accessibility — Escape key, focus trap, ARIA roles, scroll lock.
+    // PokemonEditorModal is a complex form with many interactive elements,
+    // so focus trapping and Escape handling are critical for keyboard users.
+    const handleClose = useCallback(() => {
+        onClose();
+    }, [onClose]);
+
+    const { modalRef, handleKeyDown, handleBackdropClick, modalProps, headingId } = useModalA11y({
+        isOpen: true,
+        onClose: handleClose,
+    });
 
     // Derived Types state — adapter-driven (A6: eliminates direct gen1/data import)
     const types = useMemo(() => {
@@ -233,19 +246,23 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleBackdropClick}>
             {showDexEntry && (
                 <PokemonDetailView 
                     id={mon.dexId}
-                    owned={true} // Contextual: in editor means owned
+                    owned={true}
                     seen={true}
                     version={saveCtx?.gameVersion ?? 'Red'}
                     onClose={() => setShowDexEntry(false)}
                 />
             )}
 
-            <div 
+            <div
+                ref={modalRef as React.RefObject<HTMLDivElement>}
+                {...modalProps}
+                aria-labelledby={headingId}
                 className="bg-white dark:bg-gray-900 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl flex flex-col max-h-[90dvh]"
+                onKeyDown={handleKeyDown}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
@@ -255,7 +272,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                     <div className="flex items-center justify-between w-full sm:w-auto gap-4">
                         <div className="flex items-center gap-3 sm:gap-6">
                             <div className="flex flex-col">
-                                <label className="text-[10px] sm:text-xs font-bold opacity-60 uppercase tracking-wider">Nickname</label>
+                                <label className="text-[10px] sm:text-xs font-bold opacity-60 uppercase tracking-wider" id={headingId}>Nickname</label>
                                 <input 
                                     type="text" 
                                     value={mon.nickname}

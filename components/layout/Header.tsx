@@ -1,9 +1,10 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode, SpriteMode } from '../../context/SpriteContext';
 import { Menu, Moon, Sun, X, Github, Bug, BookOpen, Monitor, Home, LayoutGrid, Book, Trophy, Map, Database, Settings, Check, Image, Gamepad2, Sparkles } from 'lucide-react';
 import { DashboardTab } from '../editor/EditorDashboard';
+import { useModalA11y } from '../../lib/hooks/useModalA11y';
 
 interface HeaderProps {
     onNavigate?: (tab: DashboardTab) => void;
@@ -37,6 +38,15 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+
+  // G1: Sidebar drawer accessibility
+  const closeMenu = useCallback(() => setIsMenuOpen(false), []);
+  const { modalRef: drawerRef, handleKeyDown: drawerKeyDown, modalProps: drawerProps, headingId: drawerHeadingId } = useModalA11y({
+    isOpen: isMenuOpen,
+    onClose: closeMenu,
+    lockScroll: true,
+    inertBackground: true,
+  });
   
   const theme = getGameTheme();
   const isLightTheme = theme?.id === 'yellow' || theme?.id === 'gold' || theme?.id === 'silver' || theme?.id === 'crystal';
@@ -194,17 +204,23 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
       {isMenuOpen && (
         <div className="fixed inset-0 z-[1000] flex justify-end">
           {/* Backdrop */}
-          <div 
+          <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={closeMenu}
           ></div>
 
           {/* Sidebar Drawer */}
-          <div className="relative w-80 h-full bg-white dark:bg-gray-950 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-gray-200 dark:border-gray-800">
-            
+          <div
+            ref={drawerRef as React.RefObject<HTMLDivElement>}
+            {...drawerProps}
+            aria-labelledby={drawerHeadingId}
+            className="relative w-80 h-full bg-white dark:bg-gray-950 shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 border-l border-gray-200 dark:border-gray-800"
+            onKeyDown={drawerKeyDown}
+          >
+
             {/* Drawer Header */}
             <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-              <span className="font-black text-lg text-gray-800 dark:text-white uppercase tracking-wide">Menu</span>
+              <span id={drawerHeadingId} className="font-black text-lg text-gray-800 dark:text-white uppercase tracking-wide">Menu</span>
               <button 
                 onClick={() => setIsMenuOpen(false)}
                 className="p-1 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"

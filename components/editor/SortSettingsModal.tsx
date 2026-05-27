@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowDownAZ, ArrowUpAZ, X, Layers, Box, Globe, Check, BookOpen, SaveAll } from 'lucide-react';
 import { SortCriteria, SortDirection, SortScope } from '../../lib/utils/sortManager';
+import { useModalA11y } from '../../lib/hooks/useModalA11y';
 
 interface SortSettingsModalProps {
   isOpen: boolean;
@@ -14,21 +15,30 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
   const [direction, setDirection] = useState<SortDirection>('asc');
   const [includeAllSaves, setIncludeAllSaves] = useState(false);
 
+  const { modalRef, handleKeyDown, handleBackdropClick, modalProps, headingId } = useModalA11y({
+    isOpen,
+    onClose,
+  });
+
   if (!isOpen) return null;
 
   const isLivingDex = scope === 'living-dex';
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
-      <div 
-        className="bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300" 
+    <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleBackdropClick}>
+      <div
+        ref={modalRef as React.RefObject<HTMLDivElement>}
+        {...modalProps}
+        aria-labelledby={headingId}
+        className="bg-white dark:bg-gray-900 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 duration-300"
+        onKeyDown={handleKeyDown}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="bg-gray-800 dark:bg-gray-950 text-white p-4 flex justify-between items-center border-b border-gray-700">
            <div className="flex items-center gap-2">
              <ArrowDownAZ className="w-5 h-5 text-indigo-400" />
-             <h3 className="font-bold text-lg">Sort PC Storage</h3>
+             <h3 id={headingId} className="font-bold text-lg">Sort PC Storage</h3>
            </div>
            <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full transition-colors">
              <X className="w-5 h-5" />
@@ -42,7 +52,7 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
                     SORTING METHOD
                 </label>
                 <div className="grid grid-cols-1 gap-2">
-                    <button 
+                    <button
                         onClick={() => setScope('single')}
                         className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${scope === 'single' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-300'}`}
                     >
@@ -54,7 +64,7 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
                         {scope === 'single' && <Check className="ml-auto w-4 h-4" />}
                     </button>
 
-                    <button 
+                    <button
                         onClick={() => setScope('all-indiv')}
                         className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${scope === 'all-indiv' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-300'}`}
                     >
@@ -66,7 +76,7 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
                         {scope === 'all-indiv' && <Check className="ml-auto w-4 h-4" />}
                     </button>
 
-                    <button 
+                    <button
                         onClick={() => setScope('all-global')}
                         className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${scope === 'all-global' ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-300'}`}
                     >
@@ -78,7 +88,7 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
                         {scope === 'all-global' && <Check className="ml-auto w-4 h-4" />}
                     </button>
 
-                    <button 
+                    <button
                         onClick={() => setScope('living-dex')}
                         className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${scope === 'living-dex' ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 dark:text-gray-300'}`}
                     >
@@ -96,11 +106,11 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
             {isLivingDex && (
                 <div className="animate-in fade-in slide-in-from-top-2">
                     <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${includeAllSaves ? 'bg-green-50 dark:bg-green-900/20 border-green-500 text-green-700 dark:text-green-300' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500'}`}>
-                        <input 
-                            type="checkbox" 
-                            className="hidden" 
-                            checked={includeAllSaves} 
-                            onChange={(e) => setIncludeAllSaves(e.target.checked)} 
+                        <input
+                            type="checkbox"
+                            className="hidden"
+                            checked={includeAllSaves}
+                            onChange={(e) => setIncludeAllSaves(e.target.checked)}
                         />
                         <div className={`w-5 h-5 rounded border flex items-center justify-center ${includeAllSaves ? 'bg-green-500 border-green-500 text-white' : 'border-gray-400 bg-white dark:bg-gray-800'}`}>
                             {includeAllSaves && <Check size={14} />}
@@ -150,14 +160,14 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
                         ORDER
                     </label>
                     <div className="flex flex-col gap-2">
-                        <button 
+                        <button
                             onClick={() => setDirection('asc')}
                             className={`flex items-center gap-2 px-3 py-3 rounded-lg border-2 transition-all ${direction === 'asc' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'}`}
                         >
                             <ArrowDownAZ className="w-4 h-4" />
                             <span className="text-xs font-bold">Ascending (A-Z / 1-9)</span>
                         </button>
-                        <button 
+                        <button
                             onClick={() => setDirection('desc')}
                             className={`flex items-center gap-2 px-3 py-3 rounded-lg border-2 transition-all ${direction === 'desc' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300' : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400'}`}
                         >
@@ -180,7 +190,7 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
            <button onClick={onClose} className="px-4 py-2 text-sm font-bold text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-lg transition-colors">
              Cancel
            </button>
-           <button 
+           <button
              onClick={() => { onApply(scope, criteria, direction, includeAllSaves); onClose(); }}
              className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors"
            >

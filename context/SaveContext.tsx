@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect, ReactNode } from 'react';
 import { ParsedSave, Generation, GameVersion } from '../lib/parser/types';
 import { MoveLocation } from '../lib/utils/manipulation';
 import { IGenerationAdapter } from '../lib/interfaces';
@@ -19,6 +19,8 @@ export interface SaveContextValue {
   onTouchDrop: (target: MoveLocation) => void;
   activeTabId: string | undefined;
   adapter: IGenerationAdapter | undefined;
+  /** Whether the adapter is currently being loaded (lazy-loading state) */
+  adapterLoading: boolean;
   /** Called when a drag session begins — stores drag source, clears click-selections */
   onBeginDragSession?: (tabId: string, location: { type: 'box'; boxIndex: number; index: number } | { type: 'party'; index: number }) => void;
   /** Called when a drag session ends (cancel or complete) */
@@ -49,13 +51,36 @@ export const SaveProvider: React.FC<SaveProviderProps> = ({
   globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, onTouchDrop, activeTabId,
   onBeginDragSession, onEndDragSession, children,
 }) => {
+  // H5: Adapter may need async loading if lazy-registered.
+  // First try synchronous access (already loaded), then async load if needed.
+  const [adapter, setAdapter] = useState<IGenerationAdapter | undefined>(
+    () => registry.getAdapter(data.generation)
+  );
+  const [adapterLoading, setAdapterLoading] = useState(!registry.isLoaded(data.generation));
+
+  useEffect(() => {
+    if (adapter) return; // Already loaded
+
+    let cancelled = false;
+    setAdapterLoading(true);
+
+    registry.getAdapterAsync(data.generation).then((loaded) => {
+      if (!cancelled) {
+        setAdapter(loaded);
+        setAdapterLoading(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [data.generation, adapter]);
+
   const value = useMemo<SaveContextValue>(() => ({
     data, generation: data.generation, gameVersion: data.gameVersion,
     onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode,
     globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, onTouchDrop,
-    activeTabId, adapter: registry.getAdapter(data.generation),
+    activeTabId, adapter, adapterLoading,
     onBeginDragSession, onEndDragSession,
-  }), [data, onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode, globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, onTouchDrop, activeTabId, onBeginDragSession, onEndDragSession]);
+  }), [data, onSaveUpdate, onShowToast, isMoveMode, setIsMoveMode, globalMoveSources, onMovePokemon, onToggleSelection, onDropPokemon, onTouchDrop, activeTabId, adapter, adapterLoading, onBeginDragSession, onEndDragSession]);
 
   return (
     <SaveContext.Provider value={value}>

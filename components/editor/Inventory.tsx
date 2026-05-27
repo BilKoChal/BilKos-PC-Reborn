@@ -1,10 +1,11 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Item } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { Backpack, Monitor, Trash2, Plus, ArrowDownAZ, Hash, Disc } from 'lucide-react';
 import { Autocomplete } from '../ui/Autocomplete';
 import { useSaveContextSafe } from '../../context/SaveContext';
+import { useModalA11y } from '../../lib/hooks/useModalA11y';
 
 interface InventoryProps {
     items: Item[]; // Bag (Limit 20)
@@ -57,6 +58,15 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
 
     // Editing State (for quantity/adding)
     const [editingSlot, setEditingSlot] = useState<{ loc: 'bag' | 'pc', index: number } | null>(null);
+
+    // G1: Item edit overlay accessibility
+    const closeItemEditor = useCallback(() => setEditingSlot(null), []);
+    const { modalRef: itemEditRef, handleKeyDown: itemEditKeyDown, handleBackdropClick: itemEditBackdropClick, modalProps: itemEditProps, headingId: itemEditHeadingId } = useModalA11y({
+        isOpen: editingSlot !== null,
+        onClose: closeItemEditor,
+        lockScroll: false, // container-relative overlay, not full-screen
+        inertBackground: false, // inside a tab, not root-level
+    });
     const [editForm, setEditForm] = useState({ id: 0, name: '', count: 1 });
 
     // Long Press Refs
@@ -228,9 +238,15 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
             
             {/* Edit Modal Overlay */}
             {editingSlot && (
-                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-4 w-full max-w-xs animate-in zoom-in-95">
-                        <h4 className="font-black uppercase text-gray-400 mb-4 text-xs tracking-widest">
+                <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={itemEditBackdropClick}>
+                    <div
+                        ref={itemEditRef as React.RefObject<HTMLDivElement>}
+                        {...itemEditProps}
+                        aria-labelledby={itemEditHeadingId}
+                        className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-4 w-full max-w-xs animate-in zoom-in-95"
+                        onKeyDown={itemEditKeyDown}
+                    >
+                        <h4 id={itemEditHeadingId} className="font-black uppercase text-gray-400 mb-4 text-xs tracking-widest">
                             {currentList[editingSlot.index] ? 'Edit Item' : 'Add Item'}
                         </h4>
                         

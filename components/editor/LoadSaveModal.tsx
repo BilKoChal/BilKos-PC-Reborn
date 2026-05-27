@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { X, Monitor, Files } from 'lucide-react';
+import { X, Monitor } from 'lucide-react';
+import { useModalA11y } from '../../lib/hooks/useModalA11y';
 
 interface LoadSaveModalProps {
     isOpen: boolean;
@@ -10,6 +11,11 @@ interface LoadSaveModalProps {
 export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, onFilesSelected }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [isDragOver, setIsDragOver] = useState(false);
+
+    const { modalRef, handleKeyDown, handleBackdropClick, modalProps, headingId } = useModalA11y({
+        isOpen,
+        onClose,
+    });
 
     if (!isOpen) return null;
 
@@ -43,11 +49,18 @@ export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, o
     };
 
     return (
-        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={onClose}>
-            <div className="w-full max-w-lg relative" onClick={(e) => e.stopPropagation()}>
-                
+        <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={handleBackdropClick}>
+            <div
+                ref={modalRef as React.RefObject<HTMLDivElement>}
+                {...modalProps}
+                aria-labelledby={headingId}
+                className="w-full max-w-lg relative"
+                onKeyDown={handleKeyDown}
+                onClick={(e) => e.stopPropagation()}
+            >
+
                 {/* Close Button */}
-                <button 
+                <button
                     onClick={onClose}
                     className="absolute -top-12 right-0 text-white/50 hover:text-white transition-colors"
                 >
@@ -55,7 +68,7 @@ export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, o
                 </button>
 
                 {/* Retro Monitor (Scaled down from DropZone) */}
-                <div 
+                <div
                     className="flex flex-col items-center transform transition-transform duration-300 hover:scale-105"
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -64,8 +77,8 @@ export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, o
                 >
                     {/* Monitor Housing */}
                     <div className={`
-                        relative w-full aspect-[4/3] bg-stone-200 dark:bg-stone-700 rounded-3xl p-6 
-                        shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_-8px_0_rgba(0,0,0,0.1)] 
+                        relative w-full aspect-[4/3] bg-stone-200 dark:bg-stone-700 rounded-3xl p-6
+                        shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_-8px_0_rgba(0,0,0,0.1)]
                         border-b-[12px] border-r-[4px] border-stone-300 dark:border-stone-800
                         cursor-pointer group
                     `}>
@@ -78,12 +91,12 @@ export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, o
                             <div className={`
                                 w-full h-full rounded-lg relative overflow-hidden flex flex-col items-center justify-center
                                 transition-colors duration-500 border-2 border-stone-900/50
-                                ${isDragOver 
-                                    ? 'bg-blue-900/80 shadow-[inset_0_0_40px_rgba(59,130,246,0.5)]' 
+                                ${isDragOver
+                                    ? 'bg-blue-900/80 shadow-[inset_0_0_40px_rgba(59,130,246,0.5)]'
                                     : 'bg-[#98D8D8] dark:bg-[#1a2e3a] shadow-[inset_0_0_60px_rgba(0,0,0,0.2)]'
                                 }
                             `}>
-                                
+
                                 {/* Screen Scanlines Effect */}
                                 <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.03),rgba(0,255,0,0.01),rgba(0,0,255,0.03))] z-10 pointer-events-none bg-[length:100%_4px,6px_100%]"></div>
                                 <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/10 to-transparent pointer-events-none rounded-lg z-20"></div>
@@ -93,18 +106,18 @@ export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, o
                                 <div className="relative z-30 flex flex-col items-center text-center p-4 w-full h-full justify-center">
                                     <div className={`
                                         mb-3 p-3 rounded-full border-2 border-dashed transition-all duration-300
-                                        ${isDragOver 
-                                            ? 'border-blue-400 bg-blue-500/20 text-blue-200' 
+                                        ${isDragOver
+                                            ? 'border-blue-400 bg-blue-500/20 text-blue-200'
                                             : 'border-stone-500/30 dark:border-blue-500/30 bg-white/20 dark:bg-black/20 text-stone-600 dark:text-blue-300 group-hover:scale-110'
                                         }
                                     `}>
                                         <Monitor size={32} />
                                     </div>
-                                    
-                                    <h3 className="font-mono text-lg font-bold text-stone-700 dark:text-blue-200 mb-1 group-hover:text-stone-900 dark:group-hover:text-blue-100 uppercase tracking-tight">
+
+                                    <h3 id={headingId} className="font-mono text-lg font-bold text-stone-700 dark:text-blue-200 mb-1 group-hover:text-stone-900 dark:group-hover:text-blue-100 uppercase tracking-tight">
                                         Load Save File(s)
                                     </h3>
-                                    
+
                                     <div className="text-[10px] md:text-xs font-mono font-medium text-stone-600 dark:text-blue-400/80 px-2 py-1 bg-stone-100/50 dark:bg-black/20 rounded">
                                         {isDragOver ? 'INSERT NOW' : 'SELECT OR DROP FILES'}
                                     </div>
