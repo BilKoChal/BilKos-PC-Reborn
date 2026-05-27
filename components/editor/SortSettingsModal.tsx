@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowDownAZ, ArrowUpAZ, X, Layers, Box, Globe, Check, BookOpen, SaveAll } from 'lucide-react';
 import { SortCriteria, SortDirection, SortScope } from '../../lib/utils/sortManager';
 import { useModalA11y } from '../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../lib/hooks/ModalPortal';
 
 interface SortSettingsModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
   const isLivingDex = scope === 'living-dex';
 
   return (
+    <ModalPortal>
     <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleBackdropClick}>
       <div
         ref={modalRef as React.RefObject<HTMLDivElement>}
@@ -199,5 +201,6 @@ export const SortSettingsModal: React.FC<SortSettingsModalProps> = ({ isOpen, on
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 };

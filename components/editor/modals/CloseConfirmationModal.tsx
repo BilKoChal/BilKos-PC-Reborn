@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Save as SaveIcon } from 'lucide-react';
 import { useModalA11y } from '../../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../../lib/hooks/ModalPortal';
 
 interface CloseConfirmationModalProps {
     tabToClose: string | null;
@@ -34,6 +35,7 @@ export const CloseConfirmationModal: React.FC<CloseConfirmationModalProps> = ({
     if (!isOpen || !tab) return null;
 
     return (
+    <ModalPortal>
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleBackdropClick}>
             <div
                 ref={modalRef as React.RefObject<HTMLDivElement>}
@@ -61,5 +63,6 @@ export const CloseConfirmationModal: React.FC<CloseConfirmationModalProps> = ({
                 </div>
             </div>
         </div>
+    </ModalPortal>
     );
 };

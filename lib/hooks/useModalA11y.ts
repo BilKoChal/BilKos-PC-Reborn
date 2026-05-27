@@ -200,7 +200,10 @@ export function useModalA11y(options: UseModalA11yOptions): UseModalA11yReturn {
   // ── Backdrop Click Detection ────────────────────────────────
   const handleBackdropClick = useCallback(
     (event: React.MouseEvent) => {
-      if (closeOnBackdrop && event.target === modalRef.current) {
+      // Close only when clicking directly on the backdrop (event.currentTarget),
+      // NOT on a child element. The previous check (event.target === modalRef.current)
+      // was backwards — modalRef points to the inner dialog, not the outer backdrop.
+      if (closeOnBackdrop && event.target === event.currentTarget) {
         onClose();
       }
     },

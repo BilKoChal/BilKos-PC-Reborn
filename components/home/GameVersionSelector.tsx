@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GameVersion } from '../../lib/parser/types';
 import { Disc, CheckCircle2, AlertCircle, ArrowRight, FileQuestion } from 'lucide-react';
 import { useModalA11y } from '../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../lib/hooks/ModalPortal';
 
 interface GameVersionSelectorProps {
     filename: string;
@@ -32,6 +33,7 @@ export const GameVersionSelector: React.FC<GameVersionSelectorProps> = ({ filena
     ];
 
     return (
+    <ModalPortal>
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={handleBackdropClick}>
             <div
                 ref={modalRef as React.RefObject<HTMLDivElement>}
@@ -127,5 +129,6 @@ export const GameVersionSelector: React.FC<GameVersionSelectorProps> = ({ filena
                 </div>
             </div>
         </div>
+    </ModalPortal>
     );
 };

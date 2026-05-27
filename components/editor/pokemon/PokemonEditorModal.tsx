@@ -4,6 +4,7 @@ import { PokemonStats, Generation } from '../../../lib/parser/types';
 import { useTheme } from '../../../context/ThemeContext';
 import { X, Save, Download, Book } from 'lucide-react';
 import { useModalA11y } from '../../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../../lib/hooks/ModalPortal';
 // NOTE: deriveBaseStats and recalculateStats from statCalculator are intentionally NOT used here.
 // Stat recalculation is now routed through the adapter (adapter.recalculateStats)
 // which uses the correct generation-specific formula. The shared statCalculator uses
@@ -246,6 +247,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     };
 
     return (
+    <ModalPortal>
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleBackdropClick}>
             {showDexEntry && (
                 <PokemonDetailView 
@@ -376,5 +378,6 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                 </div>
             </div>
         </div>
+    </ModalPortal>
     );
 };

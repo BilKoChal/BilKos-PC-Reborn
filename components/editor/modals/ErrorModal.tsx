@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
 import { useModalA11y } from '../../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../../lib/hooks/ModalPortal';
 
 interface ErrorModalProps {
     errorMessage: string | null;
@@ -18,6 +19,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({ errorMessage, onDismiss 
 
     if (!errorMessage) return null;
     return (
+    <ModalPortal>
         <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleBackdropClick}>
             <div
                 ref={modalRef as React.RefObject<HTMLDivElement>}
@@ -37,5 +39,6 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({ errorMessage, onDismiss 
                 </div>
             </div>
         </div>
+    </ModalPortal>
     );
 };

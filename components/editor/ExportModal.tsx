@@ -2,6 +2,7 @@
 import React from 'react';
 import { Save, Settings, X } from 'lucide-react';
 import { useModalA11y } from '../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../lib/hooks/ModalPortal';
 
 interface ExportModalProps {
     isOpen: boolean;
@@ -18,6 +19,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExp
     if (!isOpen) return null;
 
     return (
+    <ModalPortal>
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={handleBackdropClick}>
             <div
                 ref={modalRef as React.RefObject<HTMLDivElement>}
@@ -79,5 +81,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExp
                 </div>
             </div>
         </div>
+    </ModalPortal>
     );
 };

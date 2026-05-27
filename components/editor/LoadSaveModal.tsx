@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { X, Monitor } from 'lucide-react';
 import { useModalA11y } from '../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../lib/hooks/ModalPortal';
 
 interface LoadSaveModalProps {
     isOpen: boolean;
@@ -49,6 +50,7 @@ export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, o
     };
 
     return (
+    <ModalPortal>
         <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={handleBackdropClick}>
             <div
                 ref={modalRef as React.RefObject<HTMLDivElement>}
@@ -135,5 +137,6 @@ export const LoadSaveModal: React.FC<LoadSaveModalProps> = ({ isOpen, onClose, o
                 </div>
             </div>
         </div>
+    </ModalPortal>
     );
 };

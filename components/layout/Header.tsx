@@ -5,6 +5,7 @@ import { useSpriteMode, SpriteMode } from '../../context/SpriteContext';
 import { Menu, Moon, Sun, X, Github, Bug, BookOpen, Monitor, Home, LayoutGrid, Book, Trophy, Map, Database, Settings, Check, Image, Gamepad2, Sparkles } from 'lucide-react';
 import { DashboardTab } from '../editor/EditorDashboard';
 import { useModalA11y } from '../../lib/hooks/useModalA11y';
+import { ModalPortal } from '../../lib/hooks/ModalPortal';
 
 interface HeaderProps {
     onNavigate?: (tab: DashboardTab) => void;
@@ -202,6 +203,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
 
       {/* Hamburger Menu Overlay & Sidebar */}
       {isMenuOpen && (
+        <ModalPortal>
         <div className="fixed inset-0 z-[1000] flex justify-end">
           {/* Backdrop */}
           <div
@@ -313,6 +315,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
 
           </div>
         </div>
+        </ModalPortal>
       )}
     </>
   );
