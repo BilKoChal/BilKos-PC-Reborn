@@ -5,8 +5,24 @@ import {
   setBCD 
 } from '../../utils/byteHelpers';
 import { calculateGen2Checksum } from './parser';
-import { encodeGameBoyText } from '../../utils/textCodec';
-import { sanitizePokemonText } from '../../utils/textValidator';
+import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
+// Codec instances for Gen 2 text encoding — replaces encodeGameBoyText/sanitizePokemonText
+const _codecInt = new GameBoyTextCodec('international');
+const _codecJpn = new GameBoyTextCodec('japanese');
+const _codecKor = new GameBoyTextCodec('korean');
+/** Get the correct codec for the given region. */
+function getCodec(isJapanese?: boolean, isKorean?: boolean): GameBoyTextCodec {
+  if (isKorean) return _codecKor;
+  return isJapanese ? _codecJpn : _codecInt;
+}
+/** Encode text using the authoritative codec. Replaces encodeGameBoyText() from textCodec.ts. */
+function encodeGameBoyText(text: string, length: number, terminator: number = 0x50, isJapanese?: boolean): Uint8Array {
+  return getCodec(isJapanese).encode(text, length, terminator);
+}
+/** Sanitize text using the authoritative codec. Replaces sanitizePokemonText() from textValidator.ts. */
+function sanitizePokemonText(text: string, isJapanese?: boolean): string {
+  return getCodec(isJapanese).sanitize(text);
+}
 import { 
   getGen2Offsets, 
   getBoxOffset, 

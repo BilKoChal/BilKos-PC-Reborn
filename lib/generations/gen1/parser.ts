@@ -1,6 +1,13 @@
 
 import { ParsedSave, ParserResult, PokemonStats, Item, HallOfFameTeam, HallOfFamePokemon, GameVersion, GameOptions, Gen1Extension, Gen1SaveExtension } from '../../parser/types';
-import { decodeText } from '../../utils/textDecoder';
+import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
+// Codec instances for Gen 1 text decoding — replaces the old decodeText() from textDecoder.ts
+const _codecInt = new GameBoyTextCodec('international');
+const _codecJpn = new GameBoyTextCodec('japanese');
+/** Decode Game Boy text using the authoritative codec. Replaces decodeText() from textDecoder.ts. */
+function decodeText(buffer: Uint8Array, offset: number, maxLength: number, isJapanese?: boolean): string {
+  return (isJapanese ? _codecJpn : _codecInt).decode(buffer, offset, maxLength);
+}
 import { 
     getUInt16BigEndian, 
     getUInt24BigEndian, 

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions, isGen2SaveExtension, Gen2SaveExtension, SaveValidationResult } from '../../lib/parser/types';
+import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions, SaveValidationResult } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { SaveProvider, useSaveContextSafe } from '../../context/SaveContext';
 import { EditorTools } from './EditorTools';
@@ -340,31 +340,21 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     };
 
     const handleBoxNameChange = (boxIndex: number, newName: string) => {
+        if (!adapter?.supportsBoxNames) return;
         const newData = { ...data };
-        // D2: Use isGen2SaveExtension type guard instead of `as Gen2SaveExtension` + `generation === 2` check.
-        // Follows PKHeX's `sav is IBoxDetailName` pattern.
-        if (adapter?.supportsBoxNames && isGen2SaveExtension(newData.genExtension)) {
-            const gen2Ext = newData.genExtension;
-            const updatedNames = [...(gen2Ext.boxNames || [])];
-            while (updatedNames.length <= boxIndex) {
-                updatedNames.push('');
-            }
-            updatedNames[boxIndex] = newName;
-            newData.genExtension = { ...gen2Ext, boxNames: updatedNames } as Gen2SaveExtension;
-        }
+        // D3: Use adapter.setBoxName() instead of directly mutating genExtension.
+        // Follows PKHeX's IBoxDetailName.SetBoxName() pattern.
+        adapter.setBoxName(newData, boxIndex, newName);
         updateData(newData);
     };
 
-    // D2: Use isGen2SaveExtension type guard instead of `as any` casts.
-    // Box name support — adapter-driven (replaces generation === 2 / >= 2 checks)
-    const gen2SaveExt = isGen2SaveExtension(data.genExtension) ? data.genExtension : null;
+    // D3: Box name support — fully adapter-driven (replaces all genExtension-specific logic)
     const boxNames = adapter?.supportsBoxNames
-        ? gen2SaveExt?.boxNames ?? []
+        ? adapter.getBoxNames(data) ?? []
         : undefined;
     const canEditBoxNames = adapter?.supportsBoxNames ?? false;
-    // Max box name length: adapter declares default, Korean override for Gen2
     const boxNameMaxLength = adapter?.supportsBoxNames
-        ? (gen2SaveExt?.region === 'korean' ? 16 : (adapter?.boxNameMaxLength ?? 8))
+        ? adapter.getBoxNameMaxLength(data)
         : undefined;
 
     const TabButton = ({ id, icon: Icon, label }: { id: DashboardTab, icon: React.ElementType, label: string }) => {

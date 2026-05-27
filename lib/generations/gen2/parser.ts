@@ -1,14 +1,21 @@
 import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension, HallOfFameTeam, HallOfFamePokemon, Gen2TmHmEntry } from '../../parser/types';
 import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
-import { 
-  getUInt16BigEndian, 
-  getUInt24BigEndian, 
-  parseBCD, 
-  countSetBits, 
-  decodeStatus 
+import {
+  getUInt16BigEndian,
+  getUInt24BigEndian,
+  parseBCD,
+  countSetBits,
+  decodeStatus
 } from '../../utils/byteHelpers';
-import { decodeText } from '../../utils/textDecoder';
+import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
+// Codec instances for Gen 2 text decoding — replaces the old decodeText() from textDecoder.ts
+const _codecInt = new GameBoyTextCodec('international');
+const _codecJpn = new GameBoyTextCodec('japanese');
+/** Decode Game Boy text using the authoritative codec. Replaces decodeText() from textDecoder.ts. */
+function decodeText(buffer: Uint8Array, offset: number, maxLength: number, isJapanese?: boolean): string {
+  return (isJapanese ? _codecJpn : _codecInt).decode(buffer, offset, maxLength);
+}
 import { 
   GEN2_POKEMON_NAMES, 
   GEN2_MOVES_LIST, 

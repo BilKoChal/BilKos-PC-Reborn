@@ -16,7 +16,6 @@ import { getGrowthRate, getLevelFromExp as calculateLevel, getExpAtLevel as calc
 // enumeration (getAllSpeciesNames), eliminating hardcoded generation branching.
 // NOTE: MOVES_LIST and MOVES_PP are now accessed via adapter.getAllMoveNames() and
 // adapter.getMoveBasePp() respectively, eliminating direct Gen1 data imports.
-import { sanitizePokemonText } from '../../../lib/utils/textValidator';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 
 // Import sub-components
@@ -260,7 +259,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                                 <input 
                                     type="text" 
                                     value={mon.nickname}
-                                    onChange={(e) => updateField('nickname', sanitizePokemonText(e.target.value, isJapanese).substring(0, isJapanese ? 5 : 10))}
+                                    onChange={(e) => updateField('nickname', (adapter?.codec?.sanitize(e.target.value) ?? e.target.value).substring(0, isJapanese ? 5 : 10))}
                                     maxLength={isJapanese ? 5 : 10}
                                     className="bg-transparent border-b-2 border-white/30 hover:border-white focus:border-white outline-none text-2xl sm:text-3xl font-black tracking-tighter italic drop-shadow-md w-32 sm:w-48 placeholder-white/50 transition-all"
                                 />

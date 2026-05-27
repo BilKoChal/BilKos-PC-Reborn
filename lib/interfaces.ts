@@ -323,6 +323,31 @@ export interface IGenerationDataAccess {
    *  @param version - Optional game version string (e.g., 'Gold', 'Crystal')
    */
   getGameEvents(version?: string): import('./data/gameEvents').GameEventDefinition[];
+
+  /** Get box names from the save data.
+   *  Returns an array of box name strings, or undefined if the generation
+   *  does not support custom box names (Gen 1).
+   *  Follows PKHeX's IBoxDetailNameRead.GetBoxName() pattern.
+   *  @param save - The parsed save data
+   */
+  getBoxNames(save: import('./parser/types').ParsedSave): string[] | undefined;
+
+  /** Set a box name in the save data.
+   *  Mutates the save's genExtension to update the box name at the given index.
+   *  Returns the updated save data (or the same reference if no change).
+   *  Follows PKHeX's IBoxDetailName.SetBoxName() pattern.
+   *  @param save - The parsed save data (will be mutated)
+   *  @param index - Box index (0-based)
+   *  @param name - New box name string
+   */
+  setBoxName(save: import('./parser/types').ParsedSave, index: number, name: string): import('./parser/types').ParsedSave;
+
+  /** Maximum box name length for this generation, considering the save's region.
+   *  Overrides the static `boxNameMaxLength` when region-specific lengths differ
+   *  (e.g., Gen 2 KOR: 16 vs INT: 8). Follows PKHeX's per-SAV length constants.
+   *  @param save - The parsed save data (used to detect region)
+   */
+  getBoxNameMaxLength(save: import('./parser/types').ParsedSave): number;
 }
 
 /**

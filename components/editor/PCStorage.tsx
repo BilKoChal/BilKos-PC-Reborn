@@ -11,7 +11,6 @@ import { useSlotLogic } from '../../lib/hooks/useSlotLogic';
 // A7: parsePk1 import removed — adapter.standaloneFormat.parseFile() handles all parsing
 import { useSaveContextSafe } from '../../context/SaveContext';
 import { DND_DATA_TYPE, DND_END_EVENT, dispatchDragEnd } from '../../lib/hooks/dndTypes';
-import { sanitizePokemonText, isValidPokemonChar } from '../../lib/utils/textValidator';
 import { startTouchDrag, moveTouchDrag, endTouchDrag, cancelTouchDrag, isTouchDragging } from '../../lib/hooks/touchDnD';
 
 interface PCStorageProps {
@@ -494,7 +493,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
     const handleFinishEditBoxName = () => {
         if (editingBoxName !== null && onBoxNameChange) {
-            const sanitized = sanitizePokemonText(editBoxNameValue);
+            const sanitized = adapter?.codec?.sanitize(editBoxNameValue) ?? editBoxNameValue;
             const trimmed = sanitized.substring(0, boxNameMaxLength || 8);
             onBoxNameChange(editingBoxName, trimmed);
         }
@@ -736,7 +735,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                                             // Only allow valid Pokemon characters
                                             let filtered = '';
                                             for (const ch of val) {
-                                                if (isValidPokemonChar(ch)) filtered += ch;
+                                                if (adapter?.codec?.isValidChar(ch) ?? true) filtered += ch;
                                             }
                                             setEditBoxNameValue(filtered.substring(0, boxNameMaxLength || 8));
                                         }}

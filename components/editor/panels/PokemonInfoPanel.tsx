@@ -8,7 +8,6 @@ import { PokemonSprite } from '../../ui/PokemonSprite';
 // instead of direct generation-specific imports. This eliminates the hardcoded
 // `generation === 2 ? GEN2_POKEMON_NAMES : POKEMON_NAMES` branching.
 import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
-import { sanitizePokemonText } from '../../../lib/utils/textValidator';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 import { IGenerationAdapter } from '../../../lib/interfaces';
 import { useSpriteMode } from '../../../context/SpriteContext';
@@ -143,7 +142,7 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                         <input 
                             type="text" 
                             value={mon.originalTrainerName}
-                            onChange={(e) => updateField('originalTrainerName', sanitizePokemonText(e.target.value, isJapanese).substring(0, isJapanese ? 5 : 7))}
+                            onChange={(e) => updateField('originalTrainerName', (adapter?.codec?.sanitize(e.target.value) ?? e.target.value).substring(0, isJapanese ? 5 : 7))}
                             maxLength={isJapanese ? 5 : 7}
                             className="w-full text-xs font-bold bg-transparent outline-none text-gray-700 dark:text-gray-200"
                             placeholder="OT Name"

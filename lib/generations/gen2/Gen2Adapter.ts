@@ -495,7 +495,7 @@ export class Gen2Adapter implements IGenerationAdapter {
    * Returns an array of box names (14 for INT/KOR, 9 for JPN).
    * Falls back to default "BOX N" names if the extension is not available.
    */
-  getBoxNames(save: ParsedSave): string[] {
+  getBoxNames(save: ParsedSave): string[] | undefined {
     const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
     if (ext && ext.boxNames && ext.boxNames.length > 0) {
       return ext.boxNames;
@@ -503,6 +503,24 @@ export class Gen2Adapter implements IGenerationAdapter {
     // Fallback: generate default names
     const count = save.pcBoxes?.length || 14;
     return Array.from({ length: count }, (_, i) => `BOX ${i + 1}`);
+  }
+
+  setBoxName(save: ParsedSave, index: number, name: string): ParsedSave {
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
+    if (!ext) return save;
+    if (!ext.boxNames) {
+      ext.boxNames = Array.from({ length: save.pcBoxes?.length || 14 }, (_, i) => `BOX ${i + 1}`);
+    }
+    if (index >= 0 && index < ext.boxNames.length) {
+      ext.boxNames[index] = name;
+    }
+    return save;
+  }
+
+  getBoxNameMaxLength(save: ParsedSave): number {
+    // Gen 2 KOR saves allow 16-char box names; INT/JPN: 8
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
+    return ext?.region === 'korean' ? 16 : this.boxNameMaxLength;
   }
 
   /**

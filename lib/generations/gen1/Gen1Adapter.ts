@@ -303,6 +303,21 @@ export class Gen1Adapter implements IGenerationAdapter {
     return GEN1_EVENTS;
   }
 
+  getBoxNames(_save: ParsedSave): string[] | undefined {
+    // Gen 1 does not support custom box names
+    return undefined;
+  }
+
+  setBoxName(save: ParsedSave, _index: number, _name: string): ParsedSave {
+    // Gen 1 does not support custom box names — no-op
+    return save;
+  }
+
+  getBoxNameMaxLength(_save: ParsedSave): number {
+    // Gen 1 does not support custom box names
+    return 0;
+  }
+
   decodeText(buffer: Uint8Array, offset: number, maxLength: number): string {
     return this._codec.decode(buffer, offset, maxLength);
   }
