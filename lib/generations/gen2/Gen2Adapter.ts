@@ -24,6 +24,7 @@ import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonType
 import { GEN2_EVENT_DISTRIBUTIONS } from './data/eventDistributions';
 import { GEN2_EVENTS } from './data/events';
 import { POKEDEX_ENTRIES } from './data/pokedexEntries';
+import { POKEMON_LOCATIONS } from './data/pokemonLocations';
 import { type GameEventDefinition } from '../../data/gameEvents';
 import { type EventPokemonData } from '../../data/eventPokemonTypes';
 import './extensions';
@@ -432,12 +433,13 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   getEncounterLocations(dexId: number, version: string): string | undefined {
-    // Gen 2 encounter location data files have not been created yet.
-    // When pokemonLocations.ts is added to gen2/data/, this method will
-    // look up version-specific locations (Gold/Silver share many, Crystal
-    // differs). For now, return undefined to signal no data.
-    void dexId; void version;
-    return undefined;
+    const entry = POKEMON_LOCATIONS[dexId];
+    if (!entry) return undefined;
+    const v = version.toLowerCase();
+    if (v === 'gold') return entry.gold;
+    if (v === 'silver') return entry.silver;
+    if (v === 'crystal') return entry.crystal;
+    return entry.gold; // fallback
   }
 
   // ── Event distributions & game events (A7) ──
