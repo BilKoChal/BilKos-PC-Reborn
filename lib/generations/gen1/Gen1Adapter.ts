@@ -1,7 +1,8 @@
 import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
-import { ParsedSave, PokemonStats } from '../../parser/types';
+import { ParsedSave, PokemonStats, SaveValidationResult } from '../../parser/types';
 import { detectGameVersion, validateGen1Checksum, parseGen1Save } from './parser';
 import { writeGen1Save, createPk1Binary } from './writer';
+import { getGen1Offsets, detectGen1Region } from './data/offsets';
 import { calculateGen1Stat, recalculateStats } from '../../utils/statCalculator';
 import { getPokemonName, POKEMON_NAMES } from './data/pokemonNames';
 import { getMoveName, MOVES_LIST, MOVES_PP, MOVES_TYPE } from './data/moves';
@@ -143,6 +144,36 @@ export class Gen1Adapter implements IGenerationAdapter {
 
   validateSave(buffer: Uint8Array): boolean {
     return validateGen1Checksum(buffer);
+  }
+
+  validateSaveDetailed(buffer: Uint8Array): SaveValidationResult {
+    const region = detectGen1Region(buffer);
+    const offsets = getGen1Offsets(region);
+
+    // Main checksum: inverted byte sum from PLAYER_NAME to 0x3522
+    let sum = 0;
+    for (let i = offsets.PLAYER_NAME; i <= 0x3522; i++) {
+      sum += buffer[i]!;
+    }
+    const mainExpected = (~sum) & 0xFF;
+    const mainActual = buffer[offsets.CHECKSUM]!;
+    const mainValid = mainExpected === mainActual;
+
+    const details: SaveValidationResult['details'] = [
+      {
+        label: 'Main Checksum',
+        valid: mainValid,
+        expected: mainExpected,
+        actual: mainActual,
+      },
+    ];
+
+    const allValid = mainValid;
+    return {
+      valid: allValid,
+      summary: allValid ? 'Checksum valid' : 'Main checksum invalid',
+      details,
+    };
   }
 
   supportsStandalone = true;

@@ -1,5 +1,5 @@
 import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
-import { ParsedSave, PokemonStats, Gen2SaveExtension, isGen2SaveExtension } from '../../parser/types';
+import { ParsedSave, PokemonStats, Gen2SaveExtension, isGen2SaveExtension, SaveValidationResult } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
 import { writeGen2Save, writeGen2PokemonStruct } from './writer';
 import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
@@ -211,6 +211,57 @@ export class Gen2Adapter implements IGenerationAdapter {
 
     return (crySum === cryStored && cryStored !== 0) || 
            (gsSum === gsStored && gsStored !== 0);
+  }
+
+  validateSaveDetailed(buffer: Uint8Array): SaveValidationResult {
+    const region = detectGen2Region(buffer);
+    const details: SaveValidationResult['details'] = [];
+
+    if (region === 'japanese') {
+      const gsSum = calculateGen2Checksum(buffer, 0x2009, 0x2C8B);
+      const gsStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
+      const gsValid = gsSum === gsStored && gsStored !== 0;
+      details.push({ label: 'Gold/Silver Checksum (JPN)', valid: gsValid, expected: gsSum, actual: gsStored });
+
+      const crySum = calculateGen2Checksum(buffer, 0x2009, 0x2AE2);
+      const cryValid = crySum === gsStored && gsStored !== 0;
+      details.push({ label: 'Crystal Checksum (JPN)', valid: cryValid, expected: crySum, actual: gsStored });
+    } else if (region === 'korean') {
+      const korSum = calculateGen2Checksum(buffer, 0x2009, 0x2DAA);
+      const korStored = buffer[0x2DAB]! | (buffer[0x2DAC]! << 8);
+      const korValid = korSum === korStored && korStored !== 0;
+      details.push({ label: 'Gold/Silver Checksum (KOR)', valid: korValid, expected: korSum, actual: korStored });
+    } else {
+      // International
+      const gsSum = calculateGen2Checksum(buffer, 0x2009, 0x2D68);
+      const gsStored = buffer[0x2D69]! | (buffer[0x2D6A]! << 8);
+      const gsValid = gsSum === gsStored && gsStored !== 0;
+      details.push({ label: 'Gold/Silver Checksum', valid: gsValid, expected: gsSum, actual: gsStored });
+
+      const crySum = calculateGen2Checksum(buffer, 0x2009, 0x2B82);
+      const cryStored = buffer[0x2D0D]! | (buffer[0x2D0E]! << 8);
+      const cryValid = crySum === cryStored && cryStored !== 0;
+      details.push({ label: 'Crystal Checksum', valid: cryValid, expected: crySum, actual: cryStored });
+    }
+
+    const allValid = details.some(d => d.valid);
+    const anyInvalid = details.some(d => !d.valid);
+    const validCount = details.filter(d => d.valid).length;
+
+    let summary: string;
+    if (!anyInvalid) {
+      summary = 'All checksums valid';
+    } else if (validCount > 0) {
+      summary = `${validCount}/${details.length} checksums valid`;
+    } else {
+      summary = 'All checksums invalid';
+    }
+
+    return {
+      valid: allValid,
+      summary,
+      details,
+    };
   }
 
   supportsStandalone = true;

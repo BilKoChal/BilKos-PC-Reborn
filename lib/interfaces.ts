@@ -187,6 +187,13 @@ export interface IGenerationBinaryOps {
   writeSave(save: ParsedSave): Uint8Array;
   validateSave(buffer: Uint8Array): boolean;
 
+  /** Detailed checksum validation returning per-component results.
+   *  Follows PKHeX's `ChecksumsValid` + `ChecksumInfo` pattern.
+   *  Unlike `validateSave()` (boolean), this returns expected vs actual
+   *  values for each checksum component, enabling the UI to show
+   *  a "checksum OK / repaired" indicator with detail popovers. */
+  validateSaveDetailed(buffer: Uint8Array): import('./parser/types').SaveValidationResult;
+
   /** Whether this generation supports standalone Pokemon file parsing/creation
    *  (e.g. .pk1 for Gen 1, .pk2 for Gen 2). Callers should check this flag
    *  before calling parseStandalonePokemon/createStandalonePokemon to avoid

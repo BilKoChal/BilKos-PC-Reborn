@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions, isGen2SaveExtension, Gen2SaveExtension } from '../../lib/parser/types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions, isGen2SaveExtension, Gen2SaveExtension, SaveValidationResult } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { SaveProvider, useSaveContextSafe } from '../../context/SaveContext';
 import { EditorTools } from './EditorTools';
@@ -11,6 +11,7 @@ import { SortScope, SortCriteria, SortDirection } from '../../lib/utils/sortMana
 import { SortSettingsModal } from './SortSettingsModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { registry } from '../../lib/core/AdapterRegistry';
+import { useUndoHistory } from '../../lib/hooks/useUndoHistory';
 
 import { DashboardTab as DashboardTabComponent } from './tabs/DashboardTab';
 import { StorageTab } from './tabs/StorageTab';
@@ -80,15 +81,87 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
 
     // Sync state when switching tabs
     const [data, setData] = useState<ParsedSave>(initialData);
+
+    // ── Undo/Redo History (C2) ──
+    const { canUndo, canRedo, pushState, undo, redo, reset } = useUndoHistory(initialData);
+
+    // Reset history when initialData changes (tab switch / new save load)
     useEffect(() => {
         setData(initialData);
+        reset(initialData);
         setSelectedPokemon(null);
-    }, [initialData]);
+    }, [initialData, reset]);
 
-    const updateData = (newData: ParsedSave) => {
+    // History-aware updateData: pushes current state to undo stack before applying
+    const updateData = useCallback((newData: ParsedSave) => {
+        pushState(newData);
         setData(newData);
         onSaveUpdate(newData);
-    };
+    }, [pushState, onSaveUpdate]);
+
+    // Undo/Redo handlers
+    const handleUndo = useCallback(() => {
+        const previous = undo();
+        if (previous) {
+            setData(previous);
+            onSaveUpdate(previous);
+        }
+    }, [undo, onSaveUpdate]);
+
+    const handleRedo = useCallback(() => {
+        const next = redo();
+        if (next) {
+            setData(next);
+            onSaveUpdate(next);
+        }
+    }, [redo, onSaveUpdate]);
+
+    // ── Keyboard shortcuts for undo/redo (C2) ──
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Skip if user is typing in an input/textarea
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+                return;
+            }
+
+            const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+
+            // Ctrl+Z / Cmd+Z → undo
+            if (isCtrlOrCmd && !e.shiftKey && e.key === 'z') {
+                e.preventDefault();
+                if (canUndo()) handleUndo();
+            }
+            // Ctrl+Shift+Z / Cmd+Shift+Z → redo
+            if (isCtrlOrCmd && e.shiftKey && e.key === 'Z') {
+                e.preventDefault();
+                if (canRedo()) handleRedo();
+            }
+            // Ctrl+Y / Cmd+Y → redo
+            if (isCtrlOrCmd && e.key === 'y') {
+                e.preventDefault();
+                if (canRedo()) handleRedo();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [canUndo, canRedo, handleUndo, handleRedo]);
+
+    // ── Checksum Validation (C1) ──
+    const adapter = registry.getAdapter(data.generation);
+    const [validationResult, setValidationResult] = useState<SaveValidationResult | null>(null);
+
+    const handleVerify = useCallback((): SaveValidationResult => {
+        if (adapter && data.rawData) {
+            const result = adapter.validateSaveDetailed(data.rawData);
+            setValidationResult(result);
+            return result;
+        }
+        const fallback: SaveValidationResult = { valid: false, summary: 'No adapter or raw data', details: [] };
+        setValidationResult(fallback);
+        return fallback;
+    }, [adapter, data.rawData]);
 
     const [selectedPokemon, setSelectedPokemon] = useState<{ mon: PokemonStats, source: 'party' | 'box', index: number, boxIndex?: number } | null>(null);
     const [isSortModalOpen, setIsSortModalOpen] = useState(false);
@@ -107,7 +180,6 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     };
 
     // Handler to Add Pokemon from Encounter DB (Single Mon)
-    const adapter = registry.getAdapter(data.generation);
     const partySize = adapter?.partySize ?? 6;
     const boxSlotCount = adapter?.boxSlotCount ?? 20;
     const boxCount = adapter?.boxCount ?? 12;
@@ -358,6 +430,13 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                 onImport={onOpenLoadModal} 
                 isMoveMode={isMoveMode}
                 onToggleMoveMode={setIsMoveMode}
+                isSaveValid={data.isValid}
+                validationResult={validationResult}
+                onVerify={handleVerify}
+                canUndo={canUndo()}
+                canRedo={canRedo()}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
             />
 
             {/* Tab Navigation Bar (Scrollable, Expanding) */}

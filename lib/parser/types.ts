@@ -192,6 +192,24 @@ export interface ParserResult {
 }
 
 // ============================================================================
+// Save Validation Result
+// ============================================================================
+
+/**
+ * Detailed save validation result returned by `validateSaveDetailed()`.
+ * Provides a summary and per-component breakdown of checksum validation,
+ * following PKHeX's `ChecksumsValid` + `ChecksumInfo` pattern.
+ */
+export interface SaveValidationResult {
+  /** Whether all checksums are valid */
+  valid: boolean;
+  /** Human-readable summary (e.g. "Checksum valid" / "Main checksum invalid") */
+  summary: string;
+  /** Detailed per-component results (e.g. per-bank, per-box checksums) */
+  details: { label: string; valid: boolean; expected?: number; actual?: number }[];
+}
+
+// ============================================================================
 // Gen 2 Phone Contact
 // ============================================================================
 
