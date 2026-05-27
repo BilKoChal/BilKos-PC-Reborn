@@ -224,56 +224,13 @@ export class Gen2Adapter implements IGenerationAdapter {
   /**
    * Parse a standalone .pk2 file into a PokemonStats object.
    *
-   * Supports multiple .pk2 formats for maximum compatibility:
-   * - 73 bytes: PKHeX PokeList2 International (count + species + terminator + 48-byte party struct + 11-byte OT + 11-byte nick)
-   * - 63 bytes: PKHeX PokeList2 Japanese (count + species + terminator + 48-byte party struct + 6-byte OT + 6-byte nick)
-   * - 48 bytes: Raw party format (no wrapper, no OT/nickname)
-   * - 32 bytes: Raw box format (no wrapper, no OT/nickname)
+   * Delegates to `Gen2StandaloneFormat.parseFile()` — the single source of truth
+   * for .pk2 format parsing. This eliminates the previously duplicated 73/63/48/32-byte
+   * branching logic that existed in both this method and the format class, following
+   * PKHeX's pattern where the entity format class IS the parser (no adapter duplication).
    */
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
-    const isJapanese = buffer.length === 63; // SIZE_2JLIST
-    const strLen = isJapanese ? 6 : 11;
-
-    let monData: Uint8Array;
-    let otRaw: Uint8Array;
-    let nickRaw: Uint8Array;
-
-    if (buffer.length === 73 || buffer.length === 63) {
-      // PKHeX PokeList2 format (standard .pk2 file)
-      // Byte 0: Count (always 1)
-      // Byte 1: Species (National Dex ID in Gen 2)
-      // Byte 2: Terminator (0xFF)
-      // Bytes 3-50: Pokemon data (party format, 48 bytes = SIZE_2PARTY)
-      // Bytes 51-61: OT Name (11 bytes for INT, 6 for JPN)
-      // Bytes 62-72: Nickname (11 bytes for INT, 6 for JPN)
-      const count = buffer[0];
-      if (count !== 1) {
-        console.warn(`parseStandalonePokemon(.pk2): Unexpected count byte: ${count}. Expected 1.`);
-      }
-      monData = buffer.slice(3, 3 + 48);
-      otRaw = buffer.slice(3 + 48, 3 + 48 + strLen);
-      nickRaw = buffer.slice(3 + 48 + strLen, 3 + 48 + strLen * 2);
-    } else if (buffer.length === 48) {
-      // Raw party format (no wrapper)
-      monData = buffer;
-      otRaw = new Uint8Array(strLen).fill(0x50);
-      nickRaw = new Uint8Array(strLen).fill(0x50);
-    } else if (buffer.length === 32) {
-      // Raw box format (no wrapper)
-      monData = buffer;
-      otRaw = new Uint8Array(strLen).fill(0x50);
-      nickRaw = new Uint8Array(strLen).fill(0x50);
-    } else {
-      throw new Error(
-        `Invalid .pk2 file size: ${buffer.length}. Expected 73 (INT PokeList2), 63 (JPN PokeList2), 48 (party), or 32 (box).`
-      );
-    }
-
-    const otName = this._codec.decode(otRaw, 0, strLen);
-    const nickName = this._codec.decode(nickRaw, 0, strLen);
-    const isParty = monData.length >= 48;
-
-    return parseGen2PokemonStruct(monData, 0, isParty, nickName, otName, nickRaw, otRaw);
+    return this.standaloneFormat.parseFile(buffer);
   }
 
   /**

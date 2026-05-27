@@ -1,6 +1,6 @@
 import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
 import { ParsedSave, PokemonStats } from '../../parser/types';
-import { detectGameVersion, validateGen1Checksum, parseGen1Save, parsePk1 } from './parser';
+import { detectGameVersion, validateGen1Checksum, parseGen1Save } from './parser';
 import { writeGen1Save, createPk1Binary } from './writer';
 import { calculateGen1Stat, recalculateStats } from '../../utils/statCalculator';
 import { getPokemonName, POKEMON_NAMES } from './data/pokemonNames';
@@ -154,11 +154,7 @@ export class Gen1Adapter implements IGenerationAdapter {
   readonly standaloneFormat: IStandalonePokemonFormat = new Gen1StandaloneFormat();
 
   parseStandalonePokemon(buffer: Uint8Array): PokemonStats {
-    const parsed = parsePk1(buffer);
-    if (!parsed) {
-      throw new Error("Failed to parse pk1 standalone file.");
-    }
-    return parsed;
+    return this.standaloneFormat.parseFile(buffer);
   }
 
   createStandalonePokemon(mon: PokemonStats): Uint8Array {

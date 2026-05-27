@@ -1,4 +1,4 @@
-import { GameCartridge } from '../types';
+import { GameCartridge } from '../uiTypes';
 
 export const pokemonGames: GameCartridge[] = [
   // Gen 1 Only

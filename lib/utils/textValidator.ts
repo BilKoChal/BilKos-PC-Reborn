@@ -1,8 +1,6 @@
 // Valid characters according to Gen I and Gen II Character Encodings.
 
-const JPN_KATAKANA = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンッャュョ";
-const JPN_HIRAGANA = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんっゃゅょ";
-const JPN_LATIN = "ABCDEFGHIJJKLMN:";
+import { JPN_KATAKANA, JPN_HIRAGANA, JPN_LATIN } from './gbCharsets';
 
 // Set of valid English/International characters
 const ALLOWED_ENG_CHARS = new Set([

@@ -119,14 +119,12 @@ export const NATIONAL_DEX_TYPES: Record<number, string[]> = {
 /**
  * Get Pokémon types for a given dex ID in Gen 1 context.
  *
- * This function is Gen1-only. The `generation` parameter is deprecated —
- * Gen2 type lookup should use `gen2/data/types.ts::getGen2PokemonTypes()`
- * or `adapter.getTypes()` instead.
+ * This function is Gen1-only. Gen2 type lookup should use
+ * `gen2/data/types.ts::getGen2PokemonTypes()` or `adapter.getTypes()`.
  *
  * @param dexId - National Dex ID
- * @param generation - DEPRECATED, ignored. Will be removed in a future cleanup.
  * @returns Array of type name strings (e.g. ['Electric'])
  */
-export function getPokemonTypes(dexId: number, _generation?: number): string[] {
+export function getPokemonTypes(dexId: number): string[] {
     return NATIONAL_DEX_TYPES[dexId] || ['Normal'];
 }

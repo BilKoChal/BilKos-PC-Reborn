@@ -12,6 +12,10 @@ dist
 dist-ssr
 *.local
 
+# Alternative lockfiles — project uses npm (CI runs `npm ci`)
+bun.lock
+bun.lockb
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

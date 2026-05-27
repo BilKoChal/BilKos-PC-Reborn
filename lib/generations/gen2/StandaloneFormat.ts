@@ -1,7 +1,6 @@
 import { IStandalonePokemonFormat } from '../../interfaces';
 import { PokemonStats } from '../../parser/types';
-import { decodeText } from '../../utils/textDecoder';
-import { encodeGameBoyText } from '../../utils/textCodec';
+import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
 import { parseGen2PokemonStruct } from './parser';
 import { writeGen2PokemonStruct } from './writer';
 
@@ -42,12 +41,15 @@ export class Gen2StandaloneFormat implements IStandalonePokemonFormat {
     // Bytes 3-50: Pokemon data (party format, 48 bytes)
     writeGen2PokemonStruct(buffer, 3, mon, true);
 
+    // Use the codec for region-correct text encoding
+    const codec = new GameBoyTextCodec(region === 'japanese' ? 'japanese' : 'international');
+
     // OT Name
-    const otBuf = encodeGameBoyText(mon.originalTrainerName || '?????', strLen, 0x50);
+    const otBuf = codec.encode(mon.originalTrainerName || '?????', strLen, 0x50);
     buffer.set(otBuf, 3 + SIZE_2PARTY);
 
     // Nickname
-    const nickBuf = encodeGameBoyText(mon.nickname || mon.speciesName || '?????', strLen, 0x50);
+    const nickBuf = codec.encode(mon.nickname || mon.speciesName || '?????', strLen, 0x50);
     buffer.set(nickBuf, 3 + SIZE_2PARTY + strLen);
 
     return buffer;
@@ -82,8 +84,12 @@ export class Gen2StandaloneFormat implements IStandalonePokemonFormat {
       );
     }
 
-    const otName = decodeText(otRaw, 0, strLen);
-    const nickName = decodeText(nickRaw, 0, strLen);
+    // Use the codec for region-correct text decoding (fixes bug where
+    // decodeText() always used international charmap even for Japanese saves)
+    const effectiveRegion = region ?? (isJapanese ? 'japanese' : 'international');
+    const codec = new GameBoyTextCodec(effectiveRegion as 'international' | 'japanese');
+    const otName = codec.decode(otRaw, 0, strLen);
+    const nickName = codec.decode(nickRaw, 0, strLen);
     const isParty = monData.length >= 48;
 
     return parseGen2PokemonStruct(monData, 0, isParty, nickName, otName, nickRaw, otRaw);

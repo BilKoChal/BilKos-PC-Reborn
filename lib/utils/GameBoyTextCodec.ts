@@ -17,6 +17,7 @@
  */
 
 import { ITextCodec } from '../interfaces';
+import { JPN_KATAKANA, JPN_HIRAGANA, JPN_LATIN } from './gbCharsets';
 
 // ── English (International) character maps ──
 
@@ -76,9 +77,8 @@ const CHAR_MAP_INT_REV: Record<string, number> = {
 
 // ── Japanese character maps ──
 
-const JPN_KATAKANA = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンッャュョ".split("");
-const JPN_HIRAGANA = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんっゃゅょ".split("");
-const JPN_LATIN = "ABCDEFGHIJJKLMN:";
+// JPN_KATAKANA, JPN_HIRAGANA, JPN_LATIN are imported from gbCharsets.ts
+// to avoid duplicating these constants across files.
 
 const CHAR_MAP_JP: Record<number, string> = {
   0x7F: ' ',

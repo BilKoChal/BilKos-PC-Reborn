@@ -1,4 +1,6 @@
 
+import { JPN_KATAKANA, JPN_HIRAGANA, JPN_LATIN } from './gbCharsets';
+
 // A simplified mapping for Gen 1 & Gen 2 (English). 
 const CHAR_MAP: Record<number, string> = {
   0x80: 'A', 0x81: 'B', 0x82: 'C', 0x83: 'D', 0x84: 'E', 0x85: 'F', 0x86: 'G', 0x87: 'H', 0x88: 'I',
@@ -39,9 +41,7 @@ const CHAR_MAP: Record<number, string> = {
   0x54: 'POKé',
 };
 
-const JPN_KATAKANA = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンッャュョ".split("");
-const JPN_HIRAGANA = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんっゃゅょ".split("");
-const JPN_LATIN = "ABCDEFGHIJJKLMN:";
+// JPN_KATAKANA, JPN_HIRAGANA, JPN_LATIN imported from gbCharsets.ts
 
 const CHAR_MAP_JP: Record<number, string> = {
   0x7F: ' ', // Space

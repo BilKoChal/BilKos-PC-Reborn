@@ -1,4 +1,6 @@
 
+import { GameBoyTextCodec } from './GameBoyTextCodec';
+
 export class BinaryWriter {
     private buffer: Uint8Array;
     private view: DataView;
@@ -132,74 +134,24 @@ export class BinaryWriter {
         this.offset += data.length;
     }
 
-    // Gen 1 String Encoding
+    /**
+     * Encode and write a Game Boy text string (Gen 1/2).
+     *
+     * Delegates to GameBoyTextCodec.encode() — the single source of truth
+     * for character mapping data. The inline charmap that was previously
+     * defined here (a 3rd copy duplicated from textCodec.ts/textDecoder.ts)
+     * has been removed to prevent drift between encoding implementations.
+     *
+     * @param str Text to encode
+     * @param maxLength Buffer length in bytes
+     * @param terminator Terminator byte (default 0x50)
+     * @param isJapanese Whether to use the Japanese charmap
+     */
     string(str: string, maxLength: number, terminator: number = 0x50, isJapanese?: boolean) {
-        const CHAR_MAP_REV: Record<string, number> = {
-            'A': 0x80, 'B': 0x81, 'C': 0x82, 'D': 0x83, 'E': 0x84, 'F': 0x85, 'G': 0x86, 'H': 0x87,
-            'I': 0x88, 'J': 0x89, 'K': 0x8A, 'L': 0x8B, 'M': 0x8C, 'N': 0x8D, 'O': 0x8E, 'P': 0x8F,
-            'Q': 0x90, 'R': 0x91, 'S': 0x92, 'T': 0x93, 'U': 0x94, 'V': 0x95, 'W': 0x96, 'X': 0x97,
-            'Y': 0x98, 'Z': 0x99, '(': 0x9A, ')': 0x9B, ':': 0x9C, ';': 0x9D, '[': 0x9E, ']': 0x9F,
-            'a': 0xA0, 'b': 0xA1, 'c': 0xA2, 'd': 0xA3, 'e': 0xA4, 'f': 0xA5, 'g': 0xA6, 'h': 0xA7,
-            'i': 0xA8, 'j': 0xA9, 'k': 0xAA, 'l': 0xAB, 'm': 0xAC, 'n': 0xAD, 'o': 0xAE, 'p': 0xAF,
-            'q': 0xB0, 'r': 0xB1, 's': 0xB2, 't': 0xB3, 'u': 0xB4, 'v': 0xB5, 'w': 0xB6, 'x': 0xB7,
-            'y': 0xB8, 'z': 0xB9, ' ': 0x7F, '?': 0xE6, '!': 0xE7, '.': 0xE8, '-': 0xE3, 
-            '\u{1F464}': 0x5D,
-            '0': 0xF6, '1': 0xF7, '2': 0xF8, '3': 0xF9, '4': 0xFA, '5': 0xFB, '6': 0xFC, '7': 0xFD, '8': 0xFE, '9': 0xFF,
-            "'": 0xE0, '\u2019': 0xE0, '`': 0xE0,
-            '\u2642': 0xEF, '\u2640': 0xF5,
-            '/': 0xF3, ',': 0xF4,
-            '\u00E9': 0xBA
-        };
-
-        const JPN_KATAKANA = "\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE\u30CF\u30D2\u30D5\u30D8\u30DB\u30DE\u30DF\u30E0\u30E1\u30E2\u30E4\u30E6\u30E8\u30E9\u30EA\u30EB\u30EC\u30ED\u30ED\u30F2\u30F3\u30C3\u30E3\u30E5\u30E7";
-        const JPN_HIRAGANA = "\u3042\u3044\u3046\u3048\u304A\u304B\u304D\u304F\u3051\u3053\u3055\u3057\u3059\u305B\u305D\u305F\u3061\u3064\u3066\u3068\u306A\u306B\u306C\u306D\u306E\u306F\u3072\u3075\u3078\u307B\u307E\u307F\u3080\u3081\u3082\u3084\u3086\u3088\u3089\u308A\u308B\u308C\u308D\u308F\u3092\u3093\u3063\u3083\u3085\u3087";
-        const JPN_LATIN = "ABCDEFGHIJJKLMN:";
-
-        const CHAR_MAP_JP_REV: Record<string, number> = {
-            ' ': 0x7F,
-            '\u2642': 0xEF,
-            '\u2640': 0xF5,
-            '\u5186': 0xF0,
-            '\u30FC': 0xE3,
-            '\u309C': 0xE4,
-            '\u309B': 0xE5,
-            '?': 0xE6,
-            '!': 0xE7,
-            '\u3002': 0xE8,
-            '\u00D7': 0xF1,
-            '\u{1F464}': 0x5D,
-            '0': 0xF6, '1': 0xF7, '2': 0xF8, '3': 0xF9, '4': 0xFA, '5': 0xFB, '6': 0xFC, '7': 0xFD, '8': 0xFE, '9': 0xFF
-        };
-
-        for (let i = 0; i < maxLength; i++) {
-            if (i < str.length) {
-                const char = str[i]!;
-                if (isJapanese) {
-                    const kIdx = JPN_KATAKANA.indexOf(char);
-                    if (kIdx !== -1) {
-                        this.u8(0x80 + kIdx);
-                    } else {
-                        const hIdx = JPN_HIRAGANA.indexOf(char);
-                        if (hIdx !== -1) {
-                            this.u8(0xB2 + hIdx);
-                        } else {
-                            const lIdx = JPN_LATIN.indexOf(char);
-                            if (lIdx !== -1) {
-                                this.u8(0x60 + lIdx);
-                            } else if (CHAR_MAP_JP_REV[char] !== undefined) {
-                                this.u8(CHAR_MAP_JP_REV[char]);
-                            } else {
-                                this.u8(0xE6); // question mark on unmatched
-                            }
-                        }
-                    }
-                } else {
-                    this.u8(CHAR_MAP_REV[char] !== undefined ? CHAR_MAP_REV[char] : 0xE6);
-                }
-            } else {
-                this.u8(terminator);
-            }
-        }
+        const region = isJapanese ? 'japanese' as const : 'international' as const;
+        const codec = new GameBoyTextCodec(region);
+        const encoded = codec.encode(str, maxLength, terminator);
+        this.bytes(encoded);
     }
 }
 

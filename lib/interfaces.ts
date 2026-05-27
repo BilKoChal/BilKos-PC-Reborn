@@ -1,6 +1,6 @@
 import React from 'react';
 import { ParsedSave, PokemonStats } from './parser/types';
-import { GameCartridge } from '../types';
+import { GameCartridge } from '../uiTypes';
 
 // ============================================================================
 // Base Stats Interface — replaces `any` return types from getBaseStats()
