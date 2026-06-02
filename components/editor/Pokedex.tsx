@@ -62,6 +62,19 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
         setOwnedFlags(newOwned);
     };
 
+    // Bulk actions (TODO 3.7): operate over the full valid dex range (1..maxDex).
+    const applyBulk = (action: 'caught' | 'seen' | 'clear') => {
+        const newOwned = [...ownedFlags];
+        const newSeen = [...seenFlags];
+        for (let id = 1; id <= maxDex; id++) {
+            if (action === 'caught') { newOwned[id] = true; newSeen[id] = true; }
+            else if (action === 'seen') { newSeen[id] = true; }
+            else { newOwned[id] = false; newSeen[id] = false; }
+        }
+        setOwnedFlags(newOwned);
+        setSeenFlags(newSeen);
+    };
+
     const sortedAndFilteredIds = useMemo(() => {
         let list = Array.from({ length: maxDex }, (_, i) => i + 1);
 
@@ -162,6 +175,29 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
                         {sortDir === 'asc' ? <ArrowDownAZ size={16} /> : <ArrowUpAZ size={16} />}
                     </button>
                 </div>
+            </div>
+
+            {/* Bulk actions (TODO 3.7) */}
+            <div className="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex flex-wrap items-center gap-2">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-1">Bulk:</span>
+                <button
+                    onClick={() => applyBulk('caught')}
+                    className="px-3 py-1 rounded-lg text-xs font-bold bg-green-500/10 text-green-600 dark:text-green-400 hover:bg-green-500/20 transition-colors flex items-center gap-1"
+                >
+                    <Check size={12} /> Mark all caught
+                </button>
+                <button
+                    onClick={() => applyBulk('seen')}
+                    className="px-3 py-1 rounded-lg text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center gap-1"
+                >
+                    <Eye size={12} /> Mark all seen
+                </button>
+                <button
+                    onClick={() => applyBulk('clear')}
+                    className="px-3 py-1 rounded-lg text-xs font-bold bg-gray-500/10 text-gray-500 hover:bg-gray-500/20 transition-colors flex items-center gap-1"
+                >
+                    <Ban size={12} /> Clear all
+                </button>
             </div>
 
             {/* Grid */}

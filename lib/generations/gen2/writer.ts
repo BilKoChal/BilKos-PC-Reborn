@@ -260,6 +260,30 @@ function writeGen2EventFlags(data: Uint8Array, offset: number, flags: boolean[],
 }
 
 /**
+ * Write Gen 2 Pokédex caught/seen bitflags (TODO 3.7).
+ *
+ * Inverse of `getPokedexFlagsGen2`: GSC stores each dex set as 32 bytes
+ * (256 bits, LSB-first within each byte), covering species 1..251 with padding.
+ * Flag bit i (0-based) corresponds to dex species (i + 1); the model stores the
+ * boolean arrays 1-indexed, so we skip index 0.
+ */
+export function writeGen2PokedexFlags(data: Uint8Array, offset: number, flags1Indexed: boolean[]) {
+  const POKEDEX_FLAG_BYTES = 32; // 256 bits
+  for (let b = 0; b < POKEDEX_FLAG_BYTES; b++) {
+    if (offset + b < data.length) data[offset + b] = 0;
+  }
+  for (let i = 0; i < 256; i++) {
+    const species = i + 1;
+    if (flags1Indexed[species]) {
+      const byteIdx = offset + Math.floor(i / 8);
+      if (byteIdx < data.length) {
+        data[byteIdx] = data[byteIdx]! | (1 << (i % 8));
+      }
+    }
+  }
+}
+
+/**
  * Write daycare data back to the save file.
  * The daycare uses NOB (Nickname-OT-Body) interleaved format for each parent.
  * We write the Pokemon structures back and update the breeding metadata.
@@ -696,6 +720,14 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   // ── Phase 2: Write Event Flags ──
   if (save.eventFlags && save.eventFlags.length > 0) {
     writeGen2EventFlags(data, offsets.eventFlags, save.eventFlags, 2000);
+  }
+
+  // ── Write Pokédex caught/seen flags (TODO 3.7) ──
+  if (save.pokedexOwnedFlags && save.pokedexOwnedFlags.length > 0) {
+    writeGen2PokedexFlags(data, offsets.pokedexCaught, save.pokedexOwnedFlags);
+  }
+  if (save.pokedexSeenFlags && save.pokedexSeenFlags.length > 0) {
+    writeGen2PokedexFlags(data, offsets.pokedexSeen, save.pokedexSeenFlags);
   }
 
   // ── Phase 2: Write Box Names ──

@@ -203,6 +203,18 @@
   filtering sanity).
 - Result: **211 tests pass** (was 208), `tsc` clean, build OK.
 
+**Iteration 14 — Milestone M3: Pokédex caught/seen editing:**
+- **3.7** Pokédex caught/seen flag editing — DONE. Per-entry toggling (hidden→seen→owned→hidden) already
+  existed in `Pokedex.tsx`. Added the missing pieces: **bulk actions** ("Mark all caught", "Mark all
+  seen", "Clear all") over the valid 1..maxDex range, **and** the real persistence gap — the **Gen 2
+  writer never wrote dex flags back**, so GSC edits were silently lost on export. Added
+  `writeGen2PokedexFlags` (inverse of `getPokedexFlagsGen2`, 32-byte/256-bit LSB-first region) and wired
+  it into `writeGen2Save` for both caught and seen sets. (Gen 1 already persisted via
+  `writePokedexFlags`.)
+- Added 2 round-trip tests (write→read preserves caught species; region is cleared so stale bits don't
+  leak).
+- Result: **213 tests pass** (was 211), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -467,10 +479,12 @@ Blue Card points, Mystery Gift unlock/item, GS Ball event toggle, Move Tutor fla
 CaughtData (met location/level/time-of-day/OT gender) are all parsed and exposed via adapter helpers
 but need UI. Surface them in Crystal saves only (driven by `adapter`/`isCrystal`, not gen number).
 
-### 3.7 `[FEAT][P2]` Pokédex caught/seen flag editing (Gen 1 & 2)
-Flags are parsed (`pokedexOwnedFlags`/`pokedexSeenFlags`) and written; add toggle UI in `Pokedex.tsx`
-(e.g., "mark all seen/caught," per-entry toggle). Useful for living-dex workflows already hinted at by
-`sortManager` living-dex mode.
+### 3.7 `[FEAT][P2]` ✅ DONE — Pokédex caught/seen flag editing (Gen 1 & 2)
+Per-entry toggling (hidden→seen→owned) already existed. Added **bulk actions** (Mark all caught / Mark
+all seen / Clear all) over 1..maxDex, and fixed a real persistence gap: the **Gen 2 writer never wrote
+dex flags back** (GSC edits were lost on export). Added `writeGen2PokedexFlags` (inverse of
+`getPokedexFlagsGen2`) and wired it into `writeGen2Save` for caught + seen sets; Gen 1 already
+persisted. Round-trip tested in `dataIntegrity.test.ts`.
 
 ### 3.8 `[FEAT][P2]` Unown form display/edit (Gen 2)
 `getGen2UnownFormLetter()` exists and `Gen2SaveExtension` holds Unown dex data. Show the derived letter

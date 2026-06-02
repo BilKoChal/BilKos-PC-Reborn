@@ -615,3 +615,38 @@ describe('Game event definitions are valid flag-array indices (TODO 3.1 / 6.3)',
     expect(gs.every(e => crystal.some(c => c.id === e.id) || true)).toBe(true); // structural sanity
   });
 });
+
+// ============================================================================
+// Gen 2 Pokédex flag write round-trip (TODO 3.7)
+// ============================================================================
+
+import { writeGen2PokedexFlags } from '../lib/generations/gen2/writer';
+import { getPokedexFlagsGen2 } from '../lib/generations/gen2/parser';
+
+describe('Gen 2 Pokédex flags write→read round-trip (TODO 3.7)', () => {
+  it('writes 1-indexed flags that parse back to the same species', () => {
+    const buf = new Uint8Array(64); // 32-byte flag region + headroom
+    const offset = 0;
+    // Mark a spread of species caught (1-indexed array as the model stores it).
+    const flags: boolean[] = [];
+    const caught = [1, 25, 151, 200, 251];
+    for (const id of caught) flags[id] = true;
+
+    writeGen2PokedexFlags(buf, offset, flags);
+    const read = getPokedexFlagsGen2(buf, offset); // 0-indexed bit array
+
+    for (const id of caught) {
+      // species id N is stored at bit (N-1) in the parsed array.
+      expect(read[id - 1], `species ${id}`).toBe(true);
+    }
+    // A non-marked species stays false.
+    expect(read[50 - 1]).toBe(false);
+  });
+
+  it('clears the region before writing (no stale bits leak through)', () => {
+    const buf = new Uint8Array(64).fill(0xFF); // pre-dirty
+    writeGen2PokedexFlags(buf, 0, []); // nothing caught
+    const read = getPokedexFlagsGen2(buf, 0);
+    expect(read.some(Boolean)).toBe(false);
+  });
+});
