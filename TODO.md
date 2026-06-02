@@ -108,6 +108,17 @@
 - Added 4 tests (factory/reverse-map were Iteration 5; this iteration adds 2 for 4.7 registration).
 - Result: **182 tests pass** (was 180), `tsc` clean, build OK. **All of §4 (4.1–4.7) is now complete.**
 
+**Iteration 7 — Milestone M2 data accuracy (gender ratios):**
+- **2.7 / 6.2** Audit `getGen2Gender` species buckets — DONE. Audited every species 1..251 against the
+  canonical gender ratios (PokeAPI `gender_rate`): the species assignments AND the DV-threshold logic
+  (`atkIv ≤ 1/3/7/11`) were already correct, including the flagged edge cases (Togepi 175/176 = 12.5%F,
+  Snubbull 209/210 = 75%F, Corsola 222 = 75%F, fossils 138-142 = 12.5%F, babies). Refactored the
+  function to expose the bucket model as data (`getGen2GenderRatio()` + `Gen2GenderRatio` type) so it's
+  testable from one source of truth and reusable for Gen 3+. Added an **exhaustive 251-species audit**
+  plus threshold-boundary and edge-species tests in `dataIntegrity.test.ts` (verified the audit catches
+  a deliberate misclassification). The 51 existing gender spot-checks still pass (behavior-preserving).
+- Result: **186 tests pass** (was 182), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -291,11 +302,12 @@ instead of DynamicPunch, HM04→Flash instead of Strength, etc.), mislabeling ow
 `GEN2_MOVES_LIST` names), hoisted to an exported `GEN2_TM_HM_MOVES` constant. Locked by
 `tests/dataIntegrity.test.ts` (full per-slot name assertion; verified to fail on the old table).
 
-### 2.7 `[BUG][P2]` `getGen2Gender()` thresholds — audit the 12.5%/25%/75% buckets
-The species lists for the 87.5%-male, 75%-male, and 25%-male buckets are hand-maintained. The
-`gen2GenderShiny.test.ts` covers some cases, but audit the full 1–251 list against PokeAPI
-`gender_rate` (already cited in the source comment) and add exhaustive table coverage. Edge species to
-re-verify: Togepi line (175/176), Snubbull line (209/210), Corsola (222), fossils, baby Pokémon.
+### 2.7 `[BUG][P2]` ✅ DONE — `getGen2Gender()` thresholds — audited the 12.5%/25%/75% buckets
+Audited all 1..251 species against canonical ratios: assignments and DV thresholds (`atkIv ≤ 1/3/7/11`)
+were already correct, including every flagged edge case (Togepi 175/176, Snubbull 209/210, Corsola 222,
+fossils 138-142, baby Pokémon). Refactored to expose the model as data (`getGen2GenderRatio()` +
+`Gen2GenderRatio` type) and added an exhaustive 251-species audit + boundary/edge tests in
+`dataIntegrity.test.ts` (verified to catch a deliberate misclassification). Behavior unchanged.
 
 ### 2.8 `[BUG][P2]` Gen 1 JPN config `saveSize: 0x10000` vs detection accepting only 32 KB
 `offsets.ts` `JPN_REGION_CONFIG.saveSize = 0x10000`, but `Gen1Adapter.detectSave` only accepts
@@ -477,7 +489,7 @@ and ratchet up. Wire into the CI `Test` step.
 ## 6. Data Accuracy & Completeness — `[DATA]`
 
 ### 6.1 `[DATA][P1]` Audit Gen 2 TM/HM table (see 2.6) — owns the data half of that bug.
-### 6.2 `[DATA][P1]` Audit `getGen2Gender` species buckets (see 2.7).
+### 6.2 `[DATA][P1]` ✅ DONE — Audit `getGen2Gender` species buckets (see 2.7). Full 1..251 audit + exhaustive tests; all buckets verified correct against canonical ratios.
 ### 6.3 `[DATA][P2]` Verify Gen 1 event-flag region mapping
 Gen 1 reads 320 bytes starting at `MISSABLE_OBJECTS` (0x2852) and treats them as 2560 generic event
 flags. Confirm this region/length matches PKHeX's Gen1 event-flag layout (missable objects vs. the

@@ -248,3 +248,73 @@ describe('Gen 2 panel-extension registration (TODO 4.7)', () => {
     expect(extensionRegistry.getExtensions('pokemon-info', 2).length).toBeGreaterThanOrEqual(5);
   });
 });
+
+// ============================================================================
+// Gen 2 gender ratio coverage — exhaustive 1..251 audit (TODO 2.7 / 6.2)
+// ============================================================================
+
+import { getGen2Gender, getGen2GenderRatio, type Gen2GenderRatio } from '../lib/generations/gen2/parser';
+
+describe('Gen 2 gender ratios — full 1..251 audit (TODO 2.7 / 6.2)', () => {
+  // Authoritative expected bucket per species, built independently from the
+  // implementation: default 50/50, then explicit overrides from canonical ratios.
+  const expected: Record<number, Gen2GenderRatio> = {};
+  for (let i = 1; i <= 251; i++) expected[i] = 'threshold7';
+  const set = (b: Gen2GenderRatio, ids: number[]) => ids.forEach((i) => { expected[i] = b; });
+  set('genderless', [81, 82, 100, 101, 120, 121, 132, 137, 144, 145, 146, 150, 151, 201, 233, 243, 244, 245, 249, 250, 251]);
+  set('female', [29, 30, 31, 113, 115, 124, 238, 241, 242]);                                  // 100% female
+  set('male', [32, 33, 34, 106, 107, 128, 236, 237]);                                          // 100% male
+  set('threshold1', [1, 2, 3, 4, 5, 6, 7, 8, 9, 133, 134, 135, 136, 196, 197, 138, 139, 140, 141, 142, 143, 152, 153, 154, 155, 156, 157, 158, 159, 160, 175, 176]); // 12.5% F
+  set('threshold3', [58, 59, 63, 64, 65, 66, 67, 68, 125, 126, 239, 240]);                     // 25% F
+  set('threshold11', [35, 36, 37, 38, 39, 40, 173, 174, 209, 210, 222]);                       // 75% F
+
+  it('classifies every species 1..251 into the canonical ratio bucket', () => {
+    const mismatches: string[] = [];
+    for (let i = 1; i <= 251; i++) {
+      const got = getGen2GenderRatio(i);
+      if (got !== expected[i]) mismatches.push(`#${i}: expected ${expected[i]}, got ${got}`);
+    }
+    expect(mismatches).toEqual([]);
+  });
+
+  it('applies the correct DV threshold boundary for each ratio', () => {
+    // threshold1 (12.5% F): female at 0-1, male at 2+
+    expect(getGen2Gender(1, 1)).toBe('Female');
+    expect(getGen2Gender(1, 2)).toBe('Male');
+    // threshold3 (25% F): female at 0-3, male at 4+
+    expect(getGen2Gender(58, 3)).toBe('Female');
+    expect(getGen2Gender(58, 4)).toBe('Male');
+    // threshold7 (50% F): female at 0-7, male at 8+
+    expect(getGen2Gender(25, 7)).toBe('Female');
+    expect(getGen2Gender(25, 8)).toBe('Male');
+    // threshold11 (75% F): female at 0-11, male at 12+
+    expect(getGen2Gender(35, 11)).toBe('Female');
+    expect(getGen2Gender(35, 12)).toBe('Male');
+  });
+
+  it('honors the TODO-flagged edge species', () => {
+    // Togepi line is 12.5% female (threshold1), NOT 50/50.
+    expect(getGen2GenderRatio(175)).toBe('threshold1');
+    expect(getGen2GenderRatio(176)).toBe('threshold1');
+    // Snubbull line is 75% female (threshold11).
+    expect(getGen2GenderRatio(209)).toBe('threshold11');
+    expect(getGen2GenderRatio(210)).toBe('threshold11');
+    // Corsola is 75% female.
+    expect(getGen2GenderRatio(222)).toBe('threshold11');
+    // Fossils are 12.5% female.
+    for (const f of [138, 139, 140, 141, 142]) expect(getGen2GenderRatio(f)).toBe('threshold1');
+    // Baby Pokémon: Cleffa/Igglybuff 75% F, Elekid/Magby 25% F, Smoochum 100% F, Tyrogue 100% M.
+    expect(getGen2GenderRatio(173)).toBe('threshold11'); // Cleffa
+    expect(getGen2GenderRatio(239)).toBe('threshold3');  // Elekid
+    expect(getGen2GenderRatio(238)).toBe('female');      // Smoochum
+    expect(getGen2GenderRatio(236)).toBe('male');        // Tyrogue
+  });
+
+  it('genderless and fixed-gender species ignore the Attack DV', () => {
+    for (const dv of [0, 7, 15]) {
+      expect(getGen2Gender(132, dv)).toBe('Genderless'); // Ditto
+      expect(getGen2Gender(30, dv)).toBe('Female');      // Nidorina
+      expect(getGen2Gender(33, dv)).toBe('Male');        // Nidorino
+    }
+  });
+});

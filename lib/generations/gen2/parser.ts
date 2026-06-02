@@ -177,56 +177,84 @@ export function getGen2UnownFormLetter(atkIv: number, defIv: number, spdIv: numb
 //   100% Female  → always Female
 //
 // Data verified against Bulbapedia + PokeAPI (gender_rate field) for species 1–251.
+/**
+ * Gen 2 gender determination model (TODO 2.7 / 6.2).
+ *
+ * In GSC a Pokémon's gender is derived from its Attack DV (atkIv): the mon is
+ * FEMALE when `atkIv <= genderThreshold`, otherwise MALE. The threshold encodes
+ * the species' gender ratio:
+ *   - 12.5% female (87.5% male) → threshold 1   (female only at atkIv 0-1)
+ *   - 25%   female (75%   male) → threshold 3
+ *   - 50%   female (50%   male) → threshold 7   (the default)
+ *   - 75%   female (25%   male) → threshold 11
+ * Plus the three fixed categories: 'genderless', 'female' (100% female /
+ * 0% male) and 'male' (100% male / 0% female).
+ *
+ * The species buckets below were audited against the canonical species gender
+ * ratios (PokeAPI gender_rate) for the full 1-251 range, including the tricky
+ * cases: Togepi line (175/176, 12.5%F), Snubbull line (209/210, 75%F),
+ * Corsola (222, 75%F), the fossils (138-142, 12.5%F) and the baby Pokémon.
+ */
+export type Gen2GenderRatio = 'genderless' | 'female' | 'male' | 'threshold1' | 'threshold3' | 'threshold7' | 'threshold11';
+
+const GEN2_GENDERLESS = [
+  81, 82, 100, 101, 120, 121, 132, 137, 144, 145, 146,
+  150, 151, 201, 233, 243, 244, 245, 249, 250, 251,
+];
+// 100% female (0% male)
+const GEN2_ALWAYS_FEMALE = [29, 30, 31, 113, 115, 124, 238, 241, 242];
+// 100% male (0% female)
+const GEN2_ALWAYS_MALE = [32, 33, 34, 106, 107, 128, 236, 237];
+// 12.5% female / 87.5% male → female if atkIv ≤ 1
+const GEN2_MALE_87 = [
+  1, 2, 3, 4, 5, 6, 7, 8, 9,                    // Kanto starters
+  133, 134, 135, 136, 196, 197,                  // Eevee family (+ Espeon/Umbreon)
+  138, 139, 140, 141, 142,                        // Fossils
+  143,                                            // Snorlax
+  152, 153, 154, 155, 156, 157, 158, 159, 160,   // Johto starters
+  175, 176,                                       // Togepi line
+];
+// 25% female / 75% male → female if atkIv ≤ 3
+const GEN2_MALE_75 = [
+  58, 59,     // Growlithe line
+  63, 64, 65, // Abra line
+  66, 67, 68, // Machop line
+  125, 126,   // Electabuzz, Magmar
+  239, 240,   // Elekid, Magby
+];
+// 75% female / 25% male → female if atkIv ≤ 11
+const GEN2_FEMALE_75 = [
+  35, 36,   // Clefairy line
+  37, 38,   // Vulpix line
+  39, 40,   // Jigglypuff line
+  173, 174, // Cleffa, Igglybuff
+  209, 210, // Snubbull line
+  222,      // Corsola
+];
+
+/** Classify a species into its Gen 2 gender-ratio bucket. */
+export function getGen2GenderRatio(speciesId: number): Gen2GenderRatio {
+  if (GEN2_GENDERLESS.includes(speciesId)) return 'genderless';
+  if (GEN2_ALWAYS_FEMALE.includes(speciesId)) return 'female';
+  if (GEN2_ALWAYS_MALE.includes(speciesId)) return 'male';
+  if (GEN2_MALE_87.includes(speciesId)) return 'threshold1';
+  if (GEN2_MALE_75.includes(speciesId)) return 'threshold3';
+  if (GEN2_FEMALE_75.includes(speciesId)) return 'threshold11';
+  return 'threshold7'; // default 50/50
+}
+
 export function getGen2Gender(speciesId: number, atkIv: number): string {
-  // ── Genderless (21 species) ──
-  const genderless = [
-    81, 82, 100, 101, 120, 121, 132, 137, 144, 145, 146,
-    150, 151, 201, 233, 243, 244, 245, 249, 250, 251
-  ];
-  if (genderless.includes(speciesId)) return 'Genderless';
-
-  // ── Always Female / 0% Male (9 species) ──
-  const alwaysFemale = [29, 30, 31, 113, 115, 124, 238, 241, 242];
-  if (alwaysFemale.includes(speciesId)) return 'Female';
-
-  // ── Always Male / 0% Female (8 species) ──
-  const alwaysMale = [32, 33, 34, 106, 107, 128, 236, 237];
-  if (alwaysMale.includes(speciesId)) return 'Male';
-
-  // ── 87.5% Male / 12.5% Female → Female if atkIv ≤ 1 (32 species) ──
-  const male87 = [
-    1, 2, 3, 4, 5, 6, 7, 8, 9,                     // Kanto starters
-    133, 134, 135, 136, 196, 197,                     // Eevee family
-    138, 139, 140, 141, 142,                           // Fossils
-    143,                                               // Snorlax
-    152, 153, 154, 155, 156, 157, 158, 159, 160,      // Johto starters
-    175, 176                                           // Togepi line
-  ];
-  if (male87.includes(speciesId)) return atkIv <= 1 ? 'Female' : 'Male';
-
-  // ── 75% Male / 25% Female → Female if atkIv ≤ 3 (12 species) ──
-  const male75 = [
-    58, 59,     // Growlithe line
-    63, 64, 65, // Abra line
-    66, 67, 68, // Machop line
-    125, 126,   // Electabuzz, Magmar
-    239, 240    // Elekid, Magby
-  ];
-  if (male75.includes(speciesId)) return atkIv <= 3 ? 'Female' : 'Male';
-
-  // ── 25% Male / 75% Female → Female if atkIv ≤ 11 (11 species) ──
-  const female75 = [
-    35, 36,       // Clefairy line
-    37, 38,       // Vulpix line
-    39, 40,       // Jigglypuff line
-    173, 174,     // Cleffa, Igglybuff
-    209, 210,     // Snubbull line
-    222           // Corsola
-  ];
-  if (female75.includes(speciesId)) return atkIv <= 11 ? 'Female' : 'Male';
-
-  // ── Default: 50% Male / 50% Female → Female if atkIv ≤ 7 ──
-  return atkIv <= 7 ? 'Female' : 'Male';
+  const ratio = getGen2GenderRatio(speciesId);
+  switch (ratio) {
+    case 'genderless': return 'Genderless';
+    case 'female':     return 'Female';
+    case 'male':       return 'Male';
+    case 'threshold1':  return atkIv <= 1 ? 'Female' : 'Male';
+    case 'threshold3':  return atkIv <= 3 ? 'Female' : 'Male';
+    case 'threshold11': return atkIv <= 11 ? 'Female' : 'Male';
+    case 'threshold7':
+    default:            return atkIv <= 7 ? 'Female' : 'Male';
+  }
 }
 
 export function parseGen2PokemonStruct(
