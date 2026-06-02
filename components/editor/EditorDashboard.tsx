@@ -303,6 +303,16 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
         updateData(newData);
     };
 
+    // TODO 3.9: generic save-extension field updater. Mutates a copy of the
+    // current genExtension with the provided partial fields, preserving the
+    // extension's class/prototype (so type guards + methods keep working).
+    const handleSaveExtUpdate = (updates: Record<string, unknown>) => {
+        if (!data.genExtension) return;
+        const ext = data.genExtension;
+        const newExt = Object.assign(Object.create(Object.getPrototypeOf(ext)), ext, updates);
+        updateData({ ...data, genExtension: newExt });
+    };
+
     const handlePokedexUpdate = (owned: boolean[], seen: boolean[]) => {
         // D1: Adapter-driven — removes `data.generation === 2 ? 251 : 151` fallback.
         // The adapter always provides nationalDexMax; 151 is a dead-code safety net.
@@ -493,6 +503,7 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                                 data={data}
                                 handleEventFlagsUpdate={handleEventFlagsUpdate}
                                 handleOptionsUpdate={handleOptionsUpdate}
+                                handleSaveExtUpdate={handleSaveExtUpdate}
                             />
                         )}
 

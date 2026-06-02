@@ -689,3 +689,28 @@ describe('Unown form DV inverse (TODO 3.8)', () => {
     expect(setUnownFormDVs('1', iv)).toEqual(iv);
   });
 });
+
+// ============================================================================
+// BCD money/savings round-trip (TODO 3.9 — mom savings editability)
+// ============================================================================
+
+import { parseBCD, setBCD } from '../lib/utils/byteHelpers';
+
+describe('BCD value round-trip (TODO 3.9: mom savings / money fields)', () => {
+  it('setBCD then parseBCD recovers the same 3-byte value', () => {
+    const buf = new Uint8Array(8);
+    const view = new DataView(buf.buffer);
+    for (const value of [0, 1, 999, 123456, 999999]) {
+      setBCD(view, 0, value, 3);
+      expect(parseBCD(buf, 0, 3), `value ${value}`).toBe(value);
+    }
+  });
+
+  it('encodes BCD digits correctly (not raw binary)', () => {
+    const buf = new Uint8Array(4);
+    const view = new DataView(buf.buffer);
+    setBCD(view, 0, 1234, 2); // 0x12 0x34 in BCD
+    expect(buf[0]).toBe(0x12);
+    expect(buf[1]).toBe(0x34);
+  });
+});

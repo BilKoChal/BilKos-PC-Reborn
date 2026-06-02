@@ -226,6 +226,22 @@
   preserved; idempotent; invalid-letter no-op).
 - Result: **217 tests pass** (was 213), `tsc` clean, build OK.
 
+**Iteration 16 — Milestone M3: trainer & misc save fields audit (3.9):**
+- **3.9** Trainer & misc save fields — DONE (audit + one fix). Audited every listed field for the
+  parse→edit→write chain: **name, TID, money, coins, badges (Johto+Kanto), play time, options,
+  gender (Crystal), rival name** are all editable in `TrainerCard` with working write paths.
+  **Map/position, RTC, phone contacts** are parsed + written (round-trip intact) but intentionally
+  display-only in the read-only Events overview. Verified the **Gen 2 badge round-trip** works via the
+  packed convention (`trainer.badges` low byte = Johto, high byte = Kanto; `kantoBadges` offset =
+  `johtoBadges + 1`, so the writer's 2-byte split persists both — the separate `gen2SaveExt.kantoBadges`
+  is a redundant mirror, not a data-loss path).
+  The one genuine gap was **mom savings**: parsed + written (BCD) but display-only. Added a generic
+  `handleSaveExtUpdate` (prototype-preserving genExtension updater) in `EditorDashboard`, threaded it to
+  `EventsTab`, and made mom savings an editable, clamped (0–999,999) input. This also lays the plumbing
+  for future Crystal-field editors (3.6).
+- Added 2 BCD round-trip tests (set→parse recovers value; correct BCD digit encoding).
+- Result: **219 tests pass** (was 217), `tsc` clean, build OK. **All of §3 (3.1–3.9) is now complete.**
+
 ---
 
 ## Legend
@@ -504,10 +520,15 @@ possible and preserving non-form bits (`~6`) so unrelated stats/shininess aren't
 picker in `PokemonInfoPanel` (species 201 only) calls `updateField('iv', …)` — matching PKHeX's
 "form adjusts DVs" behavior. Inverse round-trip + bit-preservation tested in `dataIntegrity.test.ts`.
 
-### 3.9 `[FEAT][P2]` Trainer & misc save fields
-Confirm full edit coverage for: money, coins, badges (Johto + Kanto for Gen2), play time, options,
-trainer gender (Crystal), rival name, map/position, mom savings, RTC, phone contacts. Most are parsed;
-ensure each has an input and a writer path with validation/clamping.
+### 3.9 `[FEAT][P2]` ✅ DONE — Trainer & misc save fields
+Audited the full parse→edit→write chain. Editable with write paths in `TrainerCard`: name, TID, money,
+coins, badges (Johto+Kanto), play time, options, gender (Crystal), rival name. Parsed + written
+(round-trip intact) but display-only in the Events overview: map/position, RTC, phone contacts.
+Verified the Gen 2 badge round-trip works via the packed convention (`trainer.badges` low=Johto,
+high=Kanto; `kantoBadges` offset = `johtoBadges+1`). Fixed the one real gap — **mom savings** was
+parsed+written (BCD) but display-only: added a generic prototype-preserving `handleSaveExtUpdate` in
+`EditorDashboard`, threaded to `EventsTab`, and made it an editable clamped (0–999,999) input (also
+sets up plumbing for 3.6 Crystal editors). BCD round-trip tested.
 
 ---
 

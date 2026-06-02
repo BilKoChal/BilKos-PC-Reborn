@@ -39,12 +39,15 @@ interface EventsTabProps {
     data: ParsedSave;
     handleEventFlagsUpdate: (newFlags: boolean[]) => void;
     handleOptionsUpdate?: (updates: Partial<GameOptions>) => void;
+    /** Update arbitrary save-extension fields (e.g. mom savings) — TODO 3.9. */
+    handleSaveExtUpdate?: (updates: Record<string, unknown>) => void;
 }
 
 export const EventsTab: React.FC<EventsTabProps> = ({
     data,
     handleEventFlagsUpdate,
-    handleOptionsUpdate
+    handleOptionsUpdate,
+    handleSaveExtUpdate
 }) => {
     // D1/D2: Use isGen2SaveExtension type guard instead of manual `as Gen2SaveExtension` cast
     // + `.generation === 2` check. Follows PKHeX's `sav is SAV2` pattern.
@@ -256,28 +259,40 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                     </div>
 
                     {/* ── Mom Savings ── */}
-                    {gen2Ext.momSavings > 0 && (
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-                            <div className="p-4 flex items-center gap-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-white">
-                                <PiggyBank size={20} />
-                                <div>
-                                    <h2 className="font-black text-lg uppercase tracking-widest leading-none">Mom Savings</h2>
-                                    <p className="text-xs text-white/80 font-medium">Money Saved by Mom</p>
-                                </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+                        <div className="p-4 flex items-center gap-3 bg-gradient-to-r from-yellow-500 to-amber-600 text-white">
+                            <PiggyBank size={20} />
+                            <div>
+                                <h2 className="font-black text-lg uppercase tracking-widest leading-none">Mom Savings</h2>
+                                <p className="text-xs text-white/80 font-medium">Money Saved by Mom</p>
                             </div>
-                            <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
-                                <div className="bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-3 border border-yellow-100 dark:border-yellow-800/30">
-                                    <div className="text-xs font-bold text-yellow-600 dark:text-yellow-400 uppercase tracking-widest mb-1">Savings Balance</div>
+                        </div>
+                        <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
+                            <div className="bg-yellow-50 dark:bg-yellow-900/10 rounded-xl p-3 border border-yellow-100 dark:border-yellow-800/30">
+                                <label className="text-xs font-bold text-yellow-600 dark:text-yellow-400 uppercase tracking-widest mb-1 block">Savings Balance</label>
+                                {handleSaveExtUpdate ? (
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        max={999999}
+                                        value={gen2Ext.momSavings}
+                                        onChange={(e) => {
+                                            const v = Math.min(Math.max(Math.floor(Number(e.target.value) || 0), 0), 999999);
+                                            handleSaveExtUpdate({ momSavings: v });
+                                        }}
+                                        className="w-full text-lg font-black text-yellow-700 dark:text-yellow-300 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border border-yellow-200 dark:border-yellow-800/50 outline-none focus:border-yellow-500"
+                                    />
+                                ) : (
                                     <div className="text-lg font-black text-yellow-700 dark:text-yellow-300">
                                         {gen2Ext.momSavings.toLocaleString()}
                                     </div>
-                                    <div className="text-[10px] text-yellow-500 mt-1">
-                                        Mom can save a percentage of battle earnings. This amount is stored in BCD format.
-                                    </div>
+                                )}
+                                <div className="text-[10px] text-yellow-500 mt-1">
+                                    Mom can save a percentage of battle earnings. Stored in BCD (max 999,999).
                                 </div>
                             </div>
                         </div>
-                    )}
+                    </div>
 
                     {/* ── Unown Dex ── */}
                     {gen2Ext.unownCaughtForms.length > 0 && (
