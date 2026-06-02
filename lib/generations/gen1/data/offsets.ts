@@ -167,7 +167,10 @@ const JPN_OFFSETS = {
   PARTY_MON_SIZE:  44,
   BOX_MON_SIZE:    33,
   CURRENT_BOX_DATA:0x307C,
-  CHECKSUM:        0x3523,
+  // JP main-data checksum byte (pokered sMainDataChecksum, JP layout). The JP
+  // block extends past the INT layout, so the checksum sits at 0x3594, NOT the
+  // INT 0x3523. validateGen1Checksum sums [PLAYER_NAME .. CHECKSUM-1].
+  CHECKSUM:        0x3594,
   PC_BANK_2_START: 0x4000,
   PC_BANK_3_START: 0x6000,
   BOX_STRUCT_SIZE: 0x566,

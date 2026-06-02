@@ -463,3 +463,57 @@ describe('syncCurrentBox / active-box invariant (TODO 2.9)', () => {
     expect(save.currentBoxCount).toBe(0);
   });
 });
+
+// ============================================================================
+// Gen 1 Japanese save detection + checksum (regression: "no compatible adapter")
+// ============================================================================
+
+import { validateGen1Checksum } from '../lib/generations/gen1/parser';
+
+describe('Gen 1 region-aware checksum & detection (JP load regression)', () => {
+  function buildValidGen1(region: 'international' | 'japanese'): Uint8Array {
+    const off = getGen1Offsets(region);
+    const buf = new Uint8Array(32768);
+    if (region === 'japanese') {
+      buf[0x2ED5] = 2; buf[0x2ED6] = 0x99; buf[0x2F2C] = 0xFF; buf[0x2F2D] = 0xFF;
+    } else {
+      buf[0x2F2C] = 2; buf[0x2F2D] = 0x99;
+    }
+    // Valid checksum over [PLAYER_NAME .. CHECKSUM-1] stored at CHECKSUM.
+    let sum = 0;
+    for (let i = off.PLAYER_NAME; i < off.CHECKSUM; i++) sum += buf[i]!;
+    buf[off.CHECKSUM] = (~sum) & 0xFF;
+    return buf;
+  }
+
+  it('Japanese and International checksum bytes live at different offsets', () => {
+    expect(getGen1Offsets('international').CHECKSUM).toBe(0x3523);
+    expect(getGen1Offsets('japanese').CHECKSUM).toBe(0x3594);
+  });
+
+  it('validateGen1Checksum passes for a correctly-summed Japanese save', () => {
+    expect(validateGen1Checksum(buildValidGen1('japanese'))).toBe(true);
+  });
+
+  it('Gen1Adapter.detectSave accepts a 32 KB Japanese save (was: no compatible adapter)', () => {
+    const adapter = new Gen1Adapter();
+    const res = adapter.detectSave(buildValidGen1('japanese'), 'Blue (JPN).sav');
+    expect(res.detected).toBe(true);
+  });
+
+  it('still accepts International saves', () => {
+    const adapter = new Gen1Adapter();
+    expect(adapter.detectSave(buildValidGen1('international'), 'Blue.sav').detected).toBe(true);
+  });
+
+  it('writer main-checksum range is region-derived (CHECKSUM-1), not a hardcoded INT end', () => {
+    // Guards the writer fix without building a full ParsedSave: the JP and INT
+    // checksum END offsets must differ, proving the writer can no longer sum the
+    // INT range (..0x3522) when writing a JP save.
+    const intEnd = getGen1Offsets('international').CHECKSUM - 1;
+    const jpnEnd = getGen1Offsets('japanese').CHECKSUM - 1;
+    expect(intEnd).toBe(0x3522);
+    expect(jpnEnd).toBe(0x3593);
+    expect(jpnEnd).not.toBe(intEnd);
+  });
+});

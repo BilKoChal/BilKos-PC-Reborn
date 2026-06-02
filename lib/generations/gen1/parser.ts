@@ -401,12 +401,19 @@ export function detectGameVersion(view: Uint8Array, filename?: string): GameVers
 export function validateGen1Checksum(view: Uint8Array, customOffsets?: Gen1OffsetsConfig): boolean {
     const region = detectGen1Region(view);
     const offsets = customOffsets || getGen1Offsets(region);
+    // The Gen 1 main-data checksum covers [PLAYER_NAME .. CHECKSUM-1] and is
+    // stored in the byte at CHECKSUM. International and Japanese saves place the
+    // checksum byte at DIFFERENT offsets (the JP main-data block is laid out
+    // differently), so the range END must be derived from the region's CHECKSUM
+    // offset rather than hardcoded. (Previously hardcoded to 0x3522 = INT only,
+    // which made every Japanese save fail validation → "no compatible adapter".)
+    const checksumByte = offsets.CHECKSUM;
     let sum = 0;
-    for (let i = offsets.PLAYER_NAME; i <= 0x3522; i++) {
+    for (let i = offsets.PLAYER_NAME; i < checksumByte; i++) {
         sum += view[i]!;
     }
     const calculated = (~sum) & 0xFF;
-    const actual = view[offsets.CHECKSUM]!;
+    const actual = view[checksumByte]!;
     return calculated === actual;
 }
 

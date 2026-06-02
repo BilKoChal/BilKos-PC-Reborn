@@ -110,8 +110,14 @@ export class Gen1Adapter implements IGenerationAdapter {
   detectSave(buffer: Uint8Array, filename: string): { detected: boolean; gameVersion?: string; ambiguous?: boolean } {
     const size = buffer.length;
     if (size === 32768 || size === 32768 + 16) {
-      const isValid = validateGen1Checksum(buffer);
-      if (isValid) {
+      // The checksum byte and summed range differ between International and
+      // Japanese layouts. detectGen1Region's party-offset heuristic picks one,
+      // but to be robust we accept the save if EITHER region's checksum
+      // validates (a real JP cart save was failing because only the INT layout
+      // was ever checked → "no compatible adapter").
+      const intValid = validateGen1Checksum(buffer, getGen1Offsets('international'));
+      const jpnValid = validateGen1Checksum(buffer, getGen1Offsets('japanese'));
+      if (intValid || jpnValid) {
         const version = detectGameVersion(buffer, filename);
         // Yellow has a unique checksum/layout — unambiguous.
         // Red and Blue share the same format — ambiguous unless filename disambiguates.

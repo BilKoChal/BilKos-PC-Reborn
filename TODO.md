@@ -158,6 +158,23 @@
   the old unconditional read; `syncCurrentBox`/invariant behavior).
 - Result: **198 tests pass** (was 193), `tsc` clean, build OK. **All of §2 (2.1–2.11) is now complete.**
 
+**Iteration 11 — User-reported bug: Japanese Gen 1 save fails to load:**
+- **Symptom:** loading a 32 KB JP Blue save → "Unsupported save format. No compatible generation
+  adapter found for this file size (32768 bytes)."
+- **Root cause:** `validateGen1Checksum` hardcoded the summed range end to `0x3522` and the JP offset
+  config had `CHECKSUM: 0x3523` — both **International** values. The real JP main-data checksum byte is
+  at `0x3594` (covering `[PLAYER_NAME .. 0x3593]`), so every JP save failed checksum validation →
+  `detectSave` returned `detected:false` → registry reported "no compatible adapter." The Gen 1 **writer**
+  had the identical hardcoded `0x3522`, which would have corrupted JP saves on export.
+- **Fix:** (1) `validateGen1Checksum` now derives the range end from the region's `CHECKSUM` offset
+  (`[PLAYER_NAME .. CHECKSUM-1]`); (2) corrected JP `CHECKSUM` to `0x3594`; (3) writer main-checksum now
+  uses `offsets.CHECKSUM - 1`; (4) hardened `Gen1Adapter.detectSave` to accept the save if **either**
+  region's checksum validates (PKHeX-style resilience). This supersedes the earlier 2.8 note that
+  assumed JP detection was already correct — it was not.
+- Added 5 regression tests (JP vs INT checksum offsets differ; JP checksum validates; `detectSave`
+  accepts a JP save; INT still works; writer range is region-derived).
+- Result: **203 tests pass** (was 198), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -353,7 +370,10 @@ JPN Gen 1 SRAM is 32 KB like International (region differs by data layout, not s
 `JPN_REGION_CONFIG.saveSize` to `0x8000`, fixed the field doc comment, and removed the dead/incorrect
 `buffer.length >= 0x10000` "Japanese = 64 KB" branch in `detectGen1Region` (it could never fire since
 detection only accepts 32 KB files). Region detection still uses the party-offset layout heuristic.
-Locked by tests in `dataIntegrity.test.ts`. *(A real JPN fixture under 5.4 would further harden this.)*
+Locked by tests in `dataIntegrity.test.ts`. **Follow-up (Iteration 11):** the predicted "real JP
+fixture would harden this" caveat proved correct — a real JP save exposed that the JP `CHECKSUM` offset
+was *also* wrong (was INT's `0x3523`, corrected to `0x3594`) and the checksum range was hardcoded to
+the INT end. Both the validator and writer are now region-correct, and detection accepts either layout.
 
 ### 2.9 `[BUG][P2]` ✅ DONE — Active-box write source can drift from edited in-memory box
 Confirmed both writers use `pcBoxes` as the source of truth and derive the active-box SRAM copy from

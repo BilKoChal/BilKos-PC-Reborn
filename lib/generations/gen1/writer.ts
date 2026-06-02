@@ -474,8 +474,9 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     writer.seek(BANK3_CHKSUM_ALL);
     writer.u8((~b3Sum) & 0xFF);
 
-    // Main Checksum
-    const mainChecksum = calculateChecksum(buffer, offsets.PLAYER_NAME, 0x3522);
+    // Main Checksum — covers [PLAYER_NAME .. CHECKSUM-1], region-aware end.
+    // (Was hardcoded to INT's 0x3522, which corrupted JP saves on export.)
+    const mainChecksum = calculateChecksum(buffer, offsets.PLAYER_NAME, offsets.CHECKSUM - 1);
     writer.seek(offsets.CHECKSUM);
     writer.u8(mainChecksum);
 
