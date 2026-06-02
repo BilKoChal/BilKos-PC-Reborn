@@ -26,7 +26,7 @@ export interface Gen1RegionConfig {
   boxSplitIndex: number;      // 6 (INT) or 4 (JPN)
   maxTrainerNameLen: number;  // 7 (INT) or 5 (JPN)
   maxNicknameLen: number;     // 10 (INT) or 5 (JPN)
-  saveSize: number;           // 0x8000 (INT) or 0x10000 (JPN)
+  saveSize: number;           // 0x8000 (32 KB) for both INT and JPN Gen 1 SRAM
 }
 
 // ── Offset Configuration Interface ──
@@ -94,7 +94,11 @@ const JPN_REGION_CONFIG: Gen1RegionConfig = {
   boxSplitIndex: 4,
   maxTrainerNameLen: 5,
   maxNicknameLen: 5,
-  saveSize: 0x10000,
+  // BUG FIX (TODO 2.8): Japanese Gen 1 SRAM (.sav) is 32 KB (0x8000), exactly
+  // like International — the prior 0x10000 (64 KB) was factually wrong and
+  // unused. Region is distinguished by DATA LAYOUT (party offsets), not size;
+  // see detectGen1Region below.
+  saveSize: 0x8000,
 };
 
 // ── Region-Specific Offset Tables ──
@@ -200,16 +204,17 @@ export function getGen1Offsets(region: Gen1Region = 'international'): Gen1Offset
 // ── Region Detection ──
 
 /**
- * Detects the region of a Gen 1 save file based on its size and data patterns.
+ * Detects the region of a Gen 1 save file based on its data layout.
  *
- * Detection logic:
- * 1. Japanese saves are 64KB (0x10000), International are 32KB (0x8000)
- * 2. If size alone is ambiguous, check party data validity at both region offsets
- * 3. Default to International if no specific region is detected
+ * Japanese and International Gen 1 SRAM are BOTH 32 KB (0x8000) — they differ
+ * only in internal layout (Japanese uses shorter 6-char strings, which shifts
+ * party/box offsets). So region is detected by checking which region's party
+ * structure is valid, NOT by file size. (TODO 2.8: a previous version keyed off
+ * a non-existent 64 KB size; that branch was dead because detection only ever
+ * accepts 32 KB files.) Defaults to International when ambiguous.
  */
 export function detectGen1Region(buffer: Uint8Array): Gen1Region {
-  if (buffer.length >= 0x10000) return 'japanese';
-  // Also check if JPN party offset makes sense (same heuristic as isSaveJapanese)
+  // Check whether the International or Japanese party offset holds a valid party.
   const intPartyCount = buffer[0x2F2C]!;
   const intFirstSpecies = buffer[0x2F2D]!;
   const jpnPartyCount = buffer[0x2ED5]!;

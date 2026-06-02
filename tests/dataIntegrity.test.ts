@@ -318,3 +318,63 @@ describe('Gen 2 gender ratios — full 1..251 audit (TODO 2.7 / 6.2)', () => {
     }
   });
 });
+
+// ============================================================================
+// Gen 1 region save size (TODO 2.8)
+// ============================================================================
+
+import { getGen1Offsets, detectGen1Region } from '../lib/generations/gen1/data/offsets';
+
+describe('Gen 1 region config (TODO 2.8)', () => {
+  it('both International and Japanese SRAM are 32 KB (0x8000)', () => {
+    expect(getGen1Offsets('international').saveSize).toBe(0x8000);
+    expect(getGen1Offsets('japanese').saveSize).toBe(0x8000);
+  });
+
+  it('detectGen1Region uses data layout, not file size (a 64 KB buffer is not auto-Japanese)', () => {
+    // An all-zero 64 KB buffer has no valid party at either offset → defaults to International.
+    const big = new Uint8Array(0x10000);
+    expect(detectGen1Region(big)).toBe('international');
+  });
+
+  it('detects Japanese layout when the JPN party offset is valid and INT is not', () => {
+    const buf = new Uint8Array(0x8000);
+    // Make the JPN party offset look valid (count + first species), INT invalid.
+    buf[0x2ED5] = 3;      // jpn party count
+    buf[0x2ED6] = 0x99;   // jpn first species (non-empty)
+    buf[0x2F2C] = 0xFF;   // int party count invalid
+    buf[0x2F2D] = 0xFF;
+    expect(detectGen1Region(buf)).toBe('japanese');
+  });
+});
+
+// ============================================================================
+// Gen 2 item name coverage (TODO 6.5)
+// ============================================================================
+
+import { getGen2ItemName, GEN2_ITEMS } from '../lib/generations/gen2/data/constants';
+
+describe('Gen 2 item name coverage (TODO 6.5)', () => {
+  it('every ordinary item 1..95 has a real (non-placeholder) name', () => {
+    const placeholders: number[] = [];
+    for (let i = 1; i <= 95; i++) {
+      const name = getGen2ItemName(i);
+      if (!name || name.startsWith('Item ')) placeholders.push(i);
+    }
+    expect(placeholders).toEqual([]);
+  });
+
+  it('item 25 is Nugget (was a placeholder before TODO 6.5)', () => {
+    expect(GEN2_ITEMS[25]).toBe('Nugget');
+  });
+
+  it('HM range 125..131 resolves to HM01..HM07', () => {
+    expect(getGen2ItemName(125)).toBe('HM01');
+    expect(getGen2ItemName(131)).toBe('HM07');
+  });
+
+  it('TM range 132..181 resolves to TM01..TM50', () => {
+    expect(getGen2ItemName(132)).toBe('TM01');
+    expect(getGen2ItemName(181)).toBe('TM50');
+  });
+});

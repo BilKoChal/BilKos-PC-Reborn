@@ -72,7 +72,7 @@ export const GEN2_ITEMS: Record<number, string> = {
   6: "Town Map", 7: "Bicycle", 8: "Moon Stone", 9: "Antidote", 10: "Burn Heal",
   11: "Ice Heal", 12: "Awakening", 13: "Parlyz Heal", 14: "Full Restore", 15: "Max Potion",
   16: "Hyper Potion", 17: "Super Potion", 18: "Potion", 19: "Escape Rope", 20: "Repel",
-  21: "Max Elixer", 22: "Fire Stone", 23: "Thunderstone", 24: "Water Stone", 25: "Item 25",
+  21: "Max Elixer", 22: "Fire Stone", 23: "Thunderstone", 24: "Water Stone", 25: "Nugget",
   26: "HP Up", 27: "Protein", 28: "Iron", 29: "Carbos", 30: "Lucky Punch",
   31: "Calcium", 32: "Rare Candy", 33: "Spell Tag", 34: "Metal Powder", 35: "Metal Coat",
   36: "Dragon Fang", 37: "Mystic Water", 38: "Black Belt", 39: "Black Glasses", 40: "Pink Bow",

@@ -119,6 +119,19 @@
   a deliberate misclassification). The 51 existing gender spot-checks still pass (behavior-preserving).
 - Result: **186 tests pass** (was 182), `tsc` clean, build OK.
 
+**Iteration 8 — Milestone M2 data accuracy (Gen 1 region + items):**
+- **2.8** Gen 1 JPN `saveSize` inconsistency — FIXED. JPN Gen 1 SRAM is 32 KB just like International
+  (region differs by data layout, not size). Corrected `JPN_REGION_CONFIG.saveSize` from `0x10000` to
+  `0x8000`, fixed the field doc, and removed the dead/incorrect `buffer.length >= 0x10000`
+  "Japanese = 64 KB" branch in `detectGen1Region` (it could never fire — detection only accepts 32 KB
+  files); region is still detected by the existing party-offset heuristic.
+- **6.5** Gen 2 item ID/name coverage — DONE. Audited items 1–95: only ID 25 was a `"Item 25"`
+  placeholder (silently dropped from `getAllItemNames`); set it to its canonical name **Nugget**. HMs
+  (125–131 → HM01–07) and TMs (132–181 → TM01–50) verified to resolve.
+- Added 7 tests in `dataIntegrity.test.ts` (region save sizes + layout-based detection; full item
+  1–95 non-placeholder coverage + HM/TM ranges).
+- Result: **193 tests pass** (was 186), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -309,11 +322,12 @@ fossils 138-142, baby Pokémon). Refactored to expose the model as data (`getGen
 `Gen2GenderRatio` type) and added an exhaustive 251-species audit + boundary/edge tests in
 `dataIntegrity.test.ts` (verified to catch a deliberate misclassification). Behavior unchanged.
 
-### 2.8 `[BUG][P2]` Gen 1 JPN config `saveSize: 0x10000` vs detection accepting only 32 KB
-`offsets.ts` `JPN_REGION_CONFIG.saveSize = 0x10000`, but `Gen1Adapter.detectSave` only accepts
-`32768` or `32768+16`. Real JPN Gen 1 saves are 32 KB; the `0x10000` value is unused and misleading.
-Either correct it to `0x8000` or make detection consistent with whatever real JPN dumps actually are.
-Decide with a real JPN `.sav` fixture (see §5.4).
+### 2.8 `[BUG][P2]` ✅ DONE — Gen 1 JPN config `saveSize` was wrong (0x10000)
+JPN Gen 1 SRAM is 32 KB like International (region differs by data layout, not size). Corrected
+`JPN_REGION_CONFIG.saveSize` to `0x8000`, fixed the field doc comment, and removed the dead/incorrect
+`buffer.length >= 0x10000` "Japanese = 64 KB" branch in `detectGen1Region` (it could never fire since
+detection only accepts 32 KB files). Region detection still uses the party-offset layout heuristic.
+Locked by tests in `dataIntegrity.test.ts`. *(A real JPN fixture under 5.4 would further harden this.)*
 
 ### 2.9 `[BUG][P2]` Active-box write source can drift from edited in-memory box
 Gen 1 writer copies the active box from `save.pcBoxes[i]` into the current-box RAM cache when
@@ -499,9 +513,10 @@ bits.
 Gen2 `pokedexEntries.ts` / `pokemonLocations.ts` are large but spot-check for `undefined`/placeholder
 entries (esp. 152–251 and version-specific Gold/Silver/Crystal text). Track completeness with a test
 (6 above can assert "no missing entries for IDs ≤ nationalDexMax").
-### 6.5 `[DATA][P2]` Item ID/name coverage
-`getAllItemNames()` filters out `Item N` placeholders. Verify Gen2 ordinary items (1–95), HMs
-(125–131), TMs (132–181) are all named, and that held-item editing covers the full valid set.
+### 6.5 `[DATA][P2]` ✅ DONE — Item ID/name coverage
+Audited Gen 2 items 1–95: only ID 25 was a `"Item 25"` placeholder (so it was silently dropped from
+`getAllItemNames()`); set to its canonical name **Nugget**. HMs (125–131) and TMs (132–181) verified to
+resolve to HM01–07 / TM01–50. Locked by a test asserting no placeholders remain in 1–95.
 
 ---
 
