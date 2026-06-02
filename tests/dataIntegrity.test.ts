@@ -714,3 +714,35 @@ describe('BCD value round-trip (TODO 3.9: mom savings / money fields)', () => {
     expect(buf[1]).toBe(0x34);
   });
 });
+
+// ============================================================================
+// Unown form sprite URL: form 'A' is the default 201.png (bug report)
+// ============================================================================
+
+import { getPokemonSpriteUrl } from '../lib/sprites';
+
+describe("Unown form sprite URLs (form 'A' = default 201.png)", () => {
+  it("form 'a' resolves to 201.png with no -a suffix (master mode)", () => {
+    const url = getPokemonSpriteUrl(201, 'master', undefined, false, 'a');
+    expect(url.endsWith('/201.png')).toBe(true);
+    expect(url).not.toContain('201-a');
+  });
+
+  it("forms b..z keep the -{form} suffix (master mode)", () => {
+    for (const f of ['b', 'm', 'z']) {
+      const url = getPokemonSpriteUrl(201, 'master', undefined, false, f);
+      expect(url.endsWith(`/201-${f}.png`), `form ${f}`).toBe(true);
+    }
+  });
+
+  it("form 'a' has no -a suffix in game-specific mode either", () => {
+    const url = getPokemonSpriteUrl(201, 'game-specific', 'Crystal', false, 'a');
+    expect(url.endsWith('/201.png')).toBe(true);
+    expect(url).not.toContain('201-a');
+  });
+
+  it("game-specific form 'b' keeps the suffix", () => {
+    const url = getPokemonSpriteUrl(201, 'game-specific', 'Crystal', false, 'b');
+    expect(url.endsWith('/201-b.png')).toBe(true);
+  });
+});

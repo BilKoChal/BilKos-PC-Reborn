@@ -492,21 +492,26 @@ export function getEffectiveSpriteMode(
  */
 function getUnownFormSpriteUrl(form: string, mode: SpriteMode, gameVersion?: GameVersion): string {
   const f = form.toLowerCase();
+  // BUG FIX: In the PokeAPI sprite repo, Unown form 'A' is the DEFAULT sprite
+  // (201.png) and has no "-a" suffix — only forms B–Z (and !/?) use "201-{form}".
+  // So 'a' must resolve to the plain species sprite, or the image 404s.
+  const isDefaultForm = f === 'a';
+  const formSuffix = isDefaultForm ? '' : `-${f}`;
   switch (mode) {
     case 'game-specific': {
       const info = getVersionSpriteInfo(gameVersion);
       if (info) {
-        return `${POKEAPI_SPRITES_BASE}/pokemon/versions/${info.gen}/${info.folder}/transparent/201-${f}.png`;
+        return `${POKEAPI_SPRITES_BASE}/pokemon/versions/${info.gen}/${info.folder}/transparent/201${formSuffix}.png`;
       }
       // Unknown version → fall back to master form sprite
-      return `${POKEAPI_SPRITES_BASE}/pokemon/201-${f}.png`;
+      return `${POKEAPI_SPRITES_BASE}/pokemon/201${formSuffix}.png`;
     }
     case 'artwork':
       // No artwork per-form — fall back to default Unown artwork
       return `${POKEAPI_SPRITES_BASE}/pokemon/other/official-artwork/201.png`;
     case 'master':
     default:
-      return `${POKEAPI_SPRITES_BASE}/pokemon/201-${f}.png`;
+      return `${POKEAPI_SPRITES_BASE}/pokemon/201${formSuffix}.png`;
   }
 }
 

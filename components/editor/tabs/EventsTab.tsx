@@ -2,14 +2,16 @@ import React, { useState } from 'react';
 import { ParsedSave, GameOptions, isGen2Extension, isGen2SaveExtension, Gen2Extension } from '../../../lib/parser/types';
 import { EventFlagsManager } from '../EventFlagsManager';
 import { Settings, Clock, Flag, MapPin, Baby, CreditCard, Gift, Sparkles, Swords, PiggyBank, Eye, Flame, Zap, Snowflake, Phone } from 'lucide-react';
+import { getPokemonSpriteUrl } from '../../../lib/sprites';
 
 // ─── Unown Form Sprite Helper ─────────────────────────────────────────────────
-const POKEAPI_SPRITES_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites';
 
 /** Small component that renders an Unown form sprite image, falling back to the letter text if the image fails to load. */
 const UnownFormSprite: React.FC<{ letter: string; isCaught: boolean }> = ({ letter, isCaught }) => {
     const [imgError, setImgError] = useState(false);
-    const spriteUrl = `${POKEAPI_SPRITES_BASE}/pokemon/201-${letter.toLowerCase()}.png`;
+    // Use the shared sprite helper so form 'A' correctly resolves to the default
+    // 201.png (PokeAPI has no "201-a"); 'master' mode yields the form sprite URL.
+    const spriteUrl = getPokemonSpriteUrl(201, 'master', undefined, false, letter.toLowerCase());
 
     if (!isCaught || imgError) {
         // Not caught or image failed — show the letter text
@@ -365,10 +367,21 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                                     </div>
                                     <div className="p-4 bg-gray-50 dark:bg-gray-900/50">
                                         <div className="bg-indigo-50 dark:bg-indigo-900/10 rounded-xl p-3 border border-indigo-100 dark:border-indigo-800/30">
-                                            <div className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1">Points</div>
-                                            <div className="text-lg font-black text-indigo-700 dark:text-indigo-300">
-                                                {gen2Ext.blueCardPoints} Point{gen2Ext.blueCardPoints !== 1 ? 's' : ''}
-                                            </div>
+                                            <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-1 block">Points</label>
+                                            {handleSaveExtUpdate ? (
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={9999}
+                                                    value={gen2Ext.blueCardPoints}
+                                                    onChange={(e) => handleSaveExtUpdate({ blueCardPoints: Math.min(Math.max(Math.floor(Number(e.target.value) || 0), 0), 9999) })}
+                                                    className="w-full text-lg font-black text-indigo-700 dark:text-indigo-300 bg-white dark:bg-gray-900 rounded-lg px-3 py-2 border border-indigo-200 dark:border-indigo-800/50 outline-none focus:border-indigo-500"
+                                                />
+                                            ) : (
+                                                <div className="text-lg font-black text-indigo-700 dark:text-indigo-300">
+                                                    {gen2Ext.blueCardPoints} Point{gen2Ext.blueCardPoints !== 1 ? 's' : ''}
+                                                </div>
+                                            )}
                                             <div className="text-[10px] text-indigo-500 mt-1">
                                                 The Blue Card tracks Battle Tower wins. Points can be exchanged for prizes.
                                             </div>
@@ -392,13 +405,26 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                                         <div className="bg-rose-50 dark:bg-rose-900/10 rounded-xl p-3 border border-rose-100 dark:border-rose-800/30">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-widest">Status</div>
-                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                                    gen2Ext.mysteryGiftUnlocked !== 0
-                                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                                                }`}>
-                                                    {gen2Ext.mysteryGiftUnlocked !== 0 ? 'Unlocked' : 'Locked'}
-                                                </span>
+                                                {handleSaveExtUpdate ? (
+                                                    <button
+                                                        onClick={() => handleSaveExtUpdate({ mysteryGiftUnlocked: gen2Ext.mysteryGiftUnlocked !== 0 ? 0 : 1 })}
+                                                        className={`text-xs font-bold px-2 py-0.5 rounded-full transition-colors ${
+                                                            gen2Ext.mysteryGiftUnlocked !== 0
+                                                                ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-200'
+                                                                : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200'
+                                                        }`}
+                                                    >
+                                                        {gen2Ext.mysteryGiftUnlocked !== 0 ? 'Unlocked' : 'Locked'} ⇄
+                                                    </button>
+                                                ) : (
+                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                        gen2Ext.mysteryGiftUnlocked !== 0
+                                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                                                    }`}>
+                                                        {gen2Ext.mysteryGiftUnlocked !== 0 ? 'Unlocked' : 'Locked'}
+                                                    </span>
+                                                )}
                                             </div>
                                             {gen2Ext.mysteryGiftUnlocked !== 0 && gen2Ext.mysteryGiftItem > 0 && (
                                                 <div className="text-[11px] text-rose-600 dark:text-rose-400">
@@ -431,13 +457,26 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                                     }`}>
                                         <div className="flex items-center justify-between mb-1">
                                             <div className="text-xs font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Event Status</div>
-                                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                                gen2Ext.gsBallEventEnabled
-                                                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
-                                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                                            }`}>
-                                                {gen2Ext.gsBallEventEnabled ? 'Active' : 'Inactive'}
-                                            </span>
+                                            {handleSaveExtUpdate ? (
+                                                <button
+                                                    onClick={() => handleSaveExtUpdate({ gsBallEventEnabled: !gen2Ext.gsBallEventEnabled })}
+                                                    className={`text-xs font-bold px-2 py-0.5 rounded-full transition-colors ${
+                                                        gen2Ext.gsBallEventEnabled
+                                                            ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-200'
+                                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-200'
+                                                    }`}
+                                                >
+                                                    {gen2Ext.gsBallEventEnabled ? 'Active' : 'Inactive'} ⇄
+                                                </button>
+                                            ) : (
+                                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                                    gen2Ext.gsBallEventEnabled
+                                                        ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                                                }`}>
+                                                    {gen2Ext.gsBallEventEnabled ? 'Active' : 'Inactive'}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className={`text-[11px] font-semibold ${
                                             gen2Ext.gsBallEventEnabled ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500'

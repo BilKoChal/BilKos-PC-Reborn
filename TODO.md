@@ -242,6 +242,22 @@
 - Added 2 BCD round-trip tests (set→parse recovers value; correct BCD digit encoding).
 - Result: **219 tests pass** (was 217), `tsc` clean, build OK. **All of §3 (3.1–3.9) is now complete.**
 
+**Iteration 17 — Unown sprite bug fix + Crystal-specific editors (3.6):**
+- **User bug:** Unown form 'A' sprite 404'd because the URL used `201-a.png`, but the PokeAPI repo
+  names form A as the **default** `201.png` (no suffix); only B–Z use `201-{form}`. Fixed
+  `getUnownFormSpriteUrl` in `lib/sprites.ts` (form 'a' → no suffix, both master and game-specific
+  modes), and refactored the duplicate `UnownFormSprite` builder in `EventsTab` to reuse the shared
+  `getPokemonSpriteUrl` so there's a single source of truth. Locked by 4 regression tests (verified to
+  fail on the old code).
+- **3.6** Crystal-specific editors — DONE. Blue Card / Mystery Gift / GS Ball were parsed + written but
+  display-only. Using the `handleSaveExtUpdate` plumbing from Iteration 16, made them editable in
+  `EventsTab` (Crystal saves only): Blue Card **points** input (0–9999), Mystery Gift **status toggle**
+  (locked/unlocked), GS Ball **event toggle** (active/inactive). All persist through the existing
+  writer paths. (Per-mon CaughtData + Move Tutor flag editing remain as future niceties; CaughtData is
+  correctly Crystal-gated per 2.11.)
+- Added 4 Unown-sprite regression tests.
+- Result: **223 tests pass** (was 219), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -501,10 +517,12 @@ path if missing.
 Parser reads daycare parents + breeding status/steps; writer has `writeGen2Daycare`. Ensure the UI can
 add/remove/edit daycare parents and that NOB-interleaved layout round-trips.
 
-### 3.6 `[FEAT][P2]` Crystal-specific editors
-Blue Card points, Mystery Gift unlock/item, GS Ball event toggle, Move Tutor flags, and per-mon
-CaughtData (met location/level/time-of-day/OT gender) are all parsed and exposed via adapter helpers
-but need UI. Surface them in Crystal saves only (driven by `adapter`/`isCrystal`, not gen number).
+### 3.6 `[FEAT][P2]` ✅ DONE (mostly) — Crystal-specific editors
+Made the main Crystal fields editable in `EventsTab` (Crystal-gated via `isCrystal`), using the
+`handleSaveExtUpdate` plumbing: **Blue Card points** (0–9999 input), **Mystery Gift** status toggle,
+**GS Ball event** toggle. All persist through existing writer paths. *Remaining as future niceties:*
+per-mon **CaughtData** editing UI (met location/level/ToD/OT gender — parse is Crystal-gated per 2.11)
+and **Move Tutor** flag toggles; both are parsed/written, just not yet surfaced as inputs.
 
 ### 3.7 `[FEAT][P2]` ✅ DONE — Pokédex caught/seen flag editing (Gen 1 & 2)
 Per-entry toggling (hidden→seen→owned) already existed. Added **bulk actions** (Mark all caught / Mark
