@@ -650,3 +650,42 @@ describe('Gen 2 Pokédex flags write→read round-trip (TODO 3.7)', () => {
     expect(read.some(Boolean)).toBe(false);
   });
 });
+
+// ============================================================================
+// Unown form ⇄ DV inverse (TODO 3.8)
+// ============================================================================
+
+import { getUnownFormLetter, setUnownFormDVs } from '../lib/sprites';
+
+describe('Unown form DV inverse (TODO 3.8)', () => {
+  const startIv = { hp: 0, attack: 0b1011, defense: 0b0101, speed: 0b1100, special: 0b0010, spAtk: 0, spDef: 0 };
+
+  it('every letter a..z is reachable and round-trips back via getUnownFormLetter', () => {
+    for (let i = 0; i < 26; i++) {
+      const letter = String.fromCharCode(97 + i);
+      const newIv = setUnownFormDVs(letter, startIv);
+      expect(getUnownFormLetter(201, newIv), `letter ${letter}`).toBe(letter);
+    }
+  });
+
+  it('preserves the non-form bits (~6) of each DV', () => {
+    // Bit 0 and bit 3 of each DV must be untouched (only the &6 bits may change).
+    const newIv = setUnownFormDVs('q', startIv);
+    for (const k of ['attack', 'defense', 'speed', 'special'] as const) {
+      expect(newIv[k] & ~6, k).toBe(startIv[k] & ~6);
+    }
+  });
+
+  it('is idempotent: setting the current form leaves DVs unchanged', () => {
+    const current = getUnownFormLetter(201, startIv)!;
+    const again = setUnownFormDVs(current, startIv);
+    expect(again).toEqual({
+      attack: startIv.attack, defense: startIv.defense, speed: startIv.speed, special: startIv.special,
+    });
+  });
+
+  it('returns input unchanged for an invalid letter', () => {
+    const iv = { attack: 5, defense: 5, speed: 5, special: 5 };
+    expect(setUnownFormDVs('1', iv)).toEqual(iv);
+  });
+});

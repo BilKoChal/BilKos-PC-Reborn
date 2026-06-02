@@ -120,6 +120,53 @@ export function getUnownFormLetter(dexId: number, iv: { attack: number; defense:
   return String.fromCharCode(97 + letterIndex); // 'a' to 'z'
 }
 
+/**
+ * Compute the Gen 2 DVs (IVs) needed to make an Unown show a specific letter,
+ * changing as little as possible (TODO 3.8).
+ *
+ * Only the "middle" bits (bit 1 and bit 2, i.e. `& 6`) of each DV affect the
+ * letter, per `getUnownFormLetter`. We preserve every other bit of the existing
+ * DVs (so HP-DV/shininess/stat impact is minimized) and pick the bit-pair
+ * combination that yields the requested letter while touching the fewest DVs.
+ *
+ * @param letter Target form letter 'a'-'z' (case-insensitive)
+ * @param iv     Current DVs
+ * @returns New { attack, defense, speed, special } DVs, or the input unchanged
+ *          if the letter is invalid.
+ */
+export function setUnownFormDVs(
+  letter: string,
+  iv: { attack: number; defense: number; speed: number; special: number },
+): { attack: number; defense: number; speed: number; special: number } {
+  const target = letter.toLowerCase().charCodeAt(0) - 97;
+  if (target < 0 || target > 25) return iv;
+
+  const opts = [0, 2, 4, 6]; // possible values of (dv & 6)
+  const letterOf = (a: number, d: number, s: number, c: number) =>
+    (((a & 6) << 5) | ((d & 6) << 3) | ((s & 6) << 1) | ((c & 6) >> 1)) % 26;
+
+  let best: { a: number; d: number; s: number; c: number } | null = null;
+  let bestCost = Infinity;
+  for (const a of opts) for (const d of opts) for (const s of opts) for (const c of opts) {
+    if (letterOf(a, d, s, c) !== target) continue;
+    const cost =
+      (a !== (iv.attack & 6) ? 1 : 0) +
+      (d !== (iv.defense & 6) ? 1 : 0) +
+      (s !== (iv.speed & 6) ? 1 : 0) +
+      (c !== (iv.special & 6) ? 1 : 0);
+    if (cost < bestCost) { bestCost = cost; best = { a, d, s, c }; }
+  }
+  if (!best) return iv;
+
+  // Preserve all non-form bits (~6) of each DV; replace only the &6 portion.
+  return {
+    attack: (iv.attack & ~6) | best.a,
+    defense: (iv.defense & ~6) | best.d,
+    speed: (iv.speed & ~6) | best.s,
+    special: (iv.special & ~6) | best.c,
+  };
+}
+
 // ─── Base URL Constants ──────────────────────────────────────────────────────
 
 const POKEAPI_SPRITES_BASE = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites';

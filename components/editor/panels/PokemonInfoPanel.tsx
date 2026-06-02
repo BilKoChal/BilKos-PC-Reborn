@@ -11,7 +11,7 @@ import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 import { IGenerationAdapter } from '../../../lib/interfaces';
 import { useSpriteMode } from '../../../context/SpriteContext';
-import { getPokemonSpriteUrl, ITEM_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter } from '../../../lib/sprites';
+import { getPokemonSpriteUrl, ITEM_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter, setUnownFormDVs } from '../../../lib/sprites';
 
 interface PokemonInfoPanelProps {
     mon: PokemonStats;
@@ -118,6 +118,41 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                         className="shadow-sm"
                     />
                 </div>
+
+                {/* Unown Form Selector (Gen 2, species 201) — adjusts DVs to match (TODO 3.8) */}
+                {mon.dexId === 201 && (
+                    <div className="w-full mt-2">
+                        <label className="flex items-center justify-between text-xs font-bold text-gray-400 uppercase ml-1 mb-1">
+                            <span>Unown Form</span>
+                            <span className="font-mono bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 px-1.5 py-0.5 rounded text-[10px] uppercase">
+                                {getUnownFormLetter(mon.dexId, mon.iv) ?? '?'}
+                            </span>
+                        </label>
+                        <div className="grid grid-cols-7 sm:grid-cols-9 gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1.5">
+                            {Array.from({ length: 26 }, (_, i) => String.fromCharCode(97 + i)).map(letter => {
+                                const current = getUnownFormLetter(mon.dexId, mon.iv);
+                                const isActive = current === letter;
+                                return (
+                                    <button
+                                        key={letter}
+                                        onClick={() => updateField('iv', setUnownFormDVs(letter, mon.iv))}
+                                        title={`Set form ${letter.toUpperCase()} (adjusts DVs)`}
+                                        className={`aspect-square rounded text-xs font-black uppercase transition-colors ${
+                                            isActive
+                                                ? 'bg-purple-500 text-white shadow'
+                                                : 'bg-white dark:bg-gray-900 text-gray-500 hover:bg-purple-100 dark:hover:bg-purple-900/30'
+                                        }`}
+                                    >
+                                        {letter}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[10px] text-gray-400 mt-1 ml-1">
+                            Changing the form adjusts this Pokémon's DVs (which also affects its stats).
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* EXP Block */}

@@ -215,6 +215,17 @@
   leak).
 - Result: **213 tests pass** (was 211), `tsc` clean, build OK.
 
+**Iteration 15 — Milestone M3: Unown form display/edit:**
+- **3.8** Unown form display/edit — DONE. The derived letter was already *displayed* (form sprites in
+  `PartyList`/`PokemonInfoPanel` via `getUnownFormLetter`). Added the missing **form selection**: a new
+  `setUnownFormDVs(letter, iv)` inverse helper in `sprites.ts` computes the DVs that produce a target
+  letter, changing as few DVs as possible and **preserving every non-form bit** (`~6`) of each DV so
+  unrelated stats/shininess aren't disturbed. Wired an A–Z form picker into `PokemonInfoPanel` (shown
+  only for species 201) that calls `updateField('iv', …)`. Matches PKHeX's "form adjusts DVs" behavior.
+- Added 4 tests (all 26 letters reachable + round-trip via `getUnownFormLetter`; non-form bits
+  preserved; idempotent; invalid-letter no-op).
+- Result: **217 tests pass** (was 213), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -486,9 +497,12 @@ dex flags back** (GSC edits were lost on export). Added `writeGen2PokedexFlags` 
 `getPokedexFlagsGen2`) and wired it into `writeGen2Save` for caught + seen sets; Gen 1 already
 persisted. Round-trip tested in `dataIntegrity.test.ts`.
 
-### 3.8 `[FEAT][P2]` Unown form display/edit (Gen 2)
-`getGen2UnownFormLetter()` exists and `Gen2SaveExtension` holds Unown dex data. Show the derived letter
-on Unown mons and allow form selection (which adjusts DVs to match), matching PKHeX behavior.
+### 3.8 `[FEAT][P2]` ✅ DONE — Unown form display/edit (Gen 2)
+The derived letter was already displayed via form sprites. Added **form selection**: a new
+`setUnownFormDVs(letter, iv)` inverse helper computes DVs for a target letter, changing as few DVs as
+possible and preserving non-form bits (`~6`) so unrelated stats/shininess aren't disturbed. An A–Z
+picker in `PokemonInfoPanel` (species 201 only) calls `updateField('iv', …)` — matching PKHeX's
+"form adjusts DVs" behavior. Inverse round-trip + bit-preservation tested in `dataIntegrity.test.ts`.
 
 ### 3.9 `[FEAT][P2]` Trainer & misc save fields
 Confirm full edit coverage for: money, coins, badges (Johto + Kanto for Gen2), play time, options,
