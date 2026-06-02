@@ -5,12 +5,27 @@ import { extensionRegistry } from '../../../lib/core/ExtensionRegistry';
 import { useSaveContextSafe } from '../../../context/SaveContext';
 import { IGenerationAdapter } from '../../../lib/interfaces';
 
+// Non-volatile status conditions shared by Gen 1 & Gen 2. The status string is
+// the canonical value stored on CanonicalPokemon.status; the writer encodes it
+// back via encodeStatusByte(). Order matches the in-game status priority.
+const STATUS_OPTIONS: { value: string; label: string; activeClass: string }[] = [
+    { value: 'OK',  label: 'OK',        activeClass: 'bg-green-500 text-white' },
+    { value: 'SLP', label: 'Sleep',     activeClass: 'bg-gray-500 text-white' },
+    { value: 'PSN', label: 'Poison',    activeClass: 'bg-purple-500 text-white' },
+    { value: 'BRN', label: 'Burn',      activeClass: 'bg-orange-500 text-white' },
+    { value: 'FRZ', label: 'Freeze',    activeClass: 'bg-cyan-500 text-white' },
+    { value: 'PAR', label: 'Paralysis', activeClass: 'bg-yellow-500 text-black' },
+];
+
 interface PokemonStatsPanelProps {
     mon: PokemonStats;
     generation?: number;
     adapter?: IGenerationAdapter;
     updateIV: (stat: keyof PokemonStats['iv'], value: number) => void;
     updateEV: (stat: keyof PokemonStats['ev'], value: number) => void;
+    /** Update a top-level field (used by the status editor). Optional so the
+     *  panel still works in read-only/legacy contexts that don't pass it. */
+    updateField?: (field: keyof PokemonStats, value: unknown) => void;
     /** Maximum IV value for the active generation (adapter-driven). Default: 15 */
     ivMax?: number;
     /** Maximum EV value for the active generation (adapter-driven). Default: 65535 */
@@ -119,7 +134,7 @@ function dShort(label: string): string {
     return label.substring(0, 3).toUpperCase();
 }
 
-export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, generation: generationProp, adapter: adapterProp, updateIV, updateEV, ivMax: ivMaxProp, evMax: evMaxProp }) => {
+export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, generation: generationProp, adapter: adapterProp, updateIV, updateEV, updateField, ivMax: ivMaxProp, evMax: evMaxProp }) => {
     const ctx = useSaveContextSafe();
     const generation = (generationProp ?? ctx?.generation ?? 1) as Generation;
     const adapter = adapterProp ?? ctx?.adapter;
@@ -224,6 +239,30 @@ export const PokemonStatsPanel: React.FC<PokemonStatsPanelProps> = ({ mon, gener
                     ))}
                 </div>
             </div>
+
+            {/* Status Condition (party only — box/stored Pokémon have no status byte) */}
+            {mon.isParty && updateField && (
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden mb-6 p-4">
+                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-2">
+                        Status Condition
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {STATUS_OPTIONS.map(opt => (
+                            <button
+                                key={opt.value}
+                                onClick={() => updateField('status', opt.value)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                                    mon.status === opt.value
+                                        ? `${opt.activeClass} border-transparent shadow`
+                                        : 'bg-gray-100 dark:bg-gray-900 text-gray-500 border-transparent hover:bg-gray-200 dark:hover:bg-gray-700'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* Render Extensions */}
             {extensions.length > 0 && (

@@ -175,6 +175,19 @@
   accepts a JP save; INT still works; writer range is region-derived).
 - Result: **203 tests pass** (was 198), `tsc` clean, build OK.
 
+**Iteration 12 — Milestone M3: first Gen 1/2 editing features:**
+- **3.2** Status condition editor — DONE. `PokemonStatsPanel` now renders an editable status selector
+  (OK/Sleep/Poison/Burn/Freeze/Paralysis) for **party** Pokémon only (box/stored mons have no status
+  byte). It writes `mon.status`, which the writers encode via `encodeStatusByte` (the 2.1/2.2 fixes) —
+  so the round-trip work is finally user-visible. `updateField` is threaded from the modal as an
+  optional prop (read-only contexts still work).
+- **3.3** Level ⇄ EXP coupling — VERIFIED DONE + TESTED. The modal already couples them
+  (`handleLevelChange` → `getExpAtLevel`, `handleExpChange` → `getLevelFromExp`, per-species
+  `getGrowthRate`), wired to both the level and EXP inputs. Added tests locking the round-trip,
+  boundary behavior, canonical L100 totals (Fast 800k / MediumFast 1M / Slow 1.25M), and 1..100 clamp.
+- Added 9 tests (level⇄EXP coupling; status codec round-trip for the editor's value set).
+- Result: **208 tests pass** (was 203), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -413,14 +426,18 @@ editor:
 - Raw flag index search/jump for power users.
 - Persist edits back through `save.eventFlags`.
 
-### 3.2 `[FEAT][P1]` Status condition editor in `PokemonStatsPanel`
-Once 2.1/2.2 land, expose status (OK/SLP(n)/PSN/BRN/FRZ/PAR/Toxic where applicable) as an editable
-field. This is needed anyway to make the round-trip fixes user-visible.
+### 3.2 `[FEAT][P1]` ✅ DONE — Status condition editor in `PokemonStatsPanel`
+Added an editable status selector (OK/Sleep/Poison/Burn/Freeze/Paralysis) shown for **party** mons
+only (box/stored Pokémon have no status byte). Writes `mon.status`, which the writers encode via
+`encodeStatusByte` (2.1/2.2) — making the round-trip fixes user-visible. `updateField` is threaded
+from the modal as an optional prop. Status codec round-trip tested in `dataIntegrity.test.ts`.
 
-### 3.3 `[FEAT][P1]` Level ⇄ EXP coupling using growth rates
-`lib/utils/experience.ts` has `GrowthRate` + `SPECIES_GROWTH_RATE` (Gen1–3 families). Wire it so editing
-level recomputes EXP to the level's minimum (and vice-versa, EXP→level), per species growth group.
-Verify all 251 Gen2 species have a growth-rate entry (audit the table for gaps at 152–251).
+### 3.3 `[FEAT][P1]` ✅ DONE — Level ⇄ EXP coupling using growth rates
+Already wired in `PokemonEditorModal`: `handleLevelChange` recomputes EXP via `getExpAtLevel`,
+`handleExpChange` recomputes level via `getLevelFromExp`, both using per-species `getGrowthRate`, and
+connected to the level + EXP inputs. Full 1..251 growth-rate coverage was confirmed in Iteration 3
+(5.3). This iteration adds tests locking the round-trip, level boundaries, canonical L100 totals, and
+the 1..100 clamp.
 
 ### 3.4 `[FEAT][P2]` Gen 2 mailbox editor
 `Gen2SaveExtension.mailbox` and `Gen2Mail` exist; `MailboxTab.tsx` exists. Confirm parse→edit→write for

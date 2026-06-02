@@ -368,6 +368,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                                 generation={generation}
                                 updateIV={updateIV}
                                 updateEV={updateEV}
+                                updateField={updateField}
                                 ivMax={ivMax}
                                 evMax={evMax}
                             />

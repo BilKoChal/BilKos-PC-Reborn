@@ -517,3 +517,57 @@ describe('Gen 1 region-aware checksum & detection (JP load regression)', () => {
     expect(jpnEnd).not.toBe(intEnd);
   });
 });
+
+// ============================================================================
+// Level ⇄ EXP coupling via growth rates (TODO 3.3)
+// ============================================================================
+
+import { getGrowthRate, getLevelFromExp, getExpAtLevel } from '../lib/utils/experience';
+
+describe('Level ⇄ EXP coupling (TODO 3.3)', () => {
+  it('exp-at-level round-trips back to the same level', () => {
+    for (const dexId of [1, 25, 150, 152, 245]) {
+      const rate = getGrowthRate(dexId);
+      for (const lvl of [5, 50, 100]) {
+        const exp = getExpAtLevel(lvl, rate);
+        expect(getLevelFromExp(exp, rate), `dex ${dexId} L${lvl}`).toBe(lvl);
+      }
+    }
+  });
+
+  it('one EXP below a level boundary yields the previous level', () => {
+    const rate = getGrowthRate(1); // MediumSlow
+    const e50 = getExpAtLevel(50, rate);
+    expect(getLevelFromExp(e50, rate)).toBe(50);
+    expect(getLevelFromExp(e50 - 1, rate)).toBe(49);
+  });
+
+  it('matches canonical growth-curve totals at L100', () => {
+    expect(getExpAtLevel(100, 'Fast')).toBe(800000);
+    expect(getExpAtLevel(100, 'MediumFast')).toBe(1000000);
+    expect(getExpAtLevel(100, 'Slow')).toBe(1250000);
+  });
+
+  it('level is clamped within 1..100 by the curve lookup', () => {
+    const rate = getGrowthRate(25);
+    // Huge EXP can never exceed level 100.
+    expect(getLevelFromExp(9_999_999, rate)).toBe(100);
+    // Zero EXP is level 1.
+    expect(getLevelFromExp(0, rate)).toBe(1);
+  });
+});
+
+// ============================================================================
+// Status editor option set is consistent with the codec (TODO 3.2)
+// ============================================================================
+
+import { encodeStatusByte, decodeStatus } from '../lib/utils/byteHelpers';
+
+describe('Status condition values round-trip through the codec (TODO 3.2)', () => {
+  it('every editable status string encodes+decodes back to itself', () => {
+    // These are exactly the values the status editor offers.
+    for (const s of ['OK', 'SLP', 'PSN', 'BRN', 'FRZ', 'PAR']) {
+      expect(decodeStatus(encodeStatusByte(s))).toBe(s);
+    }
+  });
+});
