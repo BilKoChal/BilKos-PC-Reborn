@@ -1,4 +1,4 @@
-import { ParsedSave, PokemonStats, Item } from '../../parser/types';
+import { ParsedSave, PokemonStats, Item, assertCurrentBoxInSync } from '../../parser/types';
 import { GEN1_DEX_TO_INTERNAL, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig, Gen1Region } from './data/offsets';
 import { BinaryWriter } from '../../utils/io';
 import { encodeStatusByte } from '../../utils/byteHelpers';
@@ -223,6 +223,9 @@ export function createPk1Binary(mon: PokemonStats, region: Gen1Region = 'interna
 }
 
 export function writeGen1Save(save: ParsedSave): Uint8Array {
+    // TODO 2.9: dev-only guard — pcBoxes is the source of truth; the active-box
+    // RAM cache is derived from it. Warn (dev/test only) on currentBoxPokemon drift.
+    assertCurrentBoxInSync(save);
     // Clone raw data
     const writer = new BinaryWriter(new Uint8Array(save.rawData));
     const region = detectGen1Region(save.rawData);

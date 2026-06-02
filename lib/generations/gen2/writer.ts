@@ -1,4 +1,4 @@
-import { ParsedSave, PokemonStats, Item, isGen2Extension, isGen2SaveExtension, Gen2SaveExtension } from '../../parser/types';
+import { ParsedSave, PokemonStats, Item, isGen2Extension, isGen2SaveExtension, Gen2SaveExtension, assertCurrentBoxInSync } from '../../parser/types';
 import { 
   setUInt16BigEndian, 
   setUInt24BigEndian, 
@@ -535,6 +535,10 @@ function writeGen2Phase4Data(
  * Phase 2 adds: rival name, event flags, daycare, box names, TM/HM pocket, map data.
  */
 export function writeGen2Save(save: ParsedSave): Uint8Array {
+  // TODO 2.9: dev-only guard — the writer treats pcBoxes as the source of truth
+  // and derives the active-box SRAM copy from it. Warn (dev/test only) if the
+  // currentBoxPokemon cache drifted from pcBoxes[currentBoxId].
+  assertCurrentBoxInSync(save);
   const data = new Uint8Array(save.rawData);
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
 

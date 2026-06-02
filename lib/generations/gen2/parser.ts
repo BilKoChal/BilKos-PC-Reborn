@@ -265,7 +265,12 @@ export function parseGen2PokemonStruct(
   otName: string,
   nicknameRaw: Uint8Array, 
   otNameRaw: Uint8Array,
-  listSpeciesId?: number
+  listSpeciesId?: number,
+  // TODO 2.11: bytes 0x1D-0x1E are CaughtData ONLY in Crystal. In Gold/Silver
+  // they belong to other struct fields and can be non-zero, so reading them as
+  // CaughtData there pollutes the model (and risks clobbering on normalize).
+  // Default false = treat as GS (no CaughtData) unless the caller knows it's Crystal.
+  isCrystal: boolean = false,
 ): PokemonStats {
   // Bounds checking: ensure we have enough bytes to read the base structure
   const minBytes = isParty ? 48 : 32;
@@ -346,7 +351,8 @@ export function parseGen2PokemonStruct(
   const friendship = isEggDetected ? 0 : rawByte27;
   const eggCycles = isEggDetected ? rawByte27 : 0;
   const pokerus = view[offset + 28]!;
-  const caughtDataRaw = (view[offset + 0x1D]! << 8) | view[offset + 0x1E]!;
+  // TODO 2.11: only read CaughtData (0x1D-0x1E) for Crystal; GS leaves it 0.
+  const caughtDataRaw = isCrystal ? ((view[offset + 0x1D]! << 8) | view[offset + 0x1E]!) : 0;
   const level = view[offset + 31]!;
 
   const baseStats = getGen2BaseStats(dexId);
@@ -585,7 +591,7 @@ export function parseItemsPocketGen2(view: Uint8Array, start: number, countIdx: 
  *   [count:1] [speciesList:boxSlotCount+1] [bodies:boxSlotCount*32] [otNames:boxSlotCount*strLen] [nicknames:boxSlotCount*strLen]
  *   Followed by a 2-byte checksum.
  */
-export function parsePCBoxGen2(view: Uint8Array, offset: number, offsets: Gen2OffsetsConfig): PokemonStats[] {
+export function parsePCBoxGen2(view: Uint8Array, offset: number, offsets: Gen2OffsetsConfig, isCrystal: boolean = false): PokemonStats[] {
   const count = view[offset]!;
   const list: PokemonStats[] = [];
   const slotCount = offsets.boxSlotCount;
@@ -618,7 +624,8 @@ export function parsePCBoxGen2(view: Uint8Array, offset: number, offsets: Gen2Of
       otName,
       nicknameRaw,
       otNameRaw,
-      speciesId // Pass species list header ID for egg detection (0xFD = egg)
+      speciesId, // Pass species list header ID for egg detection (0xFD = egg)
+      isCrystal  // TODO 2.11: only read CaughtData for Crystal
     ));
   }
 
@@ -776,6 +783,8 @@ export function parseGen2Daycare(
   const strLen = offsets.stringLength;
   const SIZE_2STORED = 32;
   const offset = offsets.daycare;
+  // TODO 2.11: CaughtData (0x1D-0x1E) only exists in Crystal (gender offset >= 0).
+  const isCrystal = offsets.gender >= 0;
 
   // Parent 1: Nickname + OT + Body (interleaved NOB format)
   let parent1: PokemonStats | null = null;
@@ -790,7 +799,7 @@ export function parseGen2Daycare(
       const ot1Raw = data.slice(ot1Start, ot1Start + strLen);
       const nick1 = decodeText(nick1Raw, 0, strLen);
       const ot1 = decodeText(ot1Raw, 0, strLen);
-      parent1 = parseGen2PokemonStruct(data, body1Start, false, nick1, ot1, nick1Raw, ot1Raw);
+      parent1 = parseGen2PokemonStruct(data, body1Start, false, nick1, ot1, nick1Raw, ot1Raw, undefined, isCrystal);
     }
   }
 
@@ -808,7 +817,7 @@ export function parseGen2Daycare(
       const ot2Raw = data.slice(ot2Start, ot2Start + strLen);
       const nick2 = decodeText(nick2Raw, 0, strLen);
       const ot2 = decodeText(ot2Raw, 0, strLen);
-      parent2 = parseGen2PokemonStruct(data, body2Start, false, nick2, ot2, nick2Raw, ot2Raw);
+      parent2 = parseGen2PokemonStruct(data, body2Start, false, nick2, ot2, nick2Raw, ot2Raw, undefined, isCrystal);
     }
   }
 
@@ -1084,6 +1093,8 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
 
   // ── Get Offsets for this version/region ──
   const offsets = getGen2Offsets(gameVersion, region);
+  // TODO 2.11: CaughtData (struct bytes 0x1D-0x1E) only exists in Crystal.
+  const isCrystalSave = gameVersion === 'Crystal';
 
   // ── Parse Trainer Info ──
   const tid = getUInt16BigEndian(data, offsets.trainer1);
@@ -1157,7 +1168,8 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
       otName,
       nicknameRaw,
       otNameRaw,
-      listSpeciesId // Pass species list header ID for egg detection
+      listSpeciesId, // Pass species list header ID for egg detection
+      isCrystalSave  // TODO 2.11: only read CaughtData for Crystal
     ));
   }
 
@@ -1182,7 +1194,7 @@ export function parseGen2Save(data: Uint8Array, originalFilename: string = "save
   const pcBoxes: PokemonStats[][] = [];
   for (let boxIdx = 0; boxIdx < offsets.boxCount; boxIdx++) {
     const boxOffset = getBoxOffset(boxIdx, offsets);
-    pcBoxes.push(parsePCBoxGen2(data, boxOffset, offsets));
+    pcBoxes.push(parsePCBoxGen2(data, boxOffset, offsets, isCrystalSave));
   }
 
   // Active PC box ID

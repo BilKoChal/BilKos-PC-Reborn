@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions, SaveValidationResult } from '../../lib/parser/types';
+import { ParsedSave, PokemonStats, TrainerInfo, Item, GameOptions, SaveValidationResult, syncCurrentBox } from '../../lib/parser/types';
 import { useTheme } from '../../context/ThemeContext';
 import { SaveProvider, useSaveContextSafe } from '../../context/SaveContext';
 import { EditorTools } from './EditorTools';
@@ -169,13 +169,10 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     const handleImportBox = (newBoxData: PokemonStats[], boxIndex: number) => {
         const newData = { ...data };
         newData.pcBoxes[boxIndex] = newBoxData;
-        
-        // If we updated the currently active in-game box, update cache
-        if (boxIndex === newData.currentBoxId) {
-            newData.currentBoxPokemon = newBoxData;
-            newData.currentBoxCount = newBoxData.length;
-        }
-        
+
+        // Keep the active-box cache in sync with pcBoxes (TODO 2.9).
+        syncCurrentBox(newData);
+
         updateData(newData);
     };
 
@@ -218,11 +215,8 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             }
 
             if (added) {
-                // Update cache if we modified current box
-                if (targetBoxIndex === newData.currentBoxId) {
-                    newData.currentBoxPokemon = newData.pcBoxes[targetBoxIndex]!;
-                    newData.currentBoxCount = newData.pcBoxes[targetBoxIndex]!.length;
-                }
+                // Keep the active-box cache in sync with pcBoxes (TODO 2.9).
+                syncCurrentBox(newData);
                 updateData(newData);
             } else {
                 onShowToast("PC Storage is completely full!");
@@ -263,9 +257,7 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
             newData.party[selectedPokemon.index] = updatedMon;
         } else if (selectedPokemon.source === 'box' && selectedPokemon.boxIndex !== undefined) {
             newData.pcBoxes[selectedPokemon.boxIndex]![selectedPokemon.index] = updatedMon;
-            if (selectedPokemon.boxIndex === data.currentBoxId) {
-                newData.currentBoxPokemon = newData.pcBoxes[selectedPokemon.boxIndex]!;
-            }
+            syncCurrentBox(newData); // keep active-box cache in sync (TODO 2.9)
         }
 
         updateData(newData);
@@ -274,9 +266,8 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
     const handleSetActiveBox = (boxIndex: number) => {
         const newData = { ...data };
         newData.currentBoxId = boxIndex;
-        // In Gen 1 logic, we assume PC Boxes array is the source of truth
-        newData.currentBoxPokemon = newData.pcBoxes[boxIndex]!;
-        newData.currentBoxCount = newData.pcBoxes[boxIndex]!.length;
+        // PC Boxes array is the source of truth; sync the active-box cache (TODO 2.9).
+        syncCurrentBox(newData);
         updateData(newData);
     };
 

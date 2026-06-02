@@ -38,6 +38,8 @@
  * promise of the ROADMAP.
  */
 
+import { logger } from './utils/logger';
+
 // Leaf types are defined in parser/types.ts to avoid circular dependencies.
 // The CDM references them by importing from parser/types.
 import type {
@@ -510,4 +512,42 @@ export interface CanonicalSave {
 
   // ── Generation Extension Slot ─────────────────────────────────────────
   genExtension: ISaveExtension | null;
+}
+
+/**
+ * Re-derive the active-box cache from the authoritative `pcBoxes` (TODO 2.9).
+ *
+ * `currentBoxPokemon`/`currentBoxCount` are a *cache* of `pcBoxes[currentBoxId]`.
+ * The writers treat `pcBoxes` as the single source of truth (they derive the
+ * in-SRAM "current box" copy from it), so if any edit path mutates `pcBoxes`
+ * without refreshing this cache (or vice-versa), the UI and the exported file
+ * can silently disagree. Several call sites hand-rolled this re-derivation;
+ * route them through this one helper so the invariant lives in one place.
+ *
+ * Returns the same save object (mutated) for convenient chaining.
+ */
+export function syncCurrentBox<T extends CanonicalSave>(save: T): T {
+  const active = save.pcBoxes[save.currentBoxId] ?? [];
+  save.currentBoxPokemon = active;
+  save.currentBoxCount = active.length;
+  return save;
+}
+
+/**
+ * Dev-only invariant check: the active-box cache must equal `pcBoxes[currentBoxId]`
+ * (TODO 2.9). Logs a warning if they have drifted. No-op in production so it never
+ * affects users; it exists to catch a desync during development/tests before it
+ * becomes a silent data discrepancy on export.
+ */
+export function assertCurrentBoxInSync(save: CanonicalSave): void {
+  const active = save.pcBoxes[save.currentBoxId] ?? [];
+  // Reference-equality is the cheap, intended check (syncCurrentBox assigns the
+  // same array). Fall back to a length compare for the rebuilt-array case.
+  if (save.currentBoxPokemon !== active && save.currentBoxPokemon.length !== active.length) {
+    logger.warn(
+      `[invariant] currentBoxPokemon is out of sync with pcBoxes[${save.currentBoxId}] ` +
+      `(cache=${save.currentBoxPokemon.length}, box=${active.length}). ` +
+      `Call syncCurrentBox() after editing pcBoxes.`,
+    );
+  }
 }

@@ -36,6 +36,8 @@ export {
   Gen1Extension,
   Gen2Extension,
   createEmptyCanonicalPokemon,
+  syncCurrentBox,
+  assertCurrentBoxInSync,
   Gen3Extension,
   Gen1SaveExtension,
   Gen2SaveExtension,

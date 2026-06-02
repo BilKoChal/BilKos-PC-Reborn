@@ -132,6 +132,32 @@
   1–95 non-placeholder coverage + HM/TM ranges).
 - Result: **193 tests pass** (was 186), `tsc` clean, build OK.
 
+**Iteration 9 — PKHeX architecture reconciliation (planning, no code change):**
+- Cross-checked the project against a deep read of the real PKHeX source (`PKHeX.Core`). **Verdict: on
+  track.** Added **§8.5** documenting the point-by-point alignment (abstract base + per-gen subclass,
+  size→fingerprint detection, registry/factory routing, data-as-tables, capability interfaces, decrypt-
+  in-memory/re-seal-on-write, one-hop cross-gen transfer, fail-closed robustness) and six PKHeX-grounded
+  seam-hardening items (8.5.1–8.5.6): detection waterfall + wrapper handlers, explicit `SetChecksums`
+  write step, concrete entity-encryption hooks incl. the PID%24 block-shuffle, a legality-engine
+  boundary note, HOME-as-hub transfer guidance, and save-vs-entity validation naming.
+- Augmented §9.3 with precise PKHeX mechanism references and folded 8.5.x into milestone M4.
+- No source files changed; **193 tests still pass**, `tsc` clean, build OK.
+
+**Iteration 10 — Milestone M2 final Gen 2 write/parse bugs:**
+- **2.9** Active-box write drift — FIXED. `currentBoxPokemon`/`currentBoxCount` are a cache of
+  `pcBoxes[currentBoxId]`, and both writers treat `pcBoxes` as the source of truth. The re-derivation
+  was hand-rolled in 7+ places. Added `syncCurrentBox(save)` + a dev-only `assertCurrentBoxInSync(save)`
+  (logger-gated) to `canonicalModel.ts`, re-exported via `parser/types.ts`; routed the 4 `EditorDashboard`
+  sync sites through the helper and call the assert at the top of both `writeGen*Save`.
+- **2.11** Crystal `CaughtData` read for all versions — FIXED. The parser read struct bytes 0x1D-0x1E
+  as CaughtData **unconditionally**; in Gold/Silver those bytes aren't CaughtData and can be non-zero,
+  polluting the model. Added an `isCrystal` param to `parseGen2PokemonStruct` (default `false` =
+  GS-safe), gated the read, and threaded real Crystal-ness from `parseGen2Save` into the party, box
+  (`parsePCBoxGen2`), and daycare paths. The standalone `.pk2` path safely defaults to no CaughtData.
+- Added 5 tests in `dataIntegrity.test.ts` (CaughtData GS/Crystal/default gating — verified to fail on
+  the old unconditional read; `syncCurrentBox`/invariant behavior).
+- Result: **198 tests pass** (was 193), `tsc` clean, build OK. **All of §2 (2.1–2.11) is now complete.**
+
 ---
 
 ## Legend
@@ -329,13 +355,12 @@ JPN Gen 1 SRAM is 32 KB like International (region differs by data layout, not s
 detection only accepts 32 KB files). Region detection still uses the party-offset layout heuristic.
 Locked by tests in `dataIntegrity.test.ts`. *(A real JPN fixture under 5.4 would further harden this.)*
 
-### 2.9 `[BUG][P2]` Active-box write source can drift from edited in-memory box
-Gen 1 writer copies the active box from `save.pcBoxes[i]` into the current-box RAM cache when
-`i === save.currentBoxId`. Gen 2 writer slices the active box region into `currentBoxCopy`. Confirm
-the in-memory `currentBoxPokemon` and `pcBoxes[currentBoxId]` are *always* kept in sync by the UI
-(they're separate fields on `CanonicalSave`). If a code path edits one but not the other, the export
-silently uses stale data. Add an invariant/assert (dev-only) and a round-trip test that edits the
-active box.
+### 2.9 `[BUG][P2]` ✅ DONE — Active-box write source can drift from edited in-memory box
+Confirmed both writers use `pcBoxes` as the source of truth and derive the active-box SRAM copy from
+it, so a stale `currentBoxPokemon` cache only misleads the UI. The re-derivation was duplicated across
+7+ sites. Added `syncCurrentBox()` + dev-only `assertCurrentBoxInSync()` (logger-gated) in
+`canonicalModel.ts`; routed the `EditorDashboard` edit paths through the helper and assert at both
+writer entry points. Tested in `dataIntegrity.test.ts`.
 
 ### 2.10 `[BUG][P2]` ✅ DONE — `PokemonEditorModal` blocked Gen 2 standalone export with a stale `alert()`
 The modal showed `alert("Standalone .pk{N} export is not yet supported …")` even though
@@ -345,11 +370,13 @@ The modal showed `alert("Standalone .pk{N} export is not yet supported …")` ev
 `alert()` calls were replaced with `saveCtx.onShowToast(...)` (success, unsupported, and failure
 cases).
 
-### 2.11 `[BUG][P2]` Crystal `CaughtData` bytes 0x1D–0x1E written for all versions
-`writeGen2PokemonStruct` writes CaughtData when `gen2Ext.caughtData !== 0`. Confirm those struct bytes
-are not repurposed in Gold/Silver (where CaughtData doesn't exist). For GS, `caughtData` should stay 0
-so the guard skips — verify the parser never sets a non-zero `caughtData` for GS saves, or you'll
-clobber GS struct bytes on export.
+### 2.11 `[BUG][P2]` ✅ DONE — Crystal `CaughtData` read for all versions
+Root cause was on the PARSE side: `parseGen2PokemonStruct` read bytes 0x1D-0x1E as CaughtData
+unconditionally, so Gold/Silver mons (where those bytes aren't CaughtData) carried garbage `caughtData`.
+Added an `isCrystal` param (default `false` = GS-safe), gated the read, and threaded real Crystal-ness
+from `parseGen2Save` into party/box/daycare parses; the standalone `.pk2` path defaults to no
+CaughtData. The writer's existing `caughtData !== 0` guard now never fires for GS. Locked by tests
+(verified to fail on the old unconditional read).
 
 ---
 
@@ -555,6 +582,96 @@ each `genN/data/offsets.ts`, citing PKHeX `SAVN`/`PKN` sources for traceability.
 
 ---
 
+## 8.5 PKHeX Architecture Reconciliation — "are we on the right track?"
+
+A deep read of the **actual PKHeX source** (`PKHeX.Core`, ~227k LOC) was cross-checked against this
+project's design. **Verdict: the direction is correct.** Our core architecture mirrors PKHeX's proven
+patterns, generally in a lighter, TypeScript-idiomatic way. Where we diverge, it's mostly because we
+target a narrower scope (Gen 1/2 now) — but a few divergences are genuine gaps to close *before* Gen 3
+locks the patterns in. This section records the alignment and adds the concrete follow-ups.
+
+### What we already do the PKHeX way ✅ (keep going)
+- **Single abstract base + concrete per-game subclass.** PKHeX: `SaveFile`/`PKM` + `SAVx`/`PKx`.
+  Us: `IGenerationAdapter` + `GenNAdapter`, `CanonicalPokemon` + `genExtension`. Same polymorphism story.
+- **Detection = size gate, then structural/cryptographic fingerprint.** PKHeX `SaveUtil.GetTypeInfo`
+  is a size→fingerprint waterfall. Our `Gen1Adapter.detectSave` (size 0x8000 → `validateGen1Checksum`)
+  and `Gen2Adapter.detectSave` (size → GS/Crystal/region checksum) already follow this exactly.
+- **Registry/factory maps detected type → constructor.** PKHeX: the `switch` in `GetSaveFileInternal`.
+  Us: `AdapterRegistry` (better, arguably — lazy + code-split per gen).
+- **Per-generation data as tables, not branching logic.** PKHeX: embedded `Resources/byte/*`. Us:
+  `lib/generations/genN/data/*`. "Add a gen ≈ add data" is the shared thesis.
+- **Capability interfaces over type checks.** PKHeX: `if (entity is ITeraType t)`. Us: capability
+  flags (`hasGender`, `hasSplitSpecial`, …) + `ExtensionRegistry` panels. Same intent.
+- **Entity held decrypted in memory, re-sealed on write.** PKHeX: decrypt on load / `RefreshChecksum`
+  + encrypt on `WriteEncryptedData*`. Us: parse → `CanonicalPokemon`, `writer` re-emits + re-checksums.
+- **Cross-gen transfer walks one hop at a time with outbound/inbound filters.** PKHeX:
+  `EntityConverter.IntermediaryConvert`. Us: `crossGenConverter` (dexId remap + reject >151, strip
+  moves >165, etc.). Conceptually identical, just 1↔2 today.
+- **Robustness by design.** PKHeX wraps load/legality in try/catch → graceful "invalid". Our parsers
+  bounds-check and return an empty mon; detection fails closed. Aligned.
+
+### Corrections / refinements the PKHeX read surfaced
+
+### 8.5.1 `[GEN3+ PREP][P1]` Detection waterfall + pre-format "handlers" (wrappers) abstraction
+PKHeX runs detection as an **ordered waterfall across all games**, and *before* giving up it strips
+emulator/flashcart wrappers (`.dsv` RTC footers, Dolphin `.gci`, DeSmuME, Action-Replay) and retries.
+Today our registry asks each adapter `detectSave` independently and we only special-case the Gen 1/2
+`+16` footer inline. **Action:** formalize a `detectAndParse` ordering contract (mainline size-gates
+cheapest-first) and introduce a tiny `SaveWrapperHandler` step (strip-then-retry) so Gen 3+ emulator
+formats — and even Gen 1/2 `.sav` vs `.dsv` — are handled in one place rather than per-adapter. Keep
+Gen 1/2 behavior identical. *(Extends 1.1/1.2.)*
+
+### 8.5.2 `[GEN3+ PREP][P1]` `SetChecksums` belongs on the adapter as a first-class step
+PKHeX funnels every write through `SaveFile.Write → GetFinalData → SetChecksums → Metadata.Finalize`,
+and each family implements its own integrity scheme (additive G1/2, sector CheckSum32 G3, CRC16 G4-7,
+**empty** + SHA-256-on-encrypt for Gen 8/9). Our writers recompute checksums inline per generation,
+which works but isn't a named contract. **Action:** add `recomputeChecksums(buffer)` (or fold into a
+documented `writeSave` post-step) to `IGenerationBinaryOps`, and a matching `validateChecksums` already
+exists via `validateSaveDetailed` — make the write path's checksum step explicit and symmetric with it.
+This is the seam Gen 3's rotating-sector checksums and Gen 8's "no-op + hash-on-encrypt" will need.
+
+### 8.5.3 `[GEN3+ PREP][P1]` Entity encryption hooks must cover **block-shuffle**, not just "hasEncryption"
+The PKHeX report makes the Gen 3+ entity format concrete: a header + **four data blocks** that are
+(a) XOR-stream encrypted from a PID/OT-ID seed **and** (b) **shuffled into one of 24 orderings keyed by
+`PID % 24`**. Our `IStandalonePokemonFormat.hasEncryption` is a bare boolean — it cannot express the
+shuffle. **Action (refines 1.3):** extend the standalone-format contract with explicit
+`decryptEntity(bytes)`/`encryptEntity(mon)` and document that Gen 3-7 implementations must do the
+block-unshuffle (`blockOrder = PID % 24`) + LCG-XOR, Gen 4+ reseed from PID, and refresh the 16-bit
+additive checksum before encrypt. Default no-op for Gen 1/2. Add `EntityFormat.getFormatByLength()`
+(PKHeX `EntityFormat.GetFormatInternal`) so loose `.pkX` files are detected by size with a checksum
+probe for the ambiguous 136-byte Gen4/5 case. **Do not implement Gen 3 yet — just make the seam real.**
+
+### 8.5.4 `[GEN3+ PREP][P2]` Adopt PKHeX's "find a consistent encounter" framing for future legality
+PKHeX's legality thesis: *a mon is legal iff some real in-game encounter is consistent with every byte*,
+found by `EncounterFinder` then checked by 50+ `Verifier`s. We have **no** legality engine and shouldn't
+build one for Gen 1/2 now — but our roadmap should *name* it as the eventual home for scattered
+validation (IV/EV ranges, move-learnability, gender/PID consistency) so we don't grow ad-hoc checks that
+later fight a real engine. **Action:** add a placeholder `lib/legality/` boundary + a one-page design note
+(no implementation) describing a `LegalityAnalysis`-style result object (`CheckResult[]` with
+Valid/Fishy/Invalid severities). This keeps option value open without scope creep.
+
+### 8.5.5 `[GEN3+ PREP][P2]` HOME is the modern interop hub — plan transfers around it, not pairwise
+PKHeX routes **all** Gen 8+ inter-game transfers through the HOME format (`PKH`) rather than NxN pairwise
+converters. Our `crossGenConverter` is currently pairwise (fine for 1↔2). **Action:** document that when
+the matrix grows past ~Gen 5, transfers should pivot to a hub format (a neutral "transfer envelope" akin
+to `CanonicalPokemon` itself, which we already have) instead of adding O(N²) converters. Largely a
+design-note + a note in `crossGenConverter` — our `CanonicalPokemon` is already well-positioned to *be*
+that hub.
+
+### 8.5.6 `[DATA][P2]` Validate save integrity separately from entity integrity (already partly done)
+PKHeX separates `SaveFile.ChecksumsValid` (whole-save) from per-`PKM` checksums, and adds a **bulk
+analyzer** (duplicate PIDs/ECs, clone detection). We have `validateSaveDetailed` (good, save-level).
+**Action:** keep entity-level vs save-level validation distinct in our API naming, and log a future
+"bulk box analyzer" idea (duplicate-detection across a box) as a post-Gen-2 nicety. No work now.
+
+> **Bottom line for the maintainer:** nothing in the PKHeX read invalidates the current plan or any
+> shipped fix. The Gen 1/2 correctness work (§2) and the scalability seams (§1) are the right
+> priorities. The five `8.5.x [GEN3+ PREP]` items above are *seam-hardening* to do alongside §1 before
+> Gen 3 — they cost little now and save a refactor later. They are explicitly **not** a mandate to start
+> Gen 3.
+
+---
+
 ## 9. Research Notes — Gen 1–9 save formats & PKHeX (for future implementers)
 
 Captured so future-gen work doesn't restart from zero. These inform the `[GEN3+ PREP]` items above;
@@ -592,13 +709,25 @@ checksums**, **PKM encryption (PID/checksum-seeded block shuffle in Gen3; per-mo
 
 ### 9.3 PKHeX patterns this project already mirrors (keep aligning)
 - **SaveUtil.GetTypeInfo / sequential probe** → our `AdapterRegistry.detectAndParse` cascade
-  (ours is *more* dynamic: registry-based, lazy).
+  (ours is *more* dynamic: registry-based, lazy). PKHeX strips wrappers (`SaveHandlerFooterRTC`,
+  `SaveHandlerGCI`, …) before retrying — see 8.5.1 for our planned equivalent.
 - **Per-gen `PersonalTable`** → our `genN/data/baseStats.ts` (lazy-loaded chunks).
-- **`SpeciesConverter.GetInternal1/GetNational1`** → `getInternalSpeciesId` + `GEN1_INTERNAL_TO_DEX`.
+- **`SpeciesConverter.GetInternal1/GetNational1`** → `getInternalSpeciesId` + `GEN1_INTERNAL_TO_DEX`
+  (+ shared `GEN1_DEX_TO_INTERNAL`).
+- **`SaveFile.Write → GetFinalData → SetChecksums → Metadata.Finalize`** → our per-gen `writeSave`
+  (checksum step to be made explicit — see 8.5.2).
 - **`ChecksumsValid` + `ChecksumInfo`** → `validateSaveDetailed` returning per-component results.
+- **`PokeCrypto` block-shuffle (PID % 24) + LCG-XOR; `RefreshChecksum`** → our standalone-format
+  encryption hooks (boolean today; to be made concrete — see 8.5.3). Gen 1/2 entities are unencrypted,
+  matching PKHeX.
+- **`EntityFormat.GetFormatInternal` (length → format, checksum probe for ambiguous 136-byte)** →
+  planned `EntityFormat.getFormatByLength()` (8.5.3).
 - **`IBoxDetailName(Read)`** → `getBoxNames`/`setBoxName`/`getBoxNameMaxLength`.
 - **`IEventFlagArray`** → `getGameEvents` per adapter.
-- **`EntityConverter` (reject impossible transfers)** → `crossGenConverter` warnings/errors.
+- **`EntityConverter.IntermediaryConvert` (one legal hop; HOME hub for Gen8+)** → `crossGenConverter`
+  warnings/errors (pairwise today; pivot to `CanonicalPokemon`-as-hub later — 8.5.5).
+- **`SaveFile.ChecksumsValid` vs per-`PKM` checksum; `BulkGenerator`** → `validateSaveDetailed`
+  (save-level); bulk box analyzer is future backlog (8.5.6).
 > Gaps to close for future gens (capture as backlog, not now): **legality checking** (PKHeX's biggest
 > subsystem — encounter/move/relearn/ability legality), **trade-evolution & form handling**,
 > **encryption constants**, and **block-table abstractions** for Gen 8/9.
@@ -611,7 +740,10 @@ checksums**, **PKM encryption (PID/checksum-seeded block shuffle in Gen3; per-mo
    standalone/struct sizing isn't hardcoded while you're in there.
 2. **M2 — Correctness & confidence:** 2.3, 2.5, 2.6, 5.2, 5.3, 5.4, 4.1, 4.2.
 3. **M3 — Make Gen 1/2 fully editable:** 3.1, 3.2, 3.3; then 3.4–3.9.
-4. **M4 — Scalability hardening:** 1.1, 1.2 (+5.6), 1.4, 1.5, 1.6, 1.7, 1.8.
+4. **M4 — Scalability hardening:** 1.1, 1.2 (+5.6), 1.4, 1.5, 1.6, 1.7, 1.8, **plus the PKHeX-grounded
+   seams 8.5.1–8.5.6** (detection/wrapper handlers, explicit `SetChecksums` step, concrete entity
+   encryption hooks incl. PID%24 block-shuffle, legality boundary note, HOME-hub transfer note,
+   save-vs-entity validation naming). These are cheap now and prevent a Gen 3 refactor.
 5. **M5 — DX & polish:** 7.1, 7.4, 7.3, 8.x, 5.7, remaining P2s.
 
 > **Definition of done for "scalable but Gen 1/2 only":** M1–M2 complete (no export data loss, real

@@ -378,3 +378,88 @@ describe('Gen 2 item name coverage (TODO 6.5)', () => {
     expect(getGen2ItemName(181)).toBe('TM50');
   });
 });
+
+// ============================================================================
+// Gen 2 CaughtData is Crystal-only (TODO 2.11)
+// ============================================================================
+
+import { parseGen2PokemonStruct } from '../lib/generations/gen2/parser';
+import { isGen2Extension } from '../lib/canonicalModel';
+
+describe('Gen 2 CaughtData read is Crystal-gated (TODO 2.11)', () => {
+  // Build a minimal 32-byte stored Gen 2 struct with NON-ZERO bytes at 0x1D-0x1E.
+  // In Gold/Silver those bytes are not CaughtData, so they must NOT surface as caughtData.
+  function buildStruct(): Uint8Array {
+    const s = new Uint8Array(32);
+    s[0] = 155;       // species (Cyndaquil) so it parses as a real mon
+    s[0x1D] = 0xAB;   // dirty byte — would be CaughtData high in Crystal
+    s[0x1E] = 0xCD;   // dirty byte — CaughtData low in Crystal
+    s[31] = 40;       // level
+    return s;
+  }
+  const empty = new Uint8Array(0);
+
+  it('Gold/Silver (isCrystal=false): 0x1D-0x1E are NOT read as CaughtData', () => {
+    const mon = parseGen2PokemonStruct(buildStruct(), 0, false, 'X', 'Y', empty, empty, 155, false);
+    const ext = isGen2Extension(mon.genExtension) ? mon.genExtension : null;
+    expect(ext).not.toBeNull();
+    expect(ext!.caughtData).toBe(0);
+  });
+
+  it('default (no isCrystal arg) is GS-safe: caughtData stays 0', () => {
+    const mon = parseGen2PokemonStruct(buildStruct(), 0, false, 'X', 'Y', empty, empty, 155);
+    const ext = isGen2Extension(mon.genExtension) ? mon.genExtension : null;
+    expect(ext!.caughtData).toBe(0);
+  });
+
+  it('Crystal (isCrystal=true): 0x1D-0x1E ARE read as CaughtData', () => {
+    const mon = parseGen2PokemonStruct(buildStruct(), 0, false, 'X', 'Y', empty, empty, 155, true);
+    const ext = isGen2Extension(mon.genExtension) ? mon.genExtension : null;
+    expect(ext!.caughtData).toBe((0xAB << 8) | 0xCD);
+  });
+});
+
+// ============================================================================
+// Active-box cache stays in sync with pcBoxes (TODO 2.9)
+// ============================================================================
+
+import { syncCurrentBox, assertCurrentBoxInSync } from '../lib/canonicalModel';
+import type { CanonicalSave } from '../lib/canonicalModel';
+
+describe('syncCurrentBox / active-box invariant (TODO 2.9)', () => {
+  function makeSave(): CanonicalSave {
+    const boxA = [createEmptyCanonicalPokemon({ nickname: 'A1' })];
+    const boxB = [createEmptyCanonicalPokemon({ nickname: 'B1' }), createEmptyCanonicalPokemon({ nickname: 'B2' })];
+    // Minimal CanonicalSave shape — only the fields the helpers touch matter.
+    return {
+      currentBoxId: 0,
+      currentBoxCount: 0,
+      currentBoxPokemon: [],
+      pcBoxes: [boxA, boxB],
+    } as unknown as CanonicalSave;
+  }
+
+  it('syncCurrentBox makes currentBoxPokemon === pcBoxes[currentBoxId]', () => {
+    const save = makeSave();
+    save.currentBoxId = 1;
+    syncCurrentBox(save);
+    expect(save.currentBoxPokemon).toBe(save.pcBoxes[1]); // reference equality
+    expect(save.currentBoxCount).toBe(2);
+  });
+
+  it('re-syncs after editing pcBoxes (the drift the writer guards against)', () => {
+    const save = makeSave();
+    syncCurrentBox(save); // box 0, count 1
+    expect(save.currentBoxCount).toBe(1);
+
+    // Edit the active box WITHOUT touching the cache → drift.
+    save.pcBoxes[0] = [];
+    // assert should notice the drift (smoke: it must not throw).
+    expect(() => assertCurrentBoxInSync(save)).not.toThrow();
+
+    // After sync, cache matches again.
+    syncCurrentBox(save);
+    expect(save.currentBoxPokemon).toBe(save.pcBoxes[0]);
+    expect(save.currentBoxCount).toBe(0);
+  });
+});
