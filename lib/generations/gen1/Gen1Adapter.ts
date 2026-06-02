@@ -9,7 +9,7 @@ import { getMoveName, MOVES_LIST, MOVES_PP, MOVES_TYPE } from './data/moves';
 import { getItemName } from './data/items';
 import { getPokemonTypes } from './data/pokemonTypes';
 import { GEN1_BASE_STATS } from './data/baseStats';
-import { GEN1_INTERNAL_TO_DEX } from './data/offsets';
+import { getGen1InternalSpeciesId } from './data/offsets';
 import { Gen1StandaloneFormat } from './StandaloneFormat';
 import { POKEDEX_ENTRIES } from './data/pokedexEntries';
 import { POKEMON_LOCATIONS } from './data/pokemonLocations';
@@ -25,16 +25,8 @@ import { type EventPokemonData } from '../../data/eventPokemonTypes';
  */
 export class Gen1Adapter implements IGenerationAdapter {
   // ── Species ID conversion (PKHeX SpeciesConverter.GetInternal1/GetNational1 pattern) ──
-  // Reverse map: National Dex ID → Gen1 internal species ID.
-  // Gen 1 uses a completely different internal ordering (Rhydon=1, not Bulbasaur=1).
-  // This is built once from GEN1_INTERNAL_TO_DEX and shared across all instances.
-  private static readonly DEX_TO_INTERNAL: Record<number, number> = (() => {
-    const map: Record<number, number> = {};
-    GEN1_INTERNAL_TO_DEX.forEach((dex, internal) => {
-      if (dex !== 0) map[dex] = internal;
-    });
-    return map;
-  })();
+  // National Dex → Gen1 internal id conversion is shared from
+  // gen1/data/offsets.ts (getGen1InternalSpeciesId) — see TODO 4.4.
 
   generation = 1;
   generationName = "Generation I";
@@ -254,7 +246,7 @@ export class Gen1Adapter implements IGenerationAdapter {
    *  Gen 1 uses a different internal ordering (Rhydon=1, not Bulbasaur=1).
    *  Following PKHeX's SpeciesConverter.GetInternal1() pattern. */
   getInternalSpeciesId(dexId: number): number {
-    return Gen1Adapter.DEX_TO_INTERNAL[dexId] ?? dexId;
+    return getGen1InternalSpeciesId(dexId);
   }
 
   getAllMoveNames(): string[] {

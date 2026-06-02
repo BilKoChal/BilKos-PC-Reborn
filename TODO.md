@@ -78,6 +78,19 @@
   `logger.debug`). UI-layer `console.error`s (genuine failures) left as-is per 4.2's scope note.
 - Result: **176 tests pass**, `tsc` clean, build OK; verified the logger gates correctly per env.
 
+**Iteration 5 — Milestone M2 code-quality refactors:**
+- **4.3** De-duplicate the parser "empty Pokémon" object — DONE. Added
+  `createEmptyCanonicalPokemon(overrides)` to `lib/canonicalModel.ts` (colocated with the type);
+  both Gen 1 and Gen 2 parsers now call it instead of inlining a ~30-field literal. Adding a future
+  CDM field now means editing one factory, not every parser.
+- **4.4** Consolidate the three `DEX_TO_INTERNAL` reverse maps — DONE. The National-Dex → Gen 1
+  internal map is now built once in `gen1/data/offsets.ts` as `GEN1_DEX_TO_INTERNAL` (plus a
+  `getGen1InternalSpeciesId()` helper); `Gen1Adapter`, `gen1/writer.ts`, and `crossGenConverter.ts`
+  all import it instead of rebuilding it.
+- Added 4 refactor-guard tests in `tests/dataIntegrity.test.ts` (factory completeness/overrides;
+  reverse map is the exact inverse of `GEN1_INTERNAL_TO_DEX`).
+- Result: **180 tests pass** (was 176), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -365,16 +378,19 @@ Added `lib/utils/logger.ts`: `debug`/`info`/`log`/`warn` are silenced in product
 is now `logger.debug`. The four UI-layer `console.error`s (genuine failures) were left as-is per this
 item's "keep console.error for genuine failures only" note.
 
-### 4.3 `[CODE][P2]` De-duplicate parser bounds-check "empty Pokémon" object
-Both `parsePokemonStruct` (Gen1) and `parseGen2PokemonStruct` (Gen2) build a large literal
-"empty/placeholder `CanonicalPokemon`" inline. Extract `createEmptyCanonicalPokemon(overrides)` into a
-shared helper so the CDM's required-field list lives in one place (and adding a CDM field doesn't mean
-editing every parser).
+### 4.3 `[CODE][P2]` ✅ DONE — De-duplicate parser bounds-check "empty Pokémon" object
+Added `createEmptyCanonicalPokemon(overrides)` to `lib/canonicalModel.ts` (re-exported via
+`parser/types.ts`). Both `parsePokemonStruct` (Gen1) and `parseGen2PokemonStruct` (Gen2) now call it
+with just the situational overrides (nickname/OT/isParty/offset/raw names) instead of inlining the full
+literal. The CDM's required-field list now lives in one place. Guarded by tests in
+`dataIntegrity.test.ts`.
 
-### 4.4 `[CODE][P2]` Consolidate the two reverse maps `DEX_TO_INTERNAL`
-Gen 1 builds a `DEX_TO_INTERNAL` map in **three** places: `Gen1Adapter` (static),
-`gen1/writer.ts`, and `crossGenConverter.ts`. Build it once (e.g., export from `gen1/data/offsets.ts`)
-and import everywhere.
+### 4.4 `[CODE][P2]` ✅ DONE — Consolidate the `DEX_TO_INTERNAL` reverse maps
+The National-Dex → Gen 1 internal-species map was rebuilt in three places. It is now derived once in
+`gen1/data/offsets.ts` as `GEN1_DEX_TO_INTERNAL` (next to its source `GEN1_INTERNAL_TO_DEX`), with a
+`getGen1InternalSpeciesId()` helper. `Gen1Adapter` (static field removed), `gen1/writer.ts`, and
+`crossGenConverter.ts` all import the shared map. Guarded by a test asserting it's the exact inverse of
+the source array.
 
 ### 4.5 `[CODE][P2]` Tidy `PokemonIVs`/`PokemonEVs` optional `spAtk?/spDef?`
 These optional mirror fields invite `undefined` bugs under `noUncheckedIndexedAccess`. Either make them

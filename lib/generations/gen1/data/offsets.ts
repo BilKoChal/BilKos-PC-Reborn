@@ -415,3 +415,26 @@ export const GEN1_INTERNAL_TO_DEX = [
     70,  // 189: Weepinbell
     71,  // 190: Victreebel
 ];
+
+// ── National Dex → Gen 1 internal species ID (reverse of GEN1_INTERNAL_TO_DEX) ──
+//
+// TODO 4.4: this reverse map was previously rebuilt in three places
+// (Gen1Adapter static field, gen1/writer.ts, crossGenConverter.ts). It is now
+// derived once here, next to its source array, and imported everywhere.
+// Gen 1 uses a different internal ordering than the National Dex (e.g. Rhydon
+// is internal id 1), so this conversion is required for all save reads/writes.
+export const GEN1_DEX_TO_INTERNAL: Record<number, number> = (() => {
+  const map: Record<number, number> = {};
+  GEN1_INTERNAL_TO_DEX.forEach((dex, internal) => {
+    if (dex !== 0) map[dex] = internal;
+  });
+  return map;
+})();
+
+/**
+ * Convert a National Dex ID to the Gen 1 internal species ID.
+ * Falls back to the dex id itself when no mapping exists (defensive).
+ */
+export function getGen1InternalSpeciesId(dexId: number): number {
+  return GEN1_DEX_TO_INTERNAL[dexId] ?? dexId;
+}

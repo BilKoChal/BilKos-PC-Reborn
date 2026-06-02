@@ -1,5 +1,5 @@
 import { logger } from '../../utils/logger';
-import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension, HallOfFameTeam, HallOfFamePokemon, Gen2TmHmEntry } from '../../parser/types';
+import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension, HallOfFameTeam, HallOfFamePokemon, Gen2TmHmEntry, createEmptyCanonicalPokemon } from '../../parser/types';
 import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
 import {
@@ -243,20 +243,14 @@ export function parseGen2PokemonStruct(
   const minBytes = isParty ? 48 : 32;
   if (offset + minBytes > view.length) {
     logger.warn(`parseGen2PokemonStruct: Offset 0x${offset.toString(16)} + ${minBytes} exceeds buffer length ${view.length}. Returning empty Pokemon.`);
-    return {
-      speciesId: 0, dexId: 0, speciesName: '???', nickname: nickname || '???', isNicknamed: false,
-      pid: 0, form: 0, originalTrainerName: otName || '???', originalTrainerId: 0, secretId: 0,
-      originalTrainerGender: 'Male', level: 0, exp: 0, friendship: 0,
-      hp: 0, maxHp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0,
-      type1: 0, type2: 0, type1Name: 'Normal', type2Name: 'Normal',
-      status: 'OK', catchRate: 0, moves: ['-', '-', '-', '-'], moveIds: [0, 0, 0, 0],
-      movePp: [0, 0, 0, 0], movePpUps: [0, 0, 0, 0], isParty, isEgg: false, isShiny: false,
-      gender: 'Genderless', pokerus: 0, genExtension: null,
-      iv: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
-      ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
-      raw: new Uint8Array(0), startOffset: offset, nicknameRaw: nicknameRaw || new Uint8Array(0),
-      otNameRaw: otNameRaw || new Uint8Array(0)
-    };
+    return createEmptyCanonicalPokemon({
+      nickname: nickname || '???',
+      originalTrainerName: otName || '???',
+      isParty,
+      startOffset: offset,
+      nicknameRaw: nicknameRaw || new Uint8Array(0),
+      otNameRaw: otNameRaw || new Uint8Array(0),
+    });
   }
 
   const speciesId = view[offset]!;

@@ -1,13 +1,10 @@
 import { ParsedSave, PokemonStats, Item } from '../../parser/types';
-import { GEN1_INTERNAL_TO_DEX, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig, Gen1Region } from './data/offsets';
+import { GEN1_DEX_TO_INTERNAL, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig, Gen1Region } from './data/offsets';
 import { BinaryWriter } from '../../utils/io';
 import { encodeStatusByte } from '../../utils/byteHelpers';
 
-// Reverse map: National Dex ID -> Internal ID
-const DEX_TO_INTERNAL: Record<number, number> = {};
-GEN1_INTERNAL_TO_DEX.forEach((dex, internal) => {
-    if (dex !== 0) DEX_TO_INTERNAL[dex] = internal;
-});
+// National Dex ID → Gen 1 internal id — shared from data/offsets.ts (TODO 4.4).
+const DEX_TO_INTERNAL = GEN1_DEX_TO_INTERNAL;
 
 // Helper: Write Pokedex Flags
 function writePokedexFlags(writer: BinaryWriter, flags: boolean[]) {

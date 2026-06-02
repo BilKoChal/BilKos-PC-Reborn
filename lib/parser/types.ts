@@ -35,6 +35,7 @@ export {
   isGen2SaveExtension,
   Gen1Extension,
   Gen2Extension,
+  createEmptyCanonicalPokemon,
   Gen3Extension,
   Gen1SaveExtension,
   Gen2SaveExtension,

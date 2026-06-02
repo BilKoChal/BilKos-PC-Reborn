@@ -244,6 +244,70 @@ export interface CanonicalPokemon {
   otNameRaw: Uint8Array;       // Raw encoded OT name bytes
 }
 
+/**
+ * Build a fully-zeroed CanonicalPokemon with neutral defaults, optionally
+ * overriding specific fields (TODO 4.3).
+ *
+ * Both the Gen 1 and Gen 2 parsers need an "empty / placeholder" Pokémon to
+ * return when a struct can't be read (out-of-bounds offset). They used to each
+ * inline a ~20-field object literal, so adding a new required field to
+ * CanonicalPokemon meant editing every parser (and risking drift). Centralizing
+ * the default here means the CDM's required-field list lives in exactly one
+ * place — adding a future generation or CDM field updates this single factory.
+ *
+ * @param overrides Partial fields to apply on top of the neutral defaults
+ *                  (e.g. nickname, originalTrainerName, isParty, startOffset).
+ */
+export function createEmptyCanonicalPokemon(overrides: Partial<CanonicalPokemon> = {}): CanonicalPokemon {
+  return {
+    speciesId: 0,
+    dexId: 0,
+    speciesName: '???',
+    nickname: '???',
+    isNicknamed: false,
+    pid: 0,
+    form: 0,
+    originalTrainerName: '???',
+    originalTrainerId: 0,
+    secretId: 0,
+    originalTrainerGender: 'Male',
+    level: 0,
+    exp: 0,
+    friendship: 0,
+    hp: 0,
+    maxHp: 0,
+    attack: 0,
+    defense: 0,
+    speed: 0,
+    special: 0,
+    spAtk: 0,
+    spDef: 0,
+    iv: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
+    ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
+    moves: ['-', '-', '-', '-'],
+    moveIds: [0, 0, 0, 0],
+    movePp: [0, 0, 0, 0],
+    movePpUps: [0, 0, 0, 0],
+    status: 'OK',
+    catchRate: 0,
+    type1: 0,
+    type2: 0,
+    type1Name: 'Normal',
+    type2Name: 'Normal',
+    isParty: false,
+    isEgg: false,
+    isShiny: false,
+    gender: 'Genderless',
+    pokerus: 0,
+    genExtension: null,
+    raw: new Uint8Array(0),
+    startOffset: 0,
+    nicknameRaw: new Uint8Array(0),
+    otNameRaw: new Uint8Array(0),
+    ...overrides,
+  };
+}
+
 // ============================================================================
 // Save Extension Interfaces & Classes
 // ============================================================================

@@ -25,7 +25,7 @@
 import { PokemonStats } from '../parser/types';
 import { registry } from '../core/AdapterRegistry';
 import { Gen1Extension, Gen2Extension } from '../canonicalModel';
-import { GEN1_INTERNAL_TO_DEX } from '../generations/gen1/data/offsets';
+import { GEN1_DEX_TO_INTERNAL } from '../generations/gen1/data/offsets';
 import { GEN1_CATCH_RATES } from '../generations/gen1/data/baseStats';
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -44,11 +44,8 @@ const MAX_GEN1_DEX_ID = 151;
 
 // ── Reverse Mapping: National Dex → Gen1 Internal ID ──────────────────────
 
-/** Reverse of GEN1_INTERNAL_TO_DEX: maps National Dex ID → Gen1 internal species ID. */
-const DEX_TO_GEN1_INTERNAL: Record<number, number> = {};
-GEN1_INTERNAL_TO_DEX.forEach((dex, internal) => {
-    if (dex !== 0) DEX_TO_GEN1_INTERNAL[dex] = internal;
-});
+/** National Dex ID → Gen1 internal species ID — shared from data/offsets.ts (TODO 4.4). */
+const DEX_TO_GEN1_INTERNAL = GEN1_DEX_TO_INTERNAL;
 
 // ── Conversion Result ──────────────────────────────────────────────────────
 

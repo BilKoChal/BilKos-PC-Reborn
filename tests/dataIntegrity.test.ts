@@ -165,3 +165,55 @@ describe('Gen 2 TM/HM → move mapping (TODO 2.6)', () => {
     expect(GEN2_MOVES_LIST[GEN2_TM_HM_MOVES[53]!]).toBe('Strength');
   });
 });
+
+// ============================================================================
+// Refactor guards: shared empty-mon factory (4.3) & reverse map (4.4)
+// ============================================================================
+
+import { createEmptyCanonicalPokemon } from '../lib/canonicalModel';
+import { GEN1_INTERNAL_TO_DEX, GEN1_DEX_TO_INTERNAL, getGen1InternalSpeciesId } from '../lib/generations/gen1/data/offsets';
+
+describe('createEmptyCanonicalPokemon (TODO 4.3)', () => {
+  it('produces a complete CanonicalPokemon with neutral defaults', () => {
+    const mon = createEmptyCanonicalPokemon();
+    expect(mon.speciesName).toBe('???');
+    expect(mon.level).toBe(0);
+    expect(mon.genExtension).toBeNull();
+    expect(mon.moves).toEqual(['-', '-', '-', '-']);
+    expect(mon.iv).toEqual({ hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 });
+    // A representative sample of required fields must be present (not undefined).
+    for (const key of ['dexId', 'hp', 'maxHp', 'type1Name', 'status', 'raw', 'nicknameRaw', 'otNameRaw'] as const) {
+      expect(mon[key], key).not.toBeUndefined();
+    }
+  });
+
+  it('applies overrides on top of defaults', () => {
+    const mon = createEmptyCanonicalPokemon({ nickname: 'PIKA', isParty: true, startOffset: 42 });
+    expect(mon.nickname).toBe('PIKA');
+    expect(mon.isParty).toBe(true);
+    expect(mon.startOffset).toBe(42);
+    expect(mon.originalTrainerName).toBe('???'); // untouched default
+  });
+});
+
+describe('Gen 1 reverse species map (TODO 4.4)', () => {
+  it('GEN1_DEX_TO_INTERNAL is the exact inverse of GEN1_INTERNAL_TO_DEX', () => {
+    for (let internal = 1; internal < GEN1_INTERNAL_TO_DEX.length; internal++) {
+      const dex = GEN1_INTERNAL_TO_DEX[internal]!;
+      if (dex === 0) continue; // MissingNo slots
+      expect(GEN1_DEX_TO_INTERNAL[dex], `dex ${dex}`).toBe(internal);
+    }
+  });
+
+  it('getGen1InternalSpeciesId maps National Dex back to the internal id', () => {
+    // Bulbasaur (dex 1) -> internal 153; Mew (dex 151) -> internal 21; Pikachu (25) -> 84.
+    expect(getGen1InternalSpeciesId(151)).toBe(21);
+    expect(getGen1InternalSpeciesId(25)).toBe(84);
+    // Round-trips through the source array for every real species.
+    for (let internal = 1; internal < GEN1_INTERNAL_TO_DEX.length; internal++) {
+      const dex = GEN1_INTERNAL_TO_DEX[internal]!;
+      if (dex === 0) continue;
+      expect(getGen1InternalSpeciesId(dex)).toBe(internal);
+    }
+  });
+});
