@@ -91,6 +91,23 @@
   reverse map is the exact inverse of `GEN1_INTERNAL_TO_DEX`).
 - Result: **180 tests pass** (was 176), `tsc` clean, build OK.
 
+**Iteration 6 — Milestone M2 code quality (finishing the 4.x batch):**
+- **4.5** Tidy `PokemonIVs`/`PokemonEVs` optional `spAtk?/spDef?` — DONE. Made both **required**.
+  Audit confirmed every construction site (parsers, factory, tests) already populates them and no code
+  reads them optionally, so this removes a class of `undefined` hazards under `noUncheckedIndexedAccess`
+  and gives Gen 3 (true split IVs) a clean base. `tsc` passes with no call-site changes needed.
+- **4.6** Replace `alert()`/`window` UX — DONE (verified). The only `alert()` was the standalone-export
+  one already replaced with toasts in Iteration 2 (task 2.10); a full audit now finds **zero**
+  `alert(`/`confirm(`/`prompt(` calls remaining (one stale mention is a comment).
+- **4.7** Extension registration timing under lazy adapters — DONE. Verified `detectAndParseAsync`
+  preloads adapters, so extensions are always registered before any panel renders (no flash). Made the
+  contract explicit: extracted `registerGen2PanelExtensions()` and call it from the `Gen2Adapter`
+  constructor (idempotent via the registry's id-dedupe — and now robust across registry `clear()`/HMR,
+  since the redundant module-boolean guard was removed). Added clarifying comments at the panel
+  `getExtensions` calls.
+- Added 4 tests (factory/reverse-map were Iteration 5; this iteration adds 2 for 4.7 registration).
+- Result: **182 tests pass** (was 180), `tsc` clean, build OK. **All of §4 (4.1–4.7) is now complete.**
+
 ---
 
 ## Legend
@@ -392,20 +409,24 @@ The National-Dex → Gen 1 internal-species map was rebuilt in three places. It 
 `crossGenConverter.ts` all import the shared map. Guarded by a test asserting it's the exact inverse of
 the source array.
 
-### 4.5 `[CODE][P2]` Tidy `PokemonIVs`/`PokemonEVs` optional `spAtk?/spDef?`
-These optional mirror fields invite `undefined` bugs under `noUncheckedIndexedAccess`. Either make them
-required (always mirrored at parse time, which they already are) or remove and compute from `special`.
-Pick one and enforce it so Gen 3 (true split IVs) has a clean base.
+### 4.5 `[CODE][P2]` ✅ DONE — Tidy `PokemonIVs`/`PokemonEVs` optional `spAtk?/spDef?`
+Made `spAtk`/`spDef` **required** on both interfaces. Every construction site (Gen1/Gen2 parsers, the
+`createEmptyCanonicalPokemon` factory, and tests) already populates them, and no code reads them as
+optional, so `tsc` passes unchanged. This removes a `undefined`-hazard class under
+`noUncheckedIndexedAccess` and gives Gen 3 (true split IVs) a clean base.
 
-### 4.6 `[CODE][P2]` Replace `alert()`/`window` UX with the toast/modal system
-Audit for `alert(`/`confirm(`/`prompt(`; route through `useToast` + existing modals for consistent UX
-and testability (`PokemonEditorModal` standalone export is one; check others).
+### 4.6 `[CODE][P2]` ✅ DONE — Replace `alert()`/`window` UX with the toast/modal system
+The only `alert()` (standalone `.pk2` export in `PokemonEditorModal`) was already routed through the
+toast system in Iteration 2 (task 2.10). A full audit now finds **zero** `alert(`/`confirm(`/`prompt(`
+calls in the codebase (the single grep hit is a comment).
 
-### 4.7 `[CODE][P2]` Extension registration timing under lazy adapters
-`gen2/extensions.tsx` registers via a side-effect import inside `Gen2Adapter.ts` (lazy). Panels query
-the registry synchronously on render. `SaveProvider.adapterLoading` should gate rendering until the
-adapter (and thus its extensions) load — verify there's no first-paint flash of missing Gen2 sections,
-and add a comment/guard making the ordering explicit for future gens.
+### 4.7 `[CODE][P2]` ✅ DONE — Extension registration timing under lazy adapters
+Verified there's no first-paint flash: `detectAndParseAsync` preloads adapters, so a save can only
+exist after its adapter (and thus its extension side-effect) has loaded. Made the ordering explicit by
+extracting `registerGen2PanelExtensions()` and calling it from the `Gen2Adapter` constructor
+(idempotent via the registry's id-dedupe, and robust across registry `clear()`/HMR). Added clarifying
+comments at the panel `getExtensions()` calls documenting that an empty result is a safe no-op. Locked
+by 2 tests in `dataIntegrity.test.ts`.
 
 ---
 

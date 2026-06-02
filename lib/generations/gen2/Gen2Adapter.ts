@@ -28,8 +28,18 @@ import { POKEMON_LOCATIONS } from './data/pokemonLocations';
 import { type GameEventDefinition } from '../../data/gameEvents';
 import { type EventPokemonData } from '../../data/eventPokemonTypes';
 import './extensions';
+import { registerGen2PanelExtensions } from './extensions';
 
 export class Gen2Adapter implements IGenerationAdapter {
+  constructor() {
+    // TODO 4.7: register this generation's panel extensions explicitly when the
+    // adapter is constructed, making the load-order contract obvious. The registry
+    // dedupes by id, so this is safe to call for every adapter instance. Because a
+    // save is only parsed/rendered after its adapter exists, the Pokémon panels
+    // always see these extensions on first paint (no flash of missing Gen 2 rows).
+    registerGen2PanelExtensions();
+  }
+
   generation = 2;
   generationName = "Generation II";
   supportedVersions = ['Gold', 'Silver', 'Crystal'];

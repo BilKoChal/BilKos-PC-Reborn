@@ -78,9 +78,12 @@ export interface PokemonIVs {
     defense: number;
     speed: number;
     special: number;
-    // Gen 1 mirrors Special
-    spAtk?: number;   
-    spDef?: number;   
+    // Gen 1/2 mirror the shared Special DV into both. TODO 4.5: these are now
+    // REQUIRED (always populated at parse/construction time) rather than optional,
+    // which removes a class of `undefined` hazards under noUncheckedIndexedAccess
+    // and gives Gen 3 (true split IVs) a clean base.
+    spAtk: number;
+    spDef: number;
 }
 
 export interface PokemonEVs {
@@ -89,8 +92,9 @@ export interface PokemonEVs {
     defense: number;
     speed: number;
     special: number;
-    spAtk?: number;   
-    spDef?: number;   
+    // TODO 4.5: required — see PokemonIVs note above.
+    spAtk: number;
+    spDef: number;
 }
 
 export interface HallOfFamePokemon {

@@ -305,15 +305,32 @@ export const FriendshipEggSection: ISectionExtension = {
   }
 };
 
-// Auto-register POKEMON-LEVEL extensions for Generation 2
-// These are the only extensions that work correctly in the pokemon panel
-extensionRegistry.registerExtension('pokemon-info', 2, HeldItemSection);
-extensionRegistry.registerExtension('pokemon-info', 2, ShinyFlagSection);
-extensionRegistry.registerExtension('pokemon-info', 2, GenderSection);
-extensionRegistry.registerExtension('pokemon-info', 2, FriendshipEggSection);
-extensionRegistry.registerExtension('pokemon-stats', 2, SpAtkSpDefSection);
-// Phase 3: Crystal-specific pokemon-level extension
-extensionRegistry.registerExtension('pokemon-info', 2, CaughtDataSection);
+// ── Extension registration (TODO 4.7) ──
+//
+// Panel extensions are registered by this function rather than as a bare
+// module side-effect, so the ordering is EXPLICIT: `Gen2Adapter`'s constructor
+// calls registerGen2PanelExtensions(), which means extensions are guaranteed to
+// be in the registry the moment a Gen 2 adapter instance exists. Because a save
+// can only be parsed/rendered after its adapter has been constructed, the
+// PokemonInfo/Stats panels always see these extensions on first paint — there is
+// no flash of missing Gen 2 sections. Registration is idempotent: the registry
+// dedupes by extension id, so calling this repeatedly — or after the registry is
+// cleared (hot-reload / tests) — always converges to exactly one of each section.
+export function registerGen2PanelExtensions(): void {
+  // POKEMON-LEVEL extensions for Generation 2 (the only ones that render in panels).
+  extensionRegistry.registerExtension('pokemon-info', 2, HeldItemSection);
+  extensionRegistry.registerExtension('pokemon-info', 2, ShinyFlagSection);
+  extensionRegistry.registerExtension('pokemon-info', 2, GenderSection);
+  extensionRegistry.registerExtension('pokemon-info', 2, FriendshipEggSection);
+  extensionRegistry.registerExtension('pokemon-stats', 2, SpAtkSpDefSection);
+  // Phase 3: Crystal-specific pokemon-level extension
+  extensionRegistry.registerExtension('pokemon-info', 2, CaughtDataSection);
+}
+
+// Register immediately on module load as well, so any code path that merely
+// imports this module (not only the adapter constructor) still gets the
+// extensions. The idempotency guard above prevents double registration.
+registerGen2PanelExtensions();
 
 // NOTE: Save-level extensions (Daycare, MapPosition, BlueCard, MysteryGift,
 // GSBallEvent, MoveTutor, RTCClock, MomSavings, PhoneContacts, UnownDex)

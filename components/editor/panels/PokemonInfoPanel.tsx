@@ -37,7 +37,11 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
     
     const spriteUrl = getPokemonSpriteUrl(mon.dexId, spriteMode, ctx?.data?.gameVersion, mon.isShiny);
 
-    // Fetch extensions registered for the Info Panel in the active generation
+    // Fetch extensions registered for the Info Panel in the active generation.
+    // TODO 4.7: an empty result is a safe no-op — extensions are registered when
+    // the generation's adapter is constructed (before any save renders), so this
+    // returns the Gen 2 sections on first paint; for gens with no extensions it
+    // simply renders the universal fields.
     const extensions = extensionRegistry.getExtensions('pokemon-info', generation);
 
     // Dynamic species options based on adapter (replaces hardcoded generation branching)

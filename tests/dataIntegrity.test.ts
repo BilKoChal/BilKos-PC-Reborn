@@ -217,3 +217,34 @@ describe('Gen 1 reverse species map (TODO 4.4)', () => {
     }
   });
 });
+
+// ============================================================================
+// Extension registration timing under lazy adapters (TODO 4.7)
+// ============================================================================
+
+import { extensionRegistry } from '../lib/core/ExtensionRegistry';
+import { registerGen2PanelExtensions } from '../lib/generations/gen2/extensions';
+
+describe('Gen 2 panel-extension registration (TODO 4.7)', () => {
+  it('registers the Gen 2 pokemon-info sections (Held Item, Shiny, Gender, ...)', () => {
+    // registerGen2PanelExtensions is idempotent; ensure the sections are present.
+    registerGen2PanelExtensions();
+    const infoExt = extensionRegistry.getExtensions('pokemon-info', 2);
+    const statExt = extensionRegistry.getExtensions('pokemon-stats', 2);
+    expect(infoExt.length).toBeGreaterThanOrEqual(5);
+    expect(statExt.length).toBeGreaterThanOrEqual(1);
+    const ids = infoExt.map((e) => e.id);
+    expect(ids).toContain('gsc-held-item');
+  });
+
+  it('constructing a Gen2Adapter ensures the extensions are registered (no first-paint flash)', () => {
+    // Simulate a fresh registry, then prove adapter construction repopulates it —
+    // this is the contract panels rely on (adapter exists before any save renders).
+    extensionRegistry.clear();
+    expect(extensionRegistry.getExtensions('pokemon-info', 2)).toHaveLength(0);
+
+    // Re-run registration the way the adapter constructor does.
+    new Gen2Adapter();
+    expect(extensionRegistry.getExtensions('pokemon-info', 2).length).toBeGreaterThanOrEqual(5);
+  });
+});
