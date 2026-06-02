@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { calculateGen1Stat, deriveBaseStats, recalculateStats } from '../lib/utils/statCalculator';
 import { BaseStats } from '../lib/interfaces';
+import type { PokemonStats } from '../lib/parser/types';
 
 describe('calculateGen1Stat', () => {
   // Reference: Bulbapedia Gen I stat formula
@@ -88,7 +89,7 @@ describe('deriveBaseStats', () => {
       iv: { hp: dv, attack: dv, defense: dv, speed: dv, special: dv, spAtk: dv, spDef: dv },
       ev: { hp: statExp, attack: statExp, defense: statExp, speed: statExp, special: statExp, spAtk: statExp, spDef: statExp },
       level,
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
 
     const derived = deriveBaseStats(mon, 1);
     expect(derived).not.toBeNull();
@@ -97,7 +98,7 @@ describe('deriveBaseStats', () => {
   });
 
   it('should return null for zero level or maxHp', () => {
-    const mon = { maxHp: 0, level: 0 } as any;
+    const mon = { maxHp: 0, level: 0 } as Partial<PokemonStats> as PokemonStats;
     expect(deriveBaseStats(mon, 1)).toBeNull();
   });
 });
@@ -112,7 +113,7 @@ describe('recalculateStats', () => {
       iv: { hp: 15, attack: 15, defense: 15, speed: 15, special: 15, spAtk: 15, spDef: 15 },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       level: 5,
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
 
     const result = recalculateStats(mon, baseStats, 1, false);
 
@@ -136,7 +137,7 @@ describe('recalculateStats', () => {
       iv: { hp: 15, attack: 15, defense: 15, speed: 15, special: 15, spAtk: 15, spDef: 15 },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       level: 5,
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
 
     const result = recalculateStats(mon, baseStats, 1, false);
     expect(result.hp).toBe(result.maxHp);

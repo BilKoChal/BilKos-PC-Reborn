@@ -5,7 +5,8 @@ export type GrowthRate = 'Erratic' | 'Fast' | 'MediumFast' | 'MediumSlow' | 'Slo
 
 // Mapping of Species ID to Growth Rate
 // This covers Gen 1-3 families.
-const SPECIES_GROWTH_RATE: Record<number, GrowthRate> = {
+// Exported so a data-integrity test can assert explicit coverage (TODO 5.3 / 3.3).
+export const SPECIES_GROWTH_RATE: Record<number, GrowthRate> = {
     // Gen 1
     1: 'MediumSlow', 2: 'MediumSlow', 3: 'MediumSlow', // Bulbasaur
     4: 'MediumSlow', 5: 'MediumSlow', 6: 'MediumSlow', // Charmander

@@ -1,3 +1,4 @@
+import { logger } from './logger';
 
 import { PokemonStats, Generation } from '../parser/types';
 import { BaseStats } from '../interfaces';
@@ -36,7 +37,7 @@ export function deriveBaseStats(mon: PokemonStats, generation: Generation): Base
             spDef: derive(mon.spDef, mon.iv.special, mon.ev.special, mon.level, false)
         };
     } catch (e) {
-        console.warn("Failed to derive base stats", e);
+        logger.warn("Failed to derive base stats", e);
         return null;
     }
 }

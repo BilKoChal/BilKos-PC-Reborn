@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { ParsedSave, PokemonStats } from '../parser/types';
 import { registry } from '../core/AdapterRegistry';
 import { convertPokemonForTransfer } from './crossGenConverter';
@@ -41,7 +42,7 @@ const prepareForLocation = (mon: PokemonStats, isGoingToParty: boolean, generati
             // Cannot determine generation — skip stat recalculation rather than guess wrong.
             // PKHeX returns Generation=0 for unknown entities and flags them (GenU).
             // We skip recalc entirely — stale stats are better than wrong stats.
-            console.warn(
+            logger.warn(
                 `prepareForLocation: Cannot determine generation for Pokemon #${mon.dexId} (${mon.speciesName}). ` +
                 `Skipping stat recalculation — party stats may be stale.`
             );
@@ -76,7 +77,7 @@ const prepareForLocation = (mon: PokemonStats, isGoingToParty: boolean, generati
             }
         } else {
             // No adapter registered for this generation — skip recalculation
-            console.warn(
+            logger.warn(
                 `No adapter registered for generation ${gen}. ` +
                 `Cannot recalculate stats for Pokemon #${mon.dexId} (${mon.speciesName}).`
             );
@@ -290,12 +291,12 @@ export function transferPokemonBatch(
             const result = convertPokemonForTransfer({ ...srcMon }, sourceGen, targetGen);
             if (!result.mon) {
                 // Impossible transfer (e.g., Gen2-only species to Gen1) — skip this mon
-                console.warn(`Cross-gen transfer blocked: ${result.error}`);
+                logger.warn(`Cross-gen transfer blocked: ${result.error}`);
                 continue;
             }
             // Log any warnings about data loss
             if (result.warnings.length > 0) {
-                console.warn(`Cross-gen transfer warnings for ${srcMon.speciesName}:`, result.warnings);
+                logger.warn(`Cross-gen transfer warnings for ${srcMon.speciesName}:`, result.warnings);
             }
             sourceMonForTarget = result.mon;
         } else {
@@ -311,7 +312,7 @@ export function transferPokemonBatch(
                 const result = convertPokemonForTransfer({ ...tgtMon }, targetGen, sourceGen);
                 if (!result.mon) {
                     // Can't swap — target mon can't exist in source gen. Fall back to move-only.
-                    console.warn(`Cross-gen swap blocked for target mon: ${result.error}. Falling back to move-only.`);
+                    logger.warn(`Cross-gen swap blocked for target mon: ${result.error}. Falling back to move-only.`);
                     if (tgtLoc.index >= tgtList.length) {
                         tgtList.push(readySource);
                     } else {
@@ -321,7 +322,7 @@ export function transferPokemonBatch(
                     continue;
                 }
                 if (result.warnings.length > 0) {
-                    console.warn(`Cross-gen transfer warnings for ${tgtMon.speciesName}:`, result.warnings);
+                    logger.warn(`Cross-gen transfer warnings for ${tgtMon.speciesName}:`, result.warnings);
                 }
                 targetMonForSource = result.mon;
             } else {

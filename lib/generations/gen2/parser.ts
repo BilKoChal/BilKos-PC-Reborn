@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension, HallOfFameTeam, HallOfFamePokemon, Gen2TmHmEntry } from '../../parser/types';
 import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
@@ -241,7 +242,7 @@ export function parseGen2PokemonStruct(
   // Bounds checking: ensure we have enough bytes to read the base structure
   const minBytes = isParty ? 48 : 32;
   if (offset + minBytes > view.length) {
-    console.warn(`parseGen2PokemonStruct: Offset 0x${offset.toString(16)} + ${minBytes} exceeds buffer length ${view.length}. Returning empty Pokemon.`);
+    logger.warn(`parseGen2PokemonStruct: Offset 0x${offset.toString(16)} + ${minBytes} exceeds buffer length ${view.length}. Returning empty Pokemon.`);
     return {
       speciesId: 0, dexId: 0, speciesName: '???', nickname: nickname || '???', isNicknamed: false,
       pid: 0, form: 0, originalTrainerName: otName || '???', originalTrainerId: 0, secretId: 0,
@@ -469,7 +470,7 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     // PKHeX PokeList2 International format
     const count = buffer[0];
     if (count !== 1) {
-      console.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
+      logger.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
     }
     const headerSpeciesId = buffer[1]!;
     const isEggFromHeader = headerSpeciesId === EGG_SPECIES_ID;
@@ -491,7 +492,7 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     // PKHeX PokeList2 Japanese format (shorter names)
     const count = buffer[0];
     if (count !== 1) {
-      console.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
+      logger.warn(`parsePk2: Unexpected count byte: ${count}. Expected 1.`);
     }
     const headerSpeciesId = buffer[1]!;
 
@@ -532,7 +533,7 @@ export function parsePk2(buffer: Uint8Array): PokemonStats | null {
     return parseGen2PokemonStruct(buffer, 0, true, '???', '???', nickRaw, otRaw);
   }
 
-  console.warn(`parsePk2: Unrecognized .pk2 file size: ${buffer.length} bytes`);
+  logger.warn(`parsePk2: Unrecognized .pk2 file size: ${buffer.length} bytes`);
   return null;
 }
 
@@ -858,26 +859,35 @@ export function parseGen2BoxNames(
  * — Gen 2 TM numbers don't match move IDs sequentially. We use the known
  * Gen 2 TM/HM-to-move mapping table.
  */
+/**
+ * Gen 2 (GSC) TM/HM → move-ID mapping. Index = TM/HM slot order in the pocket
+ * (0-49 = TM01-TM50, 50-56 = HM01-HM07). Move IDs are the national (RBY/GSC)
+ * move indices used by GEN2_MOVES_LIST.
+ *
+ * BUG FIX (TODO 2.6): the previous table was wrong (e.g. TM01 mapped to 189
+ * "Mud-Slap" instead of 223 "DynamicPunch"; HM04 mapped to 148 "Flash" instead
+ * of 70 "Strength"; several IDs were duplicated), so owned TMs were mislabeled.
+ * Verified against the canonical GSC TM list (Bulbapedia / PKHeX Gen2 TMHM).
+ * Exported so a data-integrity test can assert the full mapping (TODO 5.3).
+ */
+export const GEN2_TM_HM_MOVES: readonly number[] = [
+  // TM01-TM10: DynamicPunch, Headbutt, Curse, Rollout, Roar, Toxic, Zap Cannon, Rock Smash, Psych Up, Hidden Power
+  223, 29, 174, 205, 46, 92, 192, 249, 244, 237,
+  // TM11-TM20: Sunny Day, Sweet Scent, Snore, Blizzard, Hyper Beam, Icy Wind, Protect, Rain Dance, Giga Drain, Endure
+  241, 230, 173, 59, 63, 196, 182, 240, 202, 203,
+  // TM21-TM30: Frustration, SolarBeam, Iron Tail, DragonBreath, Thunder, Earthquake, Return, Dig, Psychic, Shadow Ball
+  218, 76, 231, 225, 87, 89, 216, 91, 94, 247,
+  // TM31-TM40: Mud-Slap, Double Team, Ice Punch, Swagger, Sleep Talk, Sludge Bomb, Sandstorm, Fire Blast, Swift, Defense Curl
+  189, 104, 8, 207, 214, 188, 201, 126, 129, 111,
+  // TM41-TM50: ThunderPunch, Dream Eater, Detect, Rest, Attract, Thief, Steel Wing, Fire Punch, Fury Cutter, Nightmare
+  9, 138, 197, 156, 213, 168, 211, 7, 210, 171,
+  // HM01-HM07: Cut, Fly, Surf, Strength, Flash, Whirlpool, Waterfall
+  15, 19, 57, 70, 148, 250, 127,
+];
+
 export function parseGen2TmHmPocket(data: Uint8Array, offsets: Gen2OffsetsConfig): Item[] {
   const items: Item[] = [];
   const offset = offsets.tmHmPouch;
-
-  // Gen 2 TM/HM to move ID mapping
-  // TM01-TM50 move IDs and HM01-HM07 move IDs
-  const TM_HM_MOVES: number[] = [
-    // TM01 - TM10
-    189, 8, 245, 34, 69, 37, 249, 129, 3, 236,
-    // TM11 - TM20
-    92, 253, 68, 60, 219, 115, 188, 202, 242, 36,
-    // TM21 - TM30
-    216, 82, 161, 6, 130, 153, 248, 89, 87, 129,
-    // TM31 - TM40
-    24, 116, 185, 97, 99, 227, 63, 234, 156, 213,
-    // TM41 - TM50
-    28, 16, 168, 247, 55, 57, 196, 201, 218, 97,
-    // HM01 - HM07
-    15, 19, 57, 148, 70, 91, 250,
-  ];
 
   for (let i = 0; i < 57; i++) {
     if (offset + i >= data.length) break;
@@ -886,7 +896,7 @@ export function parseGen2TmHmPocket(data: Uint8Array, offsets: Gen2OffsetsConfig
       const isHm = i >= 50;
       const tmHmNum = isHm ? (i - 50 + 1) : (i + 1);
       const itemId = 0xC5 + i + 1; // Item ID for this TM/HM
-      const moveId = TM_HM_MOVES[i] || 0;
+      const moveId = GEN2_TM_HM_MOVES[i] || 0;
       const moveName = GEN2_MOVES_LIST[moveId] || '-';
       const name = isHm
         ? `HM${String(tmHmNum).padStart(2, '0')} - ${moveName}`

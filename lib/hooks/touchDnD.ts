@@ -114,9 +114,13 @@ export function moveTouchDrag(x: number, y: number): void {
         const slotBox = slotEl.dataset.dndBox !== undefined ? parseInt(slotEl.dataset.dndBox, 10) : undefined;
         const slotType = slotEl.dataset.dndSlot;
 
-        const isSameAsSource = activeTouchDrag.sourceLocation.type === slotType &&
-            activeTouchDrag.sourceLocation.index === slotIndex &&
-            (slotType === 'party' || (activeTouchDrag.sourceLocation as any).boxIndex === slotBox);
+        // Narrow the discriminated union instead of casting to `any` (TODO 4.1):
+        // boxIndex only exists on the 'box' variant of SourceLocation.
+        const src = activeTouchDrag.sourceLocation;
+        const sameBox = src.type === 'box' ? src.boxIndex === slotBox : true;
+        const isSameAsSource = src.type === slotType &&
+            src.index === slotIndex &&
+            (slotType === 'party' || sameBox);
 
         if (!isSameAsSource) {
             slotEl.classList.add(TOUCH_DRAG_OVER_CLASS);

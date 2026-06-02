@@ -1,3 +1,4 @@
+import { logger } from '../../utils/logger';
 
 import { ParsedSave, ParserResult, PokemonStats, Item, HallOfFameTeam, HallOfFamePokemon, GameVersion, GameOptions, Gen1Extension, Gen1SaveExtension } from '../../parser/types';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
@@ -111,7 +112,7 @@ function parsePokemonStruct(
   // Bounds checking: ensure we have enough bytes to read the base structure
   const minBytes = isParty ? 44 : 33;
   if (offset + minBytes > view.length) {
-    console.warn(`parsePokemonStruct: Offset 0x${offset.toString(16)} + ${minBytes} exceeds buffer length ${view.length}. Returning empty Pokemon.`);
+    logger.warn(`parsePokemonStruct: Offset 0x${offset.toString(16)} + ${minBytes} exceeds buffer length ${view.length}. Returning empty Pokemon.`);
     return {
       pid: 0, speciesId: 0, dexId: 0, speciesName: '???', nickname: nickname || '???', isNicknamed: false,
       form: 0, originalTrainerName: otName || '???', originalTrainerId: 0, secretId: 0,
@@ -567,7 +568,7 @@ export function parsePk1(buffer: Uint8Array): PokemonStats | null {
       // Bytes 58-68: Nickname (11 bytes)
       const count = buffer[0];
       if (count !== 1) {
-        console.warn(`parsePk1: Unexpected count byte: ${count}. Expected 1.`);
+        logger.warn(`parsePk1: Unexpected count byte: ${count}. Expected 1.`);
       }
       const speciesInternal = buffer[1]!; // Gen 1 internal species ID
       const dexId = GEN1_INTERNAL_TO_DEX[speciesInternal] ?? speciesInternal;
@@ -594,7 +595,7 @@ export function parsePk1(buffer: Uint8Array): PokemonStats | null {
       // PKHeX PokeList1 Japanese format
       const count = buffer[0];
       if (count !== 1) {
-        console.warn(`parsePk1: Unexpected count byte: ${count}. Expected 1.`);
+        logger.warn(`parsePk1: Unexpected count byte: ${count}. Expected 1.`);
       }
       const speciesInternal = buffer[1]!;
       const dexId = GEN1_INTERNAL_TO_DEX[speciesInternal] ?? speciesInternal;
@@ -643,6 +644,6 @@ export function parsePk1(buffer: Uint8Array): PokemonStats | null {
       return parsePokemonStruct(buffer, 0, false, '?????', '?????', nickRaw, otRaw);
     }
 
-    console.error("Invalid .pk1 size", buffer.length);
+    logger.error("Invalid .pk1 size", buffer.length);
     return null;
 }

@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import React from 'react';
 import { MoveLocation } from '../utils/manipulation';
 
@@ -33,7 +34,7 @@ export function parseDragData(dataTransfer: DataTransfer): DragPayload | null {
         if (!data) return null;
         return JSON.parse(data) as DragPayload;
     } catch (e) {
-        console.error("DND Parse Error", e);
+        logger.error("DND Parse Error", e);
         return null;
     }
 }

@@ -1,3 +1,4 @@
+import { logger } from './logger';
 import { ParsedSave, PokemonStats } from '../parser/types';
 import { IGenerationAdapter } from '../interfaces';
 import { registry } from '../core/AdapterRegistry';
@@ -185,12 +186,12 @@ function sortLivingDex(
                     const result = convertPokemonForTransfer(keeper.mon, sourceGen, targetGen);
                     if (!result.mon) {
                         // Impossible transfer — skip this mon, send to overflow
-                        console.warn(`Living-dex cross-gen transfer blocked: ${result.error}`);
+                        logger.warn(`Living-dex cross-gen transfer blocked: ${result.error}`);
                         overflow.push(keeper);
                         continue;
                     }
                     if (result.warnings.length > 0) {
-                        console.warn(`Living-dex cross-gen warnings for ${keeper.mon.speciesName}:`, result.warnings);
+                        logger.warn(`Living-dex cross-gen warnings for ${keeper.mon.speciesName}:`, result.warnings);
                     }
                     monToPlace = result.mon;
                 }
@@ -214,7 +215,7 @@ function sortLivingDex(
         if (currentOvBox < numBoxes) {
             newBoxes[currentOvBox]!.push(item.mon);
         } else {
-            console.warn("Storage Full! Dropping pokemon:", item.mon.nickname);
+            logger.warn("Storage Full! Dropping pokemon:", item.mon.nickname);
         }
     }
 

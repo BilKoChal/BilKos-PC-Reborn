@@ -19,6 +19,7 @@ import { parseGen2Save, calculateGen2Checksum } from '../lib/generations/gen2/pa
 import { writeGen2Save } from '../lib/generations/gen2/writer';
 import { Gen1Adapter } from '../lib/generations/gen1/Gen1Adapter';
 import { Gen2Adapter } from '../lib/generations/gen2/Gen2Adapter';
+import type { PokemonStats } from '../lib/parser/types';
 
 // ============================================================================
 // Helper: Create a minimal valid Gen 1 save file (International, 32768 bytes)
@@ -459,7 +460,7 @@ describe('Gen 2 Adapter Detection', () => {
       pokerus: 0,
       genExtension: null,
       raw: new Uint8Array(48),
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
     const result = adapter.createStandalonePokemon(mockMon);
     expect(result.length).toBe(73); // INT PokeList2 format
     expect(result[0]).toBe(0x01); // Count = 1

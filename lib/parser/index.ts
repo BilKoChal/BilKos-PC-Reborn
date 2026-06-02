@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { ParserResult } from './types';
 import { registry } from '../core/AdapterRegistry';
 
@@ -15,7 +16,7 @@ export const detectAndParseSave = async (file: File): Promise<ParserResult> => {
     const view = new Uint8Array(arrayBuffer);
     const filename = file.name;
 
-    console.log(`[Parser] Analyzing: ${filename} (${view.length} bytes)`);
+    logger.debug(`[Parser] Analyzing: ${filename} (${view.length} bytes)`);
 
     const result = await registry.detectAndParseAsync(view, filename);
     if (result.success && result.data) {
@@ -28,7 +29,7 @@ export const detectAndParseSave = async (file: File): Promise<ParserResult> => {
     };
 
   } catch (err: unknown) {
-    console.error("[Parser Error]", err);
+    logger.error("[Parser Error]", err);
     return { success: false, error: "Critical error during file structural analysis." };
   }
 };

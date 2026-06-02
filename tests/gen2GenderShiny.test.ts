@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import type { PokemonStats } from '../lib/parser/types';
 import {
   calculateGen2Checksum,
   isGen2Shiny,
@@ -329,7 +330,7 @@ describe('recalculateGen2Stats', () => {
       iv: { hp: 15, attack: 15, defense: 15, speed: 15, special: 15, spAtk: 15, spDef: 15 },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       level: 5,
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
 
     const result = recalculateGen2Stats(mon, baseStats);
 
@@ -348,7 +349,7 @@ describe('recalculateGen2Stats', () => {
       iv: { hp: 15, attack: 15, defense: 15, speed: 15, special: 15, spAtk: 15, spDef: 15 },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       level: 100,
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
 
     const result = recalculateGen2Stats(mon, baseStats);
 
@@ -374,7 +375,7 @@ describe('recalculateGen2Stats', () => {
       iv: { hp: 0, attack: atkIv, defense: defIv, speed: spdIv, special: spcIv, spAtk: spcIv, spDef: spcIv },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       level: 5,
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
 
     const result = recalculateGen2Stats(mon, baseStats);
     expect(result.iv.hp).toBe(expectedHpIv);
@@ -390,7 +391,7 @@ describe('recalculateGen2Stats', () => {
       iv: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       ev: { hp: 0, attack: 0, defense: 0, speed: 0, special: 0, spAtk: 0, spDef: 0 },
       level: 5,
-    } as any;
+    } as Partial<PokemonStats> as PokemonStats;
 
     const result = recalculateGen2Stats(mon, baseStats);
     expect(result.hp).toBe(result.maxHp);

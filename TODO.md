@@ -51,6 +51,33 @@
 - **M1 is now data-loss-free for the synthetic-save level.** Remaining before fully closing M1:
   real-fixture coverage (**5.4**) and the byte-range/box extensions of **5.1**.
 
+**Iteration 3 — Milestone M2 "correctness & confidence":**
+- **2.6** Wrong Gen 2 TM/HM → move mapping — FIXED. Replaced the incorrect/duplicated table with the
+  canonical GSC mapping (verified every slot resolves to the right move name in the repo's own
+  `GEN2_MOVES_LIST`), and hoisted it to an exported `GEN2_TM_HM_MOVES` constant so it's testable.
+  Examples of what was wrong: TM01 resolved to "Mud-Slap" (should be DynamicPunch), HM04 to "Flash"
+  (should be Strength).
+- **5.3** Data-table integrity tests — DONE. New `tests/dataIntegrity.test.ts` (12 tests) asserts:
+  Gen1 base stats cover 1..151, Gen2 cover 1..251; species-name arrays equal `nationalDexMax + 1` with
+  no empty names; Gen1 move list is 0..165; Gen2 move/PP/type arrays are all length 252; type charts
+  are square (15×15 / 17×17) with only {0, 0.5, 1, 2} multipliers and include Steel+Dark for Gen2;
+  every Gen2 species 1..251 has an explicit growth-rate entry; and the full TM/HM mapping is correct
+  (locks 2.6, verified to fail on the old table).
+- Exported `SPECIES_GROWTH_RATE` (`lib/utils/experience.ts`) for the coverage assertion (supports 3.3).
+- Result: **176 tests pass** (was 164), `tsc` clean, build OK.
+
+**Iteration 4 — Milestone M2 code quality:**
+- **4.1** Eliminate `as any` casts — DONE. The only real production cast (`lib/hooks/touchDnD.ts`,
+  reading `.boxIndex` off the `SourceLocation` union) now narrows on `src.type === 'box'`. The 8 test
+  casts became `as Partial<PokemonStats> as PokemonStats` (type-checks the present fields instead of
+  silencing the compiler). Remaining `grep` hits for "as any" are comments / the substring "has any
+  idea" — zero real casts left.
+- **4.2** Gate production logging — DONE. Added `lib/utils/logger.ts`: `debug/info/log/warn` are
+  silenced in production builds (gated on `import.meta.env.DEV`), `error` always fires. Routed all 22
+  `console.*` calls in `lib/` through it (e.g. the per-file "[Parser] Analyzing …" log is now
+  `logger.debug`). UI-layer `console.error`s (genuine failures) left as-is per 4.2's scope note.
+- Result: **176 tests pass**, `tsc` clean, build OK; verified the logger gates correctly per env.
+
 ---
 
 ## Legend
@@ -227,13 +254,12 @@ nickname round-trip). *Note: full JPN/KOR end-to-end round-trip still wants a re
 **Fix shipped:** replaced with `const dexId = speciesId;` and an explanatory comment; removed the dead
 variable.
 
-### 2.6 `[BUG][P1]` Verify Gen 2 TM/HM → move-ID mapping table
-`parseGen2TmHmPocket()` hardcodes `TM_HM_MOVES[]`. Spot-checking shows suspicious duplicates
-(e.g. move `129`/`97` appear twice across different TM slots) and values that don't match the canonical
-GSC TM list (TM01=DynamicPunch, TM02=Headbutt, …). An incorrect table mislabels owned TMs and writes
-wrong move names back.
-- Cross-check every TM01–TM50 / HM01–HM07 entry against PKHeX's Gen2 TM table (or Bulbapedia) and add a
-  data test that asserts the full mapping.
+### 2.6 `[BUG][P1]` ✅ DONE — Gen 2 TM/HM → move-ID mapping was wrong
+`parseGen2TmHmPocket()` hardcoded a `TM_HM_MOVES[]` table with wrong/duplicated IDs (TM01→Mud-Slap
+instead of DynamicPunch, HM04→Flash instead of Strength, etc.), mislabeling owned TMs.
+**Fix shipped:** replaced with the canonical GSC mapping (verified each slot against the repo's own
+`GEN2_MOVES_LIST` names), hoisted to an exported `GEN2_TM_HM_MOVES` constant. Locked by
+`tests/dataIntegrity.test.ts` (full per-slot name assertion; verified to fail on the old table).
 
 ### 2.7 `[BUG][P2]` `getGen2Gender()` thresholds — audit the 12.5%/25%/75% buckets
 The species lists for the 87.5%-male, 75%-male, and 25%-male buckets are hand-maintained. The
@@ -325,15 +351,19 @@ ensure each has an input and a writer path with validation/clamping.
 
 ## 4. Code Quality — `[CODE]`
 
-### 4.1 `[CODE][P1]` Eliminate remaining `as any` casts (14 occurrences)
-`grep -rn "as any"` finds ~14 across `.ts/.tsx`. A prior commit claimed to remove them; some remain.
-Replace with the existing type guards (`isGenNExtension`, `isGenNSaveExtension`) or proper generics.
-Add an ESLint rule to ban `as any` (see 7.4).
+### 4.1 `[CODE][P1]` ✅ DONE — Eliminate remaining `as any` casts
+The one real production cast (`lib/hooks/touchDnD.ts`, reaching `.boxIndex` on the `SourceLocation`
+discriminated union) now narrows on `src.type === 'box'`. The 8 test-fixture casts became
+`as Partial<PokemonStats> as PokemonStats`, which still type-checks the fields that are present.
+No real `as any` casts remain (only comments and the substring "has any idea"). *Note: the ESLint
+ban on `as any` is still pending under 7.1/7.4.*
 
-### 4.2 `[CODE][P1]` Gate production logging
-~22 `console.log/warn/error` calls in `lib/` (e.g., parser logs every file). Route through a tiny
-`logger` util that is silenced in production builds (or stripped via Vite `define`/esbuild drop).
-Keep `console.error` for genuine failures only.
+### 4.2 `[CODE][P1]` ✅ DONE — Gate production logging
+Added `lib/utils/logger.ts`: `debug`/`info`/`log`/`warn` are silenced in production builds (gated on
+`import.meta.env.DEV`, with a type-safe non-`any` env access), while `error` always fires. Routed all
+22 `console.*` calls in `lib/` through it — notably the parser's per-file "[Parser] Analyzing …" log
+is now `logger.debug`. The four UI-layer `console.error`s (genuine failures) were left as-is per this
+item's "keep console.error for genuine failures only" note.
 
 ### 4.3 `[CODE][P2]` De-duplicate parser bounds-check "empty Pokémon" object
 Both `parsePokemonStruct` (Gen1) and `parseGen2PokemonStruct` (Gen2) build a large literal
@@ -381,10 +411,13 @@ Atk/Def/Spe/Spc DVs (incl. a stale-`iv.hp` case and a max-DV case), plus a Gen 2
 `encodeStatusByte`/`decodeStatus` inverse round-trip tests. (Existing `tests/statCalculator.test.ts`
 already covers the raw formula against known in-game values.)
 
-### 5.3 `[TEST][P1]` Data-table integrity tests
-Assert: Gen1 base-stats has 151 species (+placeholder); Gen2 has 251; species/move/item name arrays
-match `nationalDexMax`; Gen2 TM/HM→move table is fully correct (locks 2.6); every Gen2 species has a
-growth-rate entry (supports 3.3); type charts are square (15×15 Gen1, 17×17 Gen2).
+### 5.3 `[TEST][P1]` ✅ DONE — Data-table integrity tests
+`tests/dataIntegrity.test.ts` (12 tests) asserts: Gen1 base stats cover 1..151, Gen2 cover 1..251 with
+non-zero HP; species-name arrays equal `nationalDexMax + 1` and have no empty names; Gen1 move list is
+length 166 (ids 0..165); Gen2 move/PP/type arrays are all length 252; type charts are square
+(15×15 / 17×17) with only {0, 0.5, 1, 2} multipliers (Gen2 includes Steel + Dark); every Gen2 species
+1..251 has an explicit growth-rate entry (`SPECIES_GROWTH_RATE`, now exported); and the full Gen2
+TM/HM → move mapping is correct (locks 2.6).
 
 ### 5.4 `[TEST][P1]` Real save fixtures (privacy-safe)
 Add a few **freshly-created / trash-save** real `.sav` fixtures (Red/Blue/Yellow, Gold/Silver/Crystal,

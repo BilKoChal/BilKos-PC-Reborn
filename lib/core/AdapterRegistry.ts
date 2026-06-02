@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 import { IGenerationAdapter } from '../interfaces';
 import { ParsedSave } from '../parser/types';
 import { LazyFactory } from './LazyFactory';
@@ -157,7 +158,7 @@ export class AdapterRegistry {
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : String(err);
           lastError = `Failed to parse detected save for Gen ${gen}: ${message}`;
-          console.warn(lastError);
+          logger.warn(lastError);
           continue;
         }
       }
