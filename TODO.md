@@ -258,6 +258,22 @@
 - Added 4 Unown-sprite regression tests.
 - Result: **223 tests pass** (was 219), `tsc` clean, build OK.
 
+**Iteration 18 — Milestone M3: daycare editing (3.5); 3.4 deferred:**
+- **3.5** Gen 2 daycare editing — DONE. Verified the existing parse↔`writeGen2Daycare` round-trip
+  (parents + breeding metadata) with new tests — it was wired but untested. Added a **"Withdraw"**
+  action per parent in the daycare UI (via `handleSaveExtUpdate`), and fixed a real gap: the writer
+  previously **skipped** null parents, leaving stale bytes, so a withdrawn Pokémon wouldn't actually
+  leave the save. Now `writeGen2Daycare` **zeroes the body species byte** when a slot is null, so
+  withdraw persists. (Full deposit/edit-parent flow left as a future nicety.)
+- Added 3 tests (parent round-trip with nickname/OT/breeding intact; empty daycare stays empty; withdraw
+  clears the slot on next write).
+- **3.4 (Gen 2 mailbox) — DEFERRED, documented why.** Mail has a model + read-only UI but **no offsets,
+  no parser, and no writer** anywhere in the codebase. Implementing it means inventing GSC mail offsets
+  + per-region struct layout that I cannot validate without a real save fixture (see 5.4). Shipping
+  speculative offsets that write to the save risks **corrupting users' saves on export** — strictly
+  worse than the current honest "future update" placeholder. Deferring until a real fixture exists.
+- Result: **226 tests pass** (was 223), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -508,14 +524,21 @@ connected to the level + EXP inputs. Full 1..251 growth-rate coverage was confir
 (5.3). This iteration adds tests locking the round-trip, level boundaries, canonical L100 totals, and
 the 1..100 clamp.
 
-### 3.4 `[FEAT][P2]` Gen 2 mailbox editor
-`Gen2SaveExtension.mailbox` and `Gen2Mail` exist; `MailboxTab.tsx` exists. Confirm parse→edit→write for
-party mail + mailbox mail (author name/TID, two message lines, mail type, appear-Pokémon). Add a writer
-path if missing.
+### 3.4 `[FEAT][P2]` ⏸️ DEFERRED — Gen 2 mailbox editor
+Model (`Gen2Mail`/`mailbox`) + read-only `MailboxTab` exist, but there is **no mail offset config, no
+parser, and no writer** — the `mailbox` field is never populated. Implementing it requires inventing
+GSC mail offsets + per-region struct layout (message lines, author/TID, type, appear-Pokémon) that
+cannot be validated without a real save fixture (blocked on 5.4). Shipping speculative offsets that
+write to the save risks corrupting users' saves on export, which is worse than the current honest
+placeholder. **Deferred until a real GSC fixture is available**; do parse-first (viewer) before any
+writer.
 
-### 3.5 `[FEAT][P2]` Gen 2 daycare editing (read exists; confirm write)
-Parser reads daycare parents + breeding status/steps; writer has `writeGen2Daycare`. Ensure the UI can
-add/remove/edit daycare parents and that NOB-interleaved layout round-trips.
+### 3.5 `[FEAT][P2]` ✅ DONE — Gen 2 daycare editing (read exists; confirm write)
+Verified the parse↔`writeGen2Daycare` round-trip (parents + breeding metadata) with new tests — it was
+wired but untested. Added a **Withdraw** action per parent in the daycare UI (`handleSaveExtUpdate`),
+and fixed a gap where the writer skipped null parents (leaving stale bytes): it now zeroes the body
+species byte when a slot is empty, so withdraw actually persists. NOB-interleaved layout round-trips.
+Full deposit/edit-parent flow left as a future nicety.
 
 ### 3.6 `[FEAT][P2]` ✅ DONE (mostly) — Crystal-specific editors
 Made the main Crystal fields editable in `EventsTab` (Crystal-gated via `isCrystal`), using the

@@ -227,24 +227,46 @@ export const EventsTab: React.FC<EventsTabProps> = ({
                             ) : (
                                 <div className="space-y-2">
                                     {gen2Ext.daycareParent1 && (
-                                        <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3 border border-green-100 dark:border-green-800/30">
-                                            <div className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest mb-1">Parent 1</div>
-                                            <div className="text-sm font-bold text-green-700 dark:text-green-300">
-                                                {gen2Ext.daycareParent1.speciesName} <span className="font-normal text-green-500">Lv.{gen2Ext.daycareParent1.level}</span>
+                                        <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3 border border-green-100 dark:border-green-800/30 flex items-start justify-between">
+                                            <div>
+                                                <div className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest mb-1">Parent 1</div>
+                                                <div className="text-sm font-bold text-green-700 dark:text-green-300">
+                                                    {gen2Ext.daycareParent1.speciesName} <span className="font-normal text-green-500">Lv.{gen2Ext.daycareParent1.level}</span>
+                                                </div>
+                                                {gen2Ext.daycareParent1.gender && gen2Ext.daycareParent1.gender !== 'Genderless' && (
+                                                    <div className="text-[10px] text-green-500">{gen2Ext.daycareParent1.gender === 'Female' ? '♀' : '♂'} {gen2Ext.daycareParent1.gender}</div>
+                                                )}
                                             </div>
-                                            {gen2Ext.daycareParent1.gender && gen2Ext.daycareParent1.gender !== 'Genderless' && (
-                                                <div className="text-[10px] text-green-500">{gen2Ext.daycareParent1.gender === 'Female' ? '♀' : '♂'} {gen2Ext.daycareParent1.gender}</div>
+                                            {handleSaveExtUpdate && (
+                                                <button
+                                                    onClick={() => handleSaveExtUpdate({ daycareParent1: null })}
+                                                    className="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"
+                                                    title="Withdraw this Pokémon from the Day-Care"
+                                                >
+                                                    Withdraw
+                                                </button>
                                             )}
                                         </div>
                                     )}
                                     {gen2Ext.daycareParent2 && (
-                                        <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3 border border-green-100 dark:border-green-800/30">
-                                            <div className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest mb-1">Parent 2</div>
-                                            <div className="text-sm font-bold text-green-700 dark:text-green-300">
-                                                {gen2Ext.daycareParent2.speciesName} <span className="font-normal text-green-500">Lv.{gen2Ext.daycareParent2.level}</span>
+                                        <div className="bg-green-50 dark:bg-green-900/10 rounded-xl p-3 border border-green-100 dark:border-green-800/30 flex items-start justify-between">
+                                            <div>
+                                                <div className="text-xs font-bold text-green-600 dark:text-green-400 uppercase tracking-widest mb-1">Parent 2</div>
+                                                <div className="text-sm font-bold text-green-700 dark:text-green-300">
+                                                    {gen2Ext.daycareParent2.speciesName} <span className="font-normal text-green-500">Lv.{gen2Ext.daycareParent2.level}</span>
+                                                </div>
+                                                {gen2Ext.daycareParent2.gender && gen2Ext.daycareParent2.gender !== 'Genderless' && (
+                                                    <div className="text-[10px] text-green-500">{gen2Ext.daycareParent2.gender === 'Female' ? '♀' : '♂'} {gen2Ext.daycareParent2.gender}</div>
+                                                )}
                                             </div>
-                                            {gen2Ext.daycareParent2.gender && gen2Ext.daycareParent2.gender !== 'Genderless' && (
-                                                <div className="text-[10px] text-green-500">{gen2Ext.daycareParent2.gender === 'Female' ? '♀' : '♂'} {gen2Ext.daycareParent2.gender}</div>
+                                            {handleSaveExtUpdate && (
+                                                <button
+                                                    onClick={() => handleSaveExtUpdate({ daycareParent2: null })}
+                                                    className="text-[10px] font-bold px-2 py-1 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 transition-colors"
+                                                    title="Withdraw this Pokémon from the Day-Care"
+                                                >
+                                                    Withdraw
+                                                </button>
                                             )}
                                         </div>
                                     )}

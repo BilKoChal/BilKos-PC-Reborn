@@ -309,6 +309,11 @@ function writeGen2Daycare(
     const otBuf = codec1.encode(mon.originalTrainerName || "", strLen, 0x50);
     data.set(nickBuf, nick1Start);
     data.set(otBuf, ot1Start);
+  } else {
+    // Withdrawn/empty: zero the body species byte so re-parse sees an empty slot
+    // (the parser treats species 0x00/0xFF as "no parent"). TODO 3.5.
+    const body1Start = offset + (strLen * 2);
+    if (body1Start < data.length) data[body1Start] = 0x00;
   }
 
   // Write Parent 2
@@ -325,6 +330,10 @@ function writeGen2Daycare(
     const otBuf = codec2.encode(mon.originalTrainerName || "", strLen, 0x50);
     data.set(nickBuf, nick2Start);
     data.set(otBuf, ot2Start);
+  } else {
+    const parent2Offset = offset + (strLen * 2) + 32;
+    const body2Start = parent2Offset + (strLen * 2);
+    if (body2Start < data.length) data[body2Start] = 0x00;
   }
 
   // Write daycare metadata

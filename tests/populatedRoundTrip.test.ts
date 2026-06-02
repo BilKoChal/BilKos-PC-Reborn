@@ -322,3 +322,65 @@ describe('Gen 2 region-correct text encoding (TODO 2.4)', () => {
     expect(reparsed.pcBoxes[0]![0]!.originalTrainerName).toBe('GOLD');
   });
 });
+
+// ============================================================================
+// 3.5 — Gen 2 daycare parent round-trip (write path verification)
+// ============================================================================
+
+import { isGen2SaveExtension } from '../lib/canonicalModel';
+
+describe('Gen 2 daycare round-trip (TODO 3.5)', () => {
+  it('daycare parents survive write -> re-parse with nickname/OT/species intact', () => {
+    const adapter = new Gen2Adapter();
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
+    expect(ext).not.toBeNull();
+
+    // Put two parents into the daycare (stored, non-party).
+    ext!.daycareParent1 = buildGen2PartyMon({ isParty: false, nickname: 'MOMMA', originalTrainerName: 'GOLD' });
+    ext!.daycareParent2 = buildGen2PartyMon({ isParty: false, nickname: 'POPPA', originalTrainerName: 'GOLD' });
+    ext!.daycareBreedingStatus = 1;
+    ext!.daycareStepsUntilEgg = 42;
+
+    const reparsed = adapter.parseSave(adapter.writeSave(save), 'gold.sav');
+    const rext = isGen2SaveExtension(reparsed.genExtension) ? reparsed.genExtension : null;
+    expect(rext).not.toBeNull();
+
+    expect(rext!.daycareParent1).not.toBeNull();
+    expect(rext!.daycareParent1!.nickname).toBe('MOMMA');
+    expect(rext!.daycareParent1!.originalTrainerName).toBe('GOLD');
+
+    expect(rext!.daycareParent2).not.toBeNull();
+    expect(rext!.daycareParent2!.nickname).toBe('POPPA');
+
+    expect(rext!.daycareBreedingStatus).toBe(1);
+    expect(rext!.daycareStepsUntilEgg).toBe(42);
+  });
+
+  it('an empty daycare round-trips as empty (no phantom parents)', () => {
+    const adapter = new Gen2Adapter();
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+    const reparsed = adapter.parseSave(adapter.writeSave(save), 'gold.sav');
+    const rext = isGen2SaveExtension(reparsed.genExtension) ? reparsed.genExtension : null;
+    expect(rext!.daycareParent1).toBeNull();
+    expect(rext!.daycareParent2).toBeNull();
+  });
+
+  it('withdrawing a parent (set null) clears the slot on the next write', () => {
+    const adapter = new Gen2Adapter();
+    // Start with a parent deposited and written out.
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+    const ext = isGen2SaveExtension(save.genExtension) ? save.genExtension : null;
+    ext!.daycareParent1 = buildGen2PartyMon({ isParty: false, nickname: 'BYE', originalTrainerName: 'GOLD' });
+    const withParent = adapter.parseSave(adapter.writeSave(save), 'gold.sav');
+    const wext = isGen2SaveExtension(withParent.genExtension) ? withParent.genExtension : null;
+    expect(wext!.daycareParent1).not.toBeNull();
+
+    // Withdraw: set null, write again — the slot must read back empty.
+    wext!.daycareParent1 = null;
+    const afterWithdraw = adapter.parseSave(adapter.writeSave(withParent), 'gold.sav');
+    const aext = isGen2SaveExtension(afterWithdraw.genExtension) ? afterWithdraw.genExtension : null;
+    expect(aext!.daycareParent1).toBeNull();
+  });
+});
