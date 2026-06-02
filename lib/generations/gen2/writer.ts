@@ -2,7 +2,8 @@ import { ParsedSave, PokemonStats, Item, isGen2Extension, isGen2SaveExtension, G
 import { 
   setUInt16BigEndian, 
   setUInt24BigEndian, 
-  setBCD 
+  setBCD,
+  encodeStatusByte
 } from '../../utils/byteHelpers';
 import { calculateGen2Checksum } from './parser';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
@@ -15,13 +16,22 @@ function getCodec(isJapanese?: boolean, isKorean?: boolean): GameBoyTextCodec {
   if (isKorean) return _codecKor;
   return isJapanese ? _codecJpn : _codecInt;
 }
-/** Encode text using the authoritative codec. Replaces encodeGameBoyText() from textCodec.ts. */
-function encodeGameBoyText(text: string, length: number, terminator: number = 0x50, isJapanese?: boolean): Uint8Array {
-  return getCodec(isJapanese).encode(text, length, terminator);
-}
-/** Sanitize text using the authoritative codec. Replaces sanitizePokemonText() from textValidator.ts. */
-function sanitizePokemonText(text: string, isJapanese?: boolean): string {
-  return getCodec(isJapanese).sanitize(text);
+/**
+ * Resolve the region-correct codec from the active offset config.
+ *
+ * BUG FIX (TODO 2.4): the text-writing helpers below used to call
+ * encodeGameBoyText()/sanitizePokemonText() WITHOUT a region flag, so every
+ * JPN/KOR save had its nicknames, OT names, rival name, box names, daycare and
+ * phone-contact text written with the International charmap → corrupted text on
+ * export. The region is fully determined by the offset config the writer already
+ * has in scope: JPN uses 6-byte strings, KOR uses a 17-byte box-name entry.
+ * Routing all region-aware encodes through this resolver also fixes the latent
+ * Korean gap (encodeGameBoyText only forwarded `isJapanese`, never `isKorean`).
+ */
+function codecForOffsets(offsets: Gen2OffsetsConfig): GameBoyTextCodec {
+  const isJapanese = offsets.stringLength === 6;
+  const isKorean = offsets.boxNameEntrySize === 17;
+  return getCodec(isJapanese, isKorean);
 }
 import { 
   getGen2Offsets, 
@@ -110,7 +120,10 @@ export function writeGen2PokemonStruct(
 
   if (isParty) {
     // 11. Status condition
-    data[offset + 32] = 0; // OK
+    // BUG FIX (TODO 2.2): previously hardcoded to 0, healing every non-OK
+    // party Pokémon on export. Encode the canonical status back, preserving
+    // the original raw byte (incl. sleep-turn counter) when unchanged.
+    data[offset + 32] = encodeStatusByte(mon.status, mon.raw && mon.raw[32] !== undefined ? mon.raw[32] : undefined);
     data[offset + 33] = 0; // Unused padding
 
     // 12. Stats
@@ -188,9 +201,10 @@ export function writePCBoxGen2(data: Uint8Array, offset: number, pokemonList: Po
       // Write internal structure
       writeGen2PokemonStruct(data, structOffset, mon, false);
 
-      // Encode text strings and write
-      const nicknameBuffer = encodeGameBoyText(mon.nickname || "", strLen, 0x50);
-      const otNameBuffer = encodeGameBoyText(mon.originalTrainerName || "", strLen, 0x50);
+      // Encode text strings and write (region-correct codec — TODO 2.4)
+      const codec = codecForOffsets(offsets);
+      const nicknameBuffer = codec.encode(mon.nickname || "", strLen, 0x50);
+      const otNameBuffer = codec.encode(mon.originalTrainerName || "", strLen, 0x50);
 
       data.set(nicknameBuffer, nicknamesOffset);
       data.set(otNameBuffer, otNamesOffset);
@@ -216,7 +230,7 @@ export function writePCBoxGen2(data: Uint8Array, offset: number, pokemonList: Po
  */
 function writeGen2RivalName(data: Uint8Array, offsets: Gen2OffsetsConfig, rivalName: string | undefined) {
   if (!rivalName) return;
-  const rivalBuf = encodeGameBoyText(rivalName, offsets.stringLength, 0x50);
+  const rivalBuf = codecForOffsets(offsets).encode(rivalName, offsets.stringLength, 0x50);
   data.set(rivalBuf, offsets.rivalName);
 }
 
@@ -266,8 +280,9 @@ function writeGen2Daycare(
     const body1Start = offset + (strLen * 2);
 
     writeGen2PokemonStruct(data, body1Start, mon, false);
-    const nickBuf = encodeGameBoyText(mon.nickname || "", strLen, 0x50);
-    const otBuf = encodeGameBoyText(mon.originalTrainerName || "", strLen, 0x50);
+    const codec1 = codecForOffsets(offsets);
+    const nickBuf = codec1.encode(mon.nickname || "", strLen, 0x50);
+    const otBuf = codec1.encode(mon.originalTrainerName || "", strLen, 0x50);
     data.set(nickBuf, nick1Start);
     data.set(otBuf, ot1Start);
   }
@@ -281,8 +296,9 @@ function writeGen2Daycare(
     const body2Start = parent2Offset + (strLen * 2);
 
     writeGen2PokemonStruct(data, body2Start, mon, false);
-    const nickBuf = encodeGameBoyText(mon.nickname || "", strLen, 0x50);
-    const otBuf = encodeGameBoyText(mon.originalTrainerName || "", strLen, 0x50);
+    const codec2 = codecForOffsets(offsets);
+    const nickBuf = codec2.encode(mon.nickname || "", strLen, 0x50);
+    const otBuf = codec2.encode(mon.originalTrainerName || "", strLen, 0x50);
     data.set(nickBuf, nick2Start);
     data.set(otBuf, ot2Start);
   }
@@ -303,7 +319,7 @@ function writeGen2BoxNames(data: Uint8Array, offsets: Gen2OffsetsConfig, boxName
   const offset = offsets.boxNames;
   const entrySize = offsets.boxNameEntrySize;
   const maxNameLen = entrySize - 1; // Reserve 1 byte for terminator
-  const isJapanese = offsets.stringLength === 6;
+  const codec = codecForOffsets(offsets); // region-correct (incl. Korean) — TODO 2.4
 
   for (let i = 0; i < offsets.boxCount && i < boxNames.length; i++) {
     const nameOffset = offset + (i * entrySize);
@@ -311,14 +327,14 @@ function writeGen2BoxNames(data: Uint8Array, offsets: Gen2OffsetsConfig, boxName
 
     // Sanitize: strip unsupported characters before encoding to prevent
     // them from becoming '?' (0xE6) which causes the "??????" corruption bug.
-    name = sanitizePokemonText(name, isJapanese);
+    name = codec.sanitize(name);
 
     // Enforce maximum name length based on entry size (generation-aware)
     if (name.length > maxNameLen) {
       name = name.substring(0, maxNameLen);
     }
 
-    const nameBuf = encodeGameBoyText(name, entrySize, 0x50);
+    const nameBuf = codec.encode(name, entrySize, 0x50);
     data.set(nameBuf, nameOffset);
   }
 }
@@ -500,8 +516,8 @@ function writeGen2Phase4Data(
       const entryOffset = phoneOffset + (i * entryStride);
       if (entryOffset + entryStride > data.length) break;
 
-      // Encode the name
-      const nameBuf = encodeGameBoyText(contact.name, strLen, 0x50);
+      // Encode the name (region-correct codec — TODO 2.4)
+      const nameBuf = codecForOffsets(offsets).encode(contact.name, strLen, 0x50);
       data.set(nameBuf, entryOffset);
 
       // Write metadata
@@ -580,7 +596,7 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
   setUInt16BigEndian(view, offsets.trainer1, tidNum);
 
   const trainerNameStart = offsets.trainer1 + 2; // After 2-byte TID
-  const trainerNameBuf = encodeGameBoyText(save.trainer.name || "", strLen, 0x50);
+  const trainerNameBuf = codecForOffsets(offsets).encode(save.trainer.name || "", strLen, 0x50);
   data.set(trainerNameBuf, trainerNameStart);
 
   setBCD(view, offsets.money, save.trainer.money, 3);
@@ -648,8 +664,9 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
     const mon = save.party[i]!;
     writeGen2PokemonStruct(data, structOffset, mon, true);
 
-    const nicknameBuffer = encodeGameBoyText(mon.nickname, strLen, 0x50);
-    const otNameBuffer = encodeGameBoyText(mon.originalTrainerName, strLen, 0x50);
+    const partyCodec = codecForOffsets(offsets);
+    const nicknameBuffer = partyCodec.encode(mon.nickname, strLen, 0x50);
+    const otNameBuffer = partyCodec.encode(mon.originalTrainerName, strLen, 0x50);
 
     data.set(nicknameBuffer, nicknamesOffset);
     data.set(otNameBuffer, otNamesOffset);

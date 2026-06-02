@@ -73,8 +73,16 @@ export function recalculateStats(mon: PokemonStats, baseStats: BaseStats, genera
       newMon.spDef = calculateGen1Stat(baseStats.spDef, mon.iv.special, mon.ev.special, mon.level, false);
       newMon.special = newMon.spAtk; // Mirror for compatibility
     } else {
-      // Gen 1: unified Special
-      newMon.maxHp = calculateGen1Stat(baseStats.hp, mon.iv.hp, mon.ev.hp, mon.level, true);
+      // Gen 1: unified Special.
+      // BUG FIX (TODO 2.3): the HP DV in Gen 1/2 is NOT stored independently —
+      // it is derived from the low bit of the Atk/Def/Spe/Spc DVs. Previously
+      // this branch used the stale `mon.iv.hp`, so editing any other DV left
+      // HP DV (and the HP stat) wrong. We now re-derive it exactly like the
+      // Gen 2 path (recalculateGen2Stats) and write it back so the CDM stays
+      // self-consistent.
+      const hpIv = ((mon.iv.attack & 1) << 3) | ((mon.iv.defense & 1) << 2) | ((mon.iv.speed & 1) << 1) | (mon.iv.special & 1);
+      newMon.iv.hp = hpIv;
+      newMon.maxHp = calculateGen1Stat(baseStats.hp, hpIv, mon.ev.hp, mon.level, true);
       newMon.hp = newMon.maxHp;
       newMon.attack = calculateGen1Stat(baseStats.attack, mon.iv.attack, mon.ev.attack, mon.level, false);
       newMon.defense = calculateGen1Stat(baseStats.defense, mon.iv.defense, mon.ev.defense, mon.level, false);

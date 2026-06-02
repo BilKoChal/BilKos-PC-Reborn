@@ -263,8 +263,12 @@ export function parseGen2PokemonStruct(
   // but the struct body at offset 0x00 contains the hatched species (e.g. 173 = Cleffa).
   // We use listSpeciesId to detect eggs correctly.
   const isEggFromList = listSpeciesId === EGG_SPECIES_ID;
-  const effectiveSpeciesId = isEggFromList ? speciesId : speciesId; // Body species is always used for data
-  const dexId = isEggFromList ? speciesId : speciesId; // For eggs, dexId = hatched species
+  // TODO 2.5: In Gen 2 the struct body at byte 0x00 always stores the real
+  // (hatched) species — the 0xFD egg marker only appears in the species-list
+  // header (listSpeciesId), never in the body. So dexId == the body species
+  // for both eggs and non-eggs. (Previously a no-op `isEggFromList ? x : x`
+  // ternary plus an unused `effectiveSpeciesId` obscured this.)
+  const dexId = speciesId;
 
   const heldItemId = view[offset + 0x01]!;
   const heldItemName = getGen2ItemName(heldItemId);

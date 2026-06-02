@@ -113,6 +113,40 @@ export function decodeStatus(byte: number): string {
     return "OK";
 }
 
+// Helper: Encode Status Byte — the inverse of decodeStatus().
+//
+// Gen 1 & Gen 2 share the same non-volatile status byte layout:
+//   bits 0-2 : sleep turn counter (a value 1-7 also decodes to "SLP")
+//   bit  3   : Poison
+//   bit  4   : Burn
+//   bit  5   : Freeze
+//   bit  6   : Paralysis
+//
+// The parser collapses this byte to a coarse status string ("SLP"/"PSN"/…),
+// which loses the exact sleep-turn counter. To keep write(parse(buf)) as close
+// to byte-identical as possible, this function preserves the ORIGINAL raw byte
+// whenever it still decodes to the same status string (so an asleep Pokémon
+// keeps its precise remaining-turn count on round-trip). Only when the status
+// has actually changed do we synthesize a fresh byte from the canonical bit.
+//
+// @param status        The canonical status string from CanonicalPokemon.status
+// @param originalByte  The original raw status byte (e.g. mon.raw[0x04] for Gen 1
+//                      party/box, mon.raw[0x20] for Gen 2 party). Optional.
+export function encodeStatusByte(status: string, originalByte?: number): number {
+    if (originalByte !== undefined && decodeStatus(originalByte) === status) {
+        return originalByte;
+    }
+    switch (status) {
+        case "SLP": return 1 << 2;
+        case "PSN": return 1 << 3;
+        case "BRN": return 1 << 4;
+        case "FRZ": return 1 << 5;
+        case "PAR": return 1 << 6;
+        case "OK":
+        default:    return 0;
+    }
+}
+
 // Helper to read ASCII string
 export function getAsciiString(view: Uint8Array, start: number, length: number): string {
   let str = '';

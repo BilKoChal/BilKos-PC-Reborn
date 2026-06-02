@@ -218,18 +218,25 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
         onClose();
     };
 
+    // TODO 2.10: standalone export support is driven entirely by the adapter.
+    // `standaloneFormat` is the single source of truth for the file extension,
+    // and `supportsStandalone` gates availability (Gen 1 .pk1 + Gen 2 .pk2 both
+    // implemented). The export button is hidden when unsupported, so this guard
+    // is defensive only — and it now surfaces via the toast system, not alert().
+    const standaloneExt = adapter?.standaloneFormat?.fileExtension ?? (generation ? `.pk${generation}` : '.pkx');
+    const canExportStandalone = !!adapter && adapter.supportsStandalone;
+
     const handleExportPk = () => {
         try {
-            if (!adapter || !adapter.supportsStandalone) {
-                alert(`Standalone .pk${generation} export is not yet supported for Generation ${generation}.`);
+            if (!canExportStandalone || !adapter) {
+                saveCtx?.onShowToast(`Standalone ${standaloneExt} export isn't supported for this generation yet.`);
                 return;
             }
 
             // Use the adapter's standaloneFormat for file extension (A10: no `as any` cast).
             // Each adapter's standaloneFormat.fileExtension is the PKHeX-compatible extension.
             const binary = adapter.createStandalonePokemon(mon);
-            const extension = adapter.standaloneFormat?.fileExtension ?? `.pk${generation}`;
-            const filename = `${mon.nickname || mon.speciesName}${extension}`;
+            const filename = `${mon.nickname || mon.speciesName}${standaloneExt}`;
 
             const blob = new Blob([binary], { type: "application/octet-stream" });
             const url = URL.createObjectURL(blob);
@@ -240,9 +247,10 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+            saveCtx?.onShowToast(`Exported ${filename}`);
         } catch (e) {
             console.error("Failed to export pokemon file", e);
-            alert("Failed to export pokemon file.");
+            saveCtx?.onShowToast("Failed to export Pokémon file.");
         }
     };
 
@@ -316,13 +324,15 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                             >
                                 <Book size={20} />
                             </button>
+                            {canExportStandalone && (
                             <button 
                                 onClick={handleExportPk}
                                 className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"
-                                title={`Export .pk${generation}`}
+                                title={`Export ${standaloneExt}`}
                             >
                                 <Download size={20} />
                             </button>
+                            )}
                             <button onClick={handleSave} className="flex items-center gap-2 bg-white text-gray-900 px-6 py-2 rounded-full font-bold text-sm shadow-xl hover:bg-gray-100 hover:scale-105 active:scale-95 transition-all whitespace-nowrap ml-2">
                                 <Save size={18} /> Save
                             </button>

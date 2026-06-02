@@ -1,6 +1,7 @@
 import { ParsedSave, PokemonStats, Item } from '../../parser/types';
 import { GEN1_INTERNAL_TO_DEX, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig, Gen1Region } from './data/offsets';
 import { BinaryWriter } from '../../utils/io';
+import { encodeStatusByte } from '../../utils/byteHelpers';
 
 // Reverse map: National Dex ID -> Internal ID
 const DEX_TO_INTERNAL: Record<number, number> = {};
@@ -59,7 +60,10 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
     writer.u8(mon.level);
     
     // Status (04)
-    writer.u8(0); 
+    // BUG FIX (TODO 2.1): previously hardcoded to 0, which healed every
+    // non-OK Pokémon on export. Encode the canonical status back, preserving
+    // the original raw byte (incl. the sleep-turn counter) when unchanged.
+    writer.u8(encodeStatusByte(mon.status, mon.raw && mon.raw[0x04] !== undefined ? mon.raw[0x04] : undefined));
 
     // Types (05, 06)
     writer.u8(mon.type1);
