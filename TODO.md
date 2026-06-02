@@ -188,6 +188,21 @@
 - Added 9 tests (level⇄EXP coupling; status codec round-trip for the editor's value set).
 - Result: **208 tests pass** (was 203), `tsc` clean, build OK.
 
+**Iteration 13 — Milestone M3: event-flag editing:**
+- **3.1** Event-flag editing UI — DONE. Found the named-event toggle editor already functional
+  (`EventFlagsManager` renders `adapter.getGameEvents()` — 23 Gen1 / 53 Gen2 events — with working
+  toggle persistence through `handleEventFlagsUpdate` → `save.eventFlags` → writers). The genuinely
+  missing piece from 3.1's checklist was the **raw flag index search/jump for power users**: added a
+  free-text filter over named events (name/description/category/offset) and a raw flag-index inspector
+  that reads/toggles any flag by its array index, with a "no matches" hint. The placeholder only shows
+  when no adapter is present.
+- **6.3** Gen 1 event-flag region — VERIFIED. `getEventFlags` reads 320 bytes (2560 flags) from
+  `MISSABLE_OBJECTS` (0x2852); this matches pokered's `wEventFlags` (WRAM 0xD747 → save 0x2852, 0x140
+  bytes), and all event offsets (29–227) fall in range. Mapping confirmed correct.
+- Added 3 tests (event ids unique + offsets within the per-gen flag array bounds; Gen 2 version
+  filtering sanity).
+- Result: **211 tests pass** (was 208), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -417,14 +432,13 @@ CaughtData. The writer's existing `caughtData !== 0` guard now never fires for G
 
 These make the *currently supported* gens fully editable, not just viewable.
 
-### 3.1 `[FEAT][P1]` Event-flag editing UI (currently read-only / unavailable)
-`EventFlagsManager.tsx` shows "Event flag editing for Generation {N} saves is not yet available." The
-parser/writer already read/write the full flag arrays (Gen1 320 bytes; Gen2 2000 flags). Build the
-editor:
-- Named, categorized toggles from `adapter.getGameEvents(version)` (already returns
-  `GameEventDefinition[]`).
-- Raw flag index search/jump for power users.
-- Persist edits back through `save.eventFlags`.
+### 3.1 `[FEAT][P1]` ✅ DONE — Event-flag editing UI
+The named, categorized toggle editor was already functional (`EventFlagsManager` renders
+`adapter.getGameEvents()` — 23 Gen1 / 53 Gen2 — and persists via `handleEventFlagsUpdate` →
+`save.eventFlags` → writers; the placeholder only shows when no adapter is present). Added the missing
+power-user pieces: a **free-text search** over named events (name/description/category/offset) and a
+**raw flag-index inspector** to read/toggle any flag by array index, with a "no matches" hint. Event
+data validated by tests (unique ids, offsets within bounds).
 
 ### 3.2 `[FEAT][P1]` ✅ DONE — Status condition editor in `PokemonStatsPanel`
 Added an editable status selector (OK/Sleep/Poison/Burn/Freeze/Paralysis) shown for **party** mons
@@ -568,11 +582,11 @@ and ratchet up. Wire into the CI `Test` step.
 
 ### 6.1 `[DATA][P1]` Audit Gen 2 TM/HM table (see 2.6) — owns the data half of that bug.
 ### 6.2 `[DATA][P1]` ✅ DONE — Audit `getGen2Gender` species buckets (see 2.7). Full 1..251 audit + exhaustive tests; all buckets verified correct against canonical ratios.
-### 6.3 `[DATA][P2]` Verify Gen 1 event-flag region mapping
-Gen 1 reads 320 bytes starting at `MISSABLE_OBJECTS` (0x2852) and treats them as 2560 generic event
-flags. Confirm this region/length matches PKHeX's Gen1 event-flag layout (missable objects vs. the
-broader event-flag array) before exposing flag editing (3.1), or the toggles will write to the wrong
-bits.
+### 6.3 `[DATA][P2]` ✅ DONE — Verify Gen 1 event-flag region mapping
+Verified: `getEventFlags` reads 320 bytes (2560 flags) from `MISSABLE_OBJECTS` (0x2852), matching
+pokered's `wEventFlags` (WRAM 0xD747 → save offset 0x2852, 0x140 bytes), with LSB-first bit order. All
+Gen 1 event offsets (29–227) fall within range. Locked by an offset-bounds test in
+`dataIntegrity.test.ts`.
 ### 6.4 `[DATA][P2]` Fill Pokédex flavor text / location gaps
 Gen2 `pokedexEntries.ts` / `pokemonLocations.ts` are large but spot-check for `undefined`/placeholder
 entries (esp. 152–251 and version-specific Gold/Silver/Crystal text). Track completeness with a test

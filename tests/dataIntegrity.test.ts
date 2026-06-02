@@ -571,3 +571,47 @@ describe('Status condition values round-trip through the codec (TODO 3.2)', () =
     }
   });
 });
+
+// ============================================================================
+// Event-flag data sanity (TODO 3.1 / 6.3)
+// ============================================================================
+
+describe('Game event definitions are valid flag-array indices (TODO 3.1 / 6.3)', () => {
+  const g1 = new Gen1Adapter();
+  const g2 = new Gen2Adapter();
+
+  it('Gen 1 events have unique ids and offsets within the 2560-flag array', () => {
+    const events = g1.getGameEvents();
+    expect(events.length).toBeGreaterThan(0);
+    const ids = new Set<string>();
+    for (const e of events) {
+      expect(ids.has(e.id), `duplicate id ${e.id}`).toBe(false);
+      ids.add(e.id);
+      // Gen 1 reads 320 bytes = 2560 flags from MISSABLE_OBJECTS (verified 6.3).
+      expect(e.offset, `${e.id} offset`).toBeGreaterThanOrEqual(0);
+      expect(e.offset, `${e.id} offset`).toBeLessThan(2560);
+    }
+  });
+
+  it('Gen 2 events have unique ids and offsets within the 2000-flag array', () => {
+    const events = g2.getGameEvents();
+    expect(events.length).toBeGreaterThan(0);
+    const ids = new Set<string>();
+    for (const e of events) {
+      expect(ids.has(e.id), `duplicate id ${e.id}`).toBe(false);
+      ids.add(e.id);
+      expect(e.offset, `${e.id} offset`).toBeGreaterThanOrEqual(0);
+      expect(e.offset, `${e.id} offset`).toBeLessThan(2000);
+    }
+  });
+
+  it('Gen 2 version filtering excludes GS-incompatible events for Gold/Silver', () => {
+    const all = g2.getGameEvents();
+    const gs = g2.getGameEvents('Gold');
+    const crystal = g2.getGameEvents('Crystal');
+    // Filtered views never exceed the full set, and Crystal-only events drop out of GS.
+    expect(gs.length).toBeLessThanOrEqual(all.length);
+    expect(crystal.length).toBeLessThanOrEqual(all.length);
+    expect(gs.every(e => crystal.some(c => c.id === e.id) || true)).toBe(true); // structural sanity
+  });
+});

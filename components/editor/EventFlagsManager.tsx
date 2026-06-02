@@ -19,6 +19,11 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
     const adapter = saveCtx?.adapter;
     const [flags, setFlags] = useState<boolean[]>([...data.eventFlags]);
 
+    // Power-user controls (TODO 3.1): free-text filter over named events, plus a
+    // raw flag-index inspector to read/toggle any flag by its array index.
+    const [search, setSearch] = useState('');
+    const [rawIndex, setRawIndex] = useState('');
+
     // A7/D1/D2: Get the correct event database from the adapter, with version filtering.
     // Uses isGen2SaveExtension type guard instead of `data.generation >= 2` + `as Gen2SaveExtension` cast.
     // Future Gen3+ adapters will provide their own version via isGen3SaveExtension / adapter methods.
@@ -32,8 +37,16 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
         return adapter.getGameEvents(version);
     }, [adapter, data.genExtension]);
 
-    // Group events by category
-    const groupedEvents = eventsData.reduce((acc, event) => {
+    // Group events by category (applying the free-text filter first).
+    const term = search.trim().toLowerCase();
+    const filteredEvents = term
+        ? eventsData.filter(e =>
+            e.name.toLowerCase().includes(term) ||
+            e.description.toLowerCase().includes(term) ||
+            e.category.toLowerCase().includes(term) ||
+            String(e.offset) === term)
+        : eventsData;
+    const groupedEvents = filteredEvents.reduce((acc, event) => {
         if (!acc[event.category]) acc[event.category] = [];
         acc[event.category]!.push(event);
         return acc;
@@ -92,8 +105,52 @@ export const EventFlagsManager: React.FC<EventFlagsManagerProps> = ({ data, onUp
                 </div>
             </div>
 
+            {/* Power-user controls: search + raw flag inspector (TODO 3.1) */}
+            <div className="px-6 pb-2 bg-gray-50 dark:bg-gray-900/50 flex flex-col sm:flex-row gap-2">
+                <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search events by name, description, category, or offset…"
+                    className="flex-grow text-sm bg-white dark:bg-gray-800 rounded-lg px-3 py-2 border border-gray-200 dark:border-gray-700 outline-none focus:border-blue-500"
+                />
+                <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg px-3 py-1.5 border border-gray-200 dark:border-gray-700">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">Raw flag #</span>
+                    <input
+                        type="number"
+                        value={rawIndex}
+                        onChange={(e) => setRawIndex(e.target.value)}
+                        placeholder="0"
+                        min={0}
+                        max={flags.length - 1}
+                        className="w-20 text-sm font-mono text-center bg-gray-100 dark:bg-gray-900 rounded py-1 outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    {(() => {
+                        const idx = Number(rawIndex);
+                        const valid = rawIndex !== '' && Number.isInteger(idx) && idx >= 0 && idx < flags.length;
+                        return (
+                            <button
+                                disabled={!valid}
+                                onClick={() => valid && handleToggle(idx)}
+                                className={`px-2 py-1 rounded text-xs font-bold transition-colors whitespace-nowrap ${
+                                    !valid ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                                    : flags[idx] ? 'bg-green-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200'
+                                }`}
+                            >
+                                {valid ? (flags[idx] ? 'SET — tap to clear' : 'CLEAR — tap to set') : 'enter index'}
+                            </button>
+                        );
+                    })()}
+                </div>
+            </div>
+
             {/* Content */}
             <div className="p-6 overflow-y-auto bg-gray-50 dark:bg-gray-900/50 flex-grow custom-scrollbar">
+                {filteredEvents.length === 0 && (
+                    <div className="text-center text-sm text-gray-400 py-8">
+                        No named events match &ldquo;{search}&rdquo;. Use the raw flag inspector above to toggle any flag by index.
+                    </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Object.entries(groupedEvents).map(([category, events]) => (
                         <div key={category} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-4 shadow-sm h-fit">
