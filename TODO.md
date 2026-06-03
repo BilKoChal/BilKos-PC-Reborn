@@ -396,6 +396,22 @@
   always valid; length→format incl. the ambiguous 136 case and null for unknown sizes.
 - Result: **292 tests pass** (was 282), `tsc` clean, build OK.
 
+**Iteration 27 — Milestone M4: detection waterfall + wrapper handlers (8.5.1):**
+- **8.5.1** Detection waterfall + pre-format wrapper handlers — DONE. Added `lib/core/saveWrappers.ts`
+  formalizing PKHeX's "strip-then-retry" step in one place: a `SaveWrapperHandler` contract +
+  `stripKnownWrappers()`, with a `desmume-dsv` handler (detects the `|-DESMUME SAVE-|` magic / `.dsv`
+  extension) and a generic `trailing-footer` handler (strips a small footer back to a known GB SRAM
+  size). Refactored `AdapterRegistry.detectAndParse` into Phase 1 (existing direct detection, now in a
+  `tryDirectDetect` helper — **unchanged** path, Gen 1/2 `+16` still accepted inline by the adapters)
+  + Phase 2 (NEW: on direct-detection failure, strip wrappers and retry). Purely additive: a clean
+  save or `+16` file behaves identically; only previously-unrecognized wrappers now recover.
+- Verified the seam genuinely adds capability: a `.dsv`-wrapped Gen 1 save (32792 bytes) fails direct
+  `detectSave` but succeeds via `detectAndParse`'s fallback.
+- Added `tests/saveWrappers.test.ts` (9 tests): `.dsv` magic strip, generic footer strip, `+16` left to
+  the adapters, no-wrapper → `[]`, and end-to-end through a real `AdapterRegistry`+`Gen1Adapter`
+  (direct hit, `.dsv` recovery, footer recovery, and the unchanged garbage-buffer failure).
+- Result: **301 tests pass** (was 292), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -893,14 +909,14 @@ locks the patterns in. This section records the alignment and adds the concrete 
 
 ### Corrections / refinements the PKHeX read surfaced
 
-### 8.5.1 `[GEN3+ PREP][P1]` Detection waterfall + pre-format "handlers" (wrappers) abstraction
-PKHeX runs detection as an **ordered waterfall across all games**, and *before* giving up it strips
-emulator/flashcart wrappers (`.dsv` RTC footers, Dolphin `.gci`, DeSmuME, Action-Replay) and retries.
-Today our registry asks each adapter `detectSave` independently and we only special-case the Gen 1/2
-`+16` footer inline. **Action:** formalize a `detectAndParse` ordering contract (mainline size-gates
-cheapest-first) and introduce a tiny `SaveWrapperHandler` step (strip-then-retry) so Gen 3+ emulator
-formats — and even Gen 1/2 `.sav` vs `.dsv` — are handled in one place rather than per-adapter. Keep
-Gen 1/2 behavior identical. *(Extends 1.1/1.2.)*
+### 8.5.1 `[GEN3+ PREP][P1]` ✅ DONE — Detection waterfall + wrapper handlers
+Added `lib/core/saveWrappers.ts`: a `SaveWrapperHandler` contract + `stripKnownWrappers()` with a
+`desmume-dsv` handler (`|-DESMUME SAVE-|` magic / `.dsv`) and a generic `trailing-footer` handler.
+`AdapterRegistry.detectAndParse` is now Phase 1 (direct detection via `tryDirectDetect`, unchanged — Gen
+1/2 `+16` still inline) + Phase 2 (strip-then-retry on failure). Purely additive; Gen 1/2 behavior
+identical. New emulator/flashcart wrappers (and Gen 3+ ones) now drop into one place instead of
+per-adapter. Tested (`tests/saveWrappers.test.ts`, 9; incl. end-to-end `.dsv` recovery through a real
+adapter). *(Extends 1.1/1.2.)*
 
 ### 8.5.2 `[GEN3+ PREP][P1]` ✅ DONE — `SetChecksums` is a first-class adapter step
 Added `recomputeChecksums(buffer): Uint8Array` to `IGenerationBinaryOps`, symmetric with

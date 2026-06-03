@@ -3,6 +3,7 @@ import { IGenerationAdapter } from '../interfaces';
 import { ParsedSave } from '../parser/types';
 import { LazyFactory } from './LazyFactory';
 import type { GameCartridge } from '../../uiTypes';
+import { stripKnownWrappers } from './saveWrappers';
 
 /**
  * Singleton/Registry to manage generation adapters dynamically.
@@ -157,7 +158,27 @@ export class AdapterRegistry {
    * detectAndParseAsync(); the synchronous version only checks already-loaded adapters.
    */
   detectAndParse(buffer: Uint8Array, filename: string): { success: boolean; generation?: number; data?: ParsedSave; error?: string; ambiguous?: boolean } {
-    // Synchronous: only checks already-loaded adapters
+    // Phase 1: direct detection across already-loaded adapters (unchanged path;
+    // the Gen 1/2 adapters already accept the common GB `+16` emulator footer).
+    const direct = this.tryDirectDetect(buffer, filename);
+    if (direct.success) return direct;
+
+    // Phase 2 (TODO 8.5.1): strip known emulator/flashcart wrappers and retry.
+    // This is purely additive — it only runs when direct detection failed, so
+    // Gen 1/2 behavior for normal `.sav`/`+16` files is identical.
+    for (const candidate of stripKnownWrappers(buffer, filename)) {
+      const retry = this.tryDirectDetect(candidate.buffer, filename);
+      if (retry.success) return retry;
+    }
+
+    return {
+      success: false,
+      error: direct.error || `Unsupported save format. No compatible generation adapter found for this file size (${buffer.length} bytes).`
+    };
+  }
+
+  /** Direct detection loop over already-loaded adapters (no wrapper stripping). */
+  private tryDirectDetect(buffer: Uint8Array, filename: string): { success: boolean; generation?: number; data?: ParsedSave; error?: string; ambiguous?: boolean } {
     let lastError: string | undefined;
     for (const [gen, adapter] of this._adapters.entries()) {
       const detectResult = adapter.detectSave(buffer, filename);
@@ -178,10 +199,7 @@ export class AdapterRegistry {
         }
       }
     }
-    return {
-      success: false,
-      error: lastError || `Unsupported save format. No compatible generation adapter found for this file size (${buffer.length} bytes).`
-    };
+    return { success: false, error: lastError };
   }
 
   /**
