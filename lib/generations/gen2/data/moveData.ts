@@ -26,7 +26,7 @@ export const GEN2_MOVES_PP = [
   25, 10, 30, 10, 25,                     // 181-185: Powder Snow, Protect, Mach Punch, Scary Face, Faint Attack
   10, 10, 15, 10, 10,                     // 186-190: Sweet Kiss, Belly Drum, Sludge Bomb, Mud-Slap, Octazooka
   20, 5,  40, 5,  5,                      // 191-195: Spikes, Zap Cannon, Foresight, Destiny Bond, Perish Song
-  15, 5,  10, 5,  10,                     // 196-200: Icy Wind, Detection, Bone Rush, Lock-On, Outrage
+  15, 5,  10, 5,  10,                     // 196-200: Icy Wind, Detect, Bone Rush, Lock-On, Outrage
   10, 5,  10, 20, 20,                     // 201-205: Sandstorm, Giga Drain, Endure, Charm, Rollout
   40, 15, 10, 20, 20,                     // 206-210: False Swipe, Swagger, Milk Drink, Spark, Fury Cutter
   25, 5,  15, 10, 5,                      // 211-215: Steel Wing, Mean Look, Attract, Sleep Talk, Heal Bell
@@ -68,7 +68,7 @@ export const GEN2_MOVES_TYPE = [
   "Ice", "Normal", "Fighting", "Normal", "Dark",     // 181-185: Powder Snow, Protect, Mach Punch, Scary Face, Faint Attack
   "Normal", "Normal", "Poison", "Ground", "Water",   // 186-190: Sweet Kiss, Belly Drum, Sludge Bomb, Mud-Slap, Octazooka
   "Ground", "Electric", "Normal", "Ghost", "Normal", // 191-195: Spikes, Zap Cannon, Foresight, Destiny Bond, Perish Song
-  "Ice", "Fighting", "Ground", "Normal", "Dragon",   // 196-200: Icy Wind, Detection, Bone Rush, Lock-On, Outrage
+  "Ice", "Fighting", "Ground", "Normal", "Dragon",   // 196-200: Icy Wind, Detect, Bone Rush, Lock-On, Outrage
   "Rock", "Grass", "Normal", "Normal", "Rock",       // 201-205: Sandstorm, Giga Drain, Endure, Charm, Rollout
   "Normal", "Normal", "Normal", "Electric", "Bug",   // 206-210: False Swipe, Swagger, Milk Drink, Spark, Fury Cutter
   "Steel", "Normal", "Normal", "Normal", "Normal",   // 211-215: Steel Wing, Mean Look, Attract, Sleep Talk, Heal Bell

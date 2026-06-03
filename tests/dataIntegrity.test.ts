@@ -139,7 +139,7 @@ describe('Gen 2 TM/HM → move mapping (TODO 2.6)', () => {
     // TM31-TM40
     'Mud-Slap', 'Double Team', 'Ice Punch', 'Swagger', 'Sleep Talk', 'Sludge Bomb', 'Sandstorm', 'Fire Blast', 'Swift', 'Defense Curl',
     // TM41-TM50
-    'Thunder Punch', 'Dream Eater', 'Detection', 'Rest', 'Attract', 'Thief', 'Steel Wing', 'Fire Punch', 'Fury Cutter', 'Nightmare',
+    'Thunder Punch', 'Dream Eater', 'Detect', 'Rest', 'Attract', 'Thief', 'Steel Wing', 'Fire Punch', 'Fury Cutter', 'Nightmare',
     // HM01-HM07
     'Cut', 'Fly', 'Surf', 'Strength', 'Flash', 'Whirlpool', 'Waterfall',
   ];
@@ -163,6 +163,13 @@ describe('Gen 2 TM/HM → move mapping (TODO 2.6)', () => {
     expect(GEN2_MOVES_LIST[GEN2_TM_HM_MOVES[0]!]).toBe('Dynamic Punch');
     // HM04 must be Strength, not Flash (a specific bug in the old table).
     expect(GEN2_MOVES_LIST[GEN2_TM_HM_MOVES[53]!]).toBe('Strength');
+  });
+
+  it('move #197 is the canonical "Detect", not "Detection" (TODO 6.1 audit fix)', () => {
+    // TM43 = Detect (move id 197). The move list previously had the non-canonical
+    // name "Detection"; lock the correct name so it cannot silently regress.
+    expect(GEN2_MOVES_LIST[197]).toBe('Detect');
+    expect(GEN2_TM_HM_MOVES[42]).toBe(197); // TM43 slot still maps to id 197
   });
 });
 

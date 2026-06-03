@@ -412,6 +412,17 @@
   (direct hit, `.dsv` recovery, footer recovery, and the unchanged garbage-buffer failure).
 - Result: **301 tests pass** (was 292), `tsc` clean, build OK.
 
+**Iteration 28 — Milestone M5: Gen 2 TM/HM table audit (6.1):**
+- **6.1** Audit Gen 2 TM/HM table — DONE. Verified all **57** TM/HM→move-ID mappings (TM01-TM50 +
+  HM01-HM07) in `GEN2_TM_HM_MOVES` against the canonical GSC TM/HM list — **every ID is correct** (the
+  iteration-8 2.6 fix holds). The audit surfaced one real data inaccuracy in the move *name* table:
+  `GEN2_MOVES_LIST[197]` was the non-canonical `"Detection"` (surfaced via TM43), where move #197 is
+  officially **"Detect"** (its PP=5 and Fighting type in `moveData.ts` were already correct). Fixed the
+  name in `constants.ts`, updated the two `moveData.ts` comments, corrected the existing TM43 test
+  expectation, and added an explicit lock asserting `GEN2_MOVES_LIST[197] === 'Detect'` and the TM43
+  slot still maps to id 197.
+- Result: **302 tests pass** (was 301), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -820,7 +831,11 @@ and ratchet up. Wire into the CI `Test` step.
 
 ## 6. Data Accuracy & Completeness — `[DATA]`
 
-### 6.1 `[DATA][P1]` Audit Gen 2 TM/HM table (see 2.6) — owns the data half of that bug.
+### 6.1 `[DATA][P1]` ✅ DONE — Audit Gen 2 TM/HM table (see 2.6)
+Verified all 57 TM/HM→move-ID mappings against the canonical GSC list — every ID correct (the 2.6 fix
+holds). Audit found one move-*name* inaccuracy: `GEN2_MOVES_LIST[197]` was `"Detection"` (surfaced via
+TM43) where move #197 is canonically **"Detect"**; fixed the name (PP/type were already right), updated
+comments + the existing TM43 test, and locked it (`GEN2_MOVES_LIST[197] === 'Detect'`, TM43→id 197).
 ### 6.2 `[DATA][P1]` ✅ DONE — Audit `getGen2Gender` species buckets (see 2.7). Full 1..251 audit + exhaustive tests; all buckets verified correct against canonical ratios.
 ### 6.3 `[DATA][P2]` ✅ DONE — Verify Gen 1 event-flag region mapping
 Verified: `getEventFlags` reads 320 bytes (2560 flags) from `MISSABLE_OBJECTS` (0x2852), matching
