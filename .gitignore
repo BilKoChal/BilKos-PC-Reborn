@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Local project snapshots / archives
+backup/
+
 # Alternative lockfiles — project uses npm (CI runs `npm ci`)
 bun.lock
 bun.lockb

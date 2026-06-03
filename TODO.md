@@ -360,8 +360,23 @@
 - Refactor safety net: the round-trip tests re-detect after write (Gen1 `detectSave` validates the
   checksum), so a checksum regression would fail loudly — all green confirms the extraction preserved
   behavior.
-- Added 4 tests (fresh write validates; corrupt→recompute→repairs for Gen1 & Gen2; Gen1 idempotence).
+- Added 4 tests (fresh write validates; corrupt→recompute→repairs for Gen1 & Gen2, Gen1 idempotence).
 - Result: **252 tests pass** (was 248), `tsc` clean, build OK.
+
+**Iteration 25 — Milestone M5 test/data hardening (5.5, 6.4):**
+- **5.5** Cross-gen transfer tests — DONE. New `tests/crossGenTransfer.test.ts` (24 tests) drives
+  `crossGenConverter` through the real Gen1/Gen2 adapters: Gen1→Gen2 (Magnemite #81 gains Steel,
+  friendship→70, held item "None", `Gen2Extension` swap, stable dexId, raw-byte clear) and Gen2→Gen1
+  (reject dex>151, strip moves >165, drop held item, SpAtk→unified Special, strip
+  friendship/gender/pokerus, `Gen1Extension` + catch-rate), plus same-gen no-op and the primitives
+  (`convertSpeciesId`, `validateMovesForTargetGen` incl. all-stripped→Pound, `canTransferToGen`,
+  `getTransferImpactDescription`). All warning/error assertions from the TODO are covered.
+- **6.4** Pokédex flavor-text / location completeness — DONE. Audited both Gen2 tables: 1..251 fully
+  covered (753 values each, no gaps/empties/placeholders), so no data fix was needed — the risk is now
+  *locked* by `tests/pokedexCompleteness.test.ts` (6 tests) asserting, via the adapter accessors, a
+  meaningful Gold/Silver/Crystal string for every species ≤ `nationalDexMax`, plus version-fallback and
+  out-of-range behavior.
+- Result: **282 tests pass** (was 252), `tsc` clean, build OK.
 
 ---
 
@@ -749,9 +764,16 @@ Add a few **freshly-created / trash-save** real `.sav` fixtures (Red/Blue/Yellow
 and at least one JPN dump) under `tests/fixtures/`. Round-trip them. These catch offset/region bugs
 synthetic saves miss (e.g., 2.4, 2.8). Document provenance; avoid any personal data.
 
-### 5.5 `[TEST][P2]` Cross-gen transfer tests
-Gen1→Gen2 (catch-rate→held-item rules, friendship default 70) and Gen2→Gen1 (reject dex>151, strip
-moves >165, drop held item) with explicit warning assertions from `crossGenConverter`.
+### 5.5 `[TEST][P2]` ✅ DONE — Cross-gen transfer tests
+New `tests/crossGenTransfer.test.ts` exercises `crossGenConverter` end-to-end through the real
+Gen1/Gen2 adapters (eager-registered). **Gen1→Gen2:** type upgrade (Magnemite #81 gains Steel),
+friendship default 70 (+warning), held item left "None", `Gen2Extension` swap, stable National-Dex id,
+stale-raw-byte clearing. **Gen2→Gen1:** reject dex>151 (Chikorita #152), strip moves >165 (+warning),
+drop held item (+warning), collapse SpAtk→unified Special, strip friendship/gender/pokerus, `Gen1Extension`
+swap carrying the looked-up catch rate. Plus same-gen no-op and the primitives (`convertSpeciesId`,
+`validateMovesForTargetGen` incl. the all-stripped→Pound default, `canTransferToGen`,
+`getTransferImpactDescription`). Caught a real fixture trap: a Johto starter (#157) is correctly
+rejected, so the success-path mon must be Kanto (Charizard #6).
 
 ### 5.6 `[TEST][P2]` ✅ DONE — Scalability invariant test (pairs with 1.2)
 The dummy-adapter test asserting no core files need editing to add a generation. Implemented in `tests/scalabilityInvariant.test.ts` (6 tests).
@@ -771,10 +793,15 @@ Verified: `getEventFlags` reads 320 bytes (2560 flags) from `MISSABLE_OBJECTS` (
 pokered's `wEventFlags` (WRAM 0xD747 → save offset 0x2852, 0x140 bytes), with LSB-first bit order. All
 Gen 1 event offsets (29–227) fall within range. Locked by an offset-bounds test in
 `dataIntegrity.test.ts`.
-### 6.4 `[DATA][P2]` Fill Pokédex flavor text / location gaps
-Gen2 `pokedexEntries.ts` / `pokemonLocations.ts` are large but spot-check for `undefined`/placeholder
-entries (esp. 152–251 and version-specific Gold/Silver/Crystal text). Track completeness with a test
-(6 above can assert "no missing entries for IDs ≤ nationalDexMax").
+### 6.4 `[DATA][P2]` ✅ DONE — Fill Pokédex flavor text / location gaps
+Audited both Gen2 tables: `pokedexEntries.ts` and `pokemonLocations.ts` each cover **all** species
+1..251 with separate Gold/Silver/Crystal strings — 753 values apiece, **zero** gaps, empties, or
+placeholders (incl. 152–251). No data fixes were needed; the gap is now *locked* by a completeness
+test. New `tests/pokedexCompleteness.test.ts` asserts — through the adapter accessors
+`getPokedexEntry()` / `getEncounterLocations()`, not the raw tables — that every species
+1..`nationalDexMax` resolves to a meaningful (non-empty, non-placeholder) string for all three versions,
+plus the Gold-fallback for unknown versions and `undefined` for out-of-range ids. A dropped or stubbed
+species row will now fail CI.
 ### 6.5 `[DATA][P2]` ✅ DONE — Item ID/name coverage
 Audited Gen 2 items 1–95: only ID 25 was a `"Item 25"` placeholder (so it was silently dropped from
 `getAllItemNames()`); set to its canonical name **Nugget**. HMs (125–131) and TMs (132–181) verified to
