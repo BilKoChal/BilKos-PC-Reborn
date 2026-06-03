@@ -58,6 +58,21 @@ export class Gen1Adapter implements IGenerationAdapter {
   supportsBoxNames = false; // Gen1 has no custom box names
   boxNameMaxLength = 0;    // N/A — Gen1 doesn't support box names
 
+  // Extended capabilities (TODO 1.4) — Gen 1 RBY
+  hasContests = false;
+  hasRibbons = false;
+  hasBallType = false;
+  hasMetData = false;
+  hasMarkings = false;
+  hasFatefulEncounter = false;
+  hasFriendshipSystem = false; // friendship/happiness introduced in Gen 2
+  hasPokerus = false;          // Pokérus introduced in Gen 2
+  hasFormSystem = false;       // no alternate forms in Gen 1
+  hasNationalDexFlag = false;
+  maxMoney = 999999;
+  maxLevel = 100;
+  tmHmPocketLayout: 'consumable' | 'permanent' = 'consumable';
+
   getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
     // Yellow uses the anime-style Red sprite; Red/Blue use the classic sprite
     if (gameVersion === 'Yellow') {

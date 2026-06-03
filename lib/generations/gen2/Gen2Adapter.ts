@@ -70,6 +70,21 @@ export class Gen2Adapter implements IGenerationAdapter {
   supportsBoxNames = true;  // Gen2 supports custom box names
   boxNameMaxLength = 8;     // Gen2 INT/JPN: 8 chars (KOR: 16, handled dynamically)
 
+  // Extended capabilities (TODO 1.4) — Gen 2 GSC
+  hasContests = false;         // contests introduced in Gen 3 (RSE)
+  hasRibbons = false;          // per-mon ribbons introduced in Gen 3
+  hasBallType = false;         // caught-ball stored per-mon from Gen 3
+  hasMetData = false;          // met location/level stored per-mon from Gen 3
+  hasMarkings = true;          // Gen 2 stores a simple box-mark byte
+  hasFatefulEncounter = false; // Gen 3+
+  hasFriendshipSystem = true;  // friendship/happiness introduced in Gen 2
+  hasPokerus = true;           // Pokérus introduced in Gen 2
+  hasFormSystem = true;        // Unown letter forms
+  hasNationalDexFlag = false;  // National Dex unlock concept is Gen 3+
+  maxMoney = 999999;
+  maxLevel = 100;
+  tmHmPocketLayout: 'consumable' | 'permanent' = 'consumable';
+
   getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
     // Gen 2: Ethan (male) or Kris (female)
     if (gender === 'Female') {

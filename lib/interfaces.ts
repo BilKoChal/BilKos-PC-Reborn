@@ -169,6 +169,58 @@ export interface IGenerationMetadata {
    *  Only meaningful when supportsBoxNames is true. */
   boxNameMaxLength: number;
 
+  // ── Extended feature capabilities (TODO 1.4) ──
+  // Added so future generations and the UI can branch on a *named capability*
+  // rather than `generation === N`. Gen 1/2 values are set on both adapters;
+  // the doc comments record the Gen 3+ values a future implementer will use.
+
+  /** Pokémon Contest stats/ribbons system. false Gen1/2/5+, true Gen3-4 (RSE/DPPt). */
+  hasContests: boolean;
+
+  /** Ribbon system on individual Pokémon. false Gen1/2, true Gen3+. */
+  hasRibbons: boolean;
+
+  /** Poké Ball type is stored per Pokémon (caught-in ball). false Gen1/2, true Gen3+. */
+  hasBallType: boolean;
+
+  /** Met/origin data (location, level, game of origin) stored per Pokémon.
+   *  false Gen1/2 (no met data), true Gen3+. */
+  hasMetData: boolean;
+
+  /** Box "markings" (the small shape symbols) on stored Pokémon.
+   *  false Gen1, true Gen2+ (Gen2 has a simpler mark byte; Gen3+ richer). */
+  hasMarkings: boolean;
+
+  /** Fateful-encounter / "obedience" flag for event Pokémon. false Gen1/2, true Gen3+. */
+  hasFatefulEncounter: boolean;
+
+  /** Friendship/happiness system. false Gen1, true Gen2+. */
+  hasFriendshipSystem: boolean;
+
+  /** Pokérus infection status byte. false Gen1, true Gen2+. */
+  hasPokerus: boolean;
+
+  /** Alternate forms beyond cosmetic (e.g. Unown letters Gen2; Deoxys/etc Gen3+).
+   *  true for Gen2+ (Unown), true Gen3+. false for Gen1. */
+  hasFormSystem: boolean;
+
+  /** A separate "caught in National Dex" / dex-completion flag exists.
+   *  false Gen1/2, true Gen3+ (National Dex unlock). */
+  hasNationalDexFlag: boolean;
+
+  /** Maximum money value this generation can store. Gen1/2: 999999, Gen3+:
+   *  999999 (varies by game; explicit so the UI clamps correctly). */
+  maxMoney: number;
+
+  /** Maximum Pokémon level. 100 for all mainline generations, but explicit so
+   *  no code hardcodes 100. */
+  maxLevel: number;
+
+  /** TM/HM pocket layout style. 'consumable' = TMs are normal items that can
+   *  stack/be used up (Gen1-4); 'permanent' = TMs are reusable records (Gen5+).
+   *  Gen1/2 are 'consumable'. */
+  tmHmPocketLayout: 'consumable' | 'permanent';
+
   /** Returns the URL of the trainer sprite image for this generation/version/gender.
    *  Used by TrainerCard to display the correct trainer portrait.
    *  @param gender - Player gender string ('Male' | 'Female')

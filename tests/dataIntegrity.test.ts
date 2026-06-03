@@ -746,3 +746,62 @@ describe("Unown form sprite URLs (form 'A' = default 201.png)", () => {
     expect(url.endsWith('/201-b.png')).toBe(true);
   });
 });
+
+// ============================================================================
+// Generation capability flags (TODO 1.4)
+// ============================================================================
+
+describe('Adapter capability flags (TODO 1.4)', () => {
+  const g1 = new Gen1Adapter();
+  const g2 = new Gen2Adapter();
+
+  it('Gen 1 (RBY) exposes the documented capability values', () => {
+    expect(g1.hasContests).toBe(false);
+    expect(g1.hasRibbons).toBe(false);
+    expect(g1.hasBallType).toBe(false);
+    expect(g1.hasMetData).toBe(false);
+    expect(g1.hasMarkings).toBe(false);
+    expect(g1.hasFatefulEncounter).toBe(false);
+    expect(g1.hasFriendshipSystem).toBe(false); // Gen 2 feature
+    expect(g1.hasPokerus).toBe(false);          // Gen 2 feature
+    expect(g1.hasFormSystem).toBe(false);
+    expect(g1.hasNationalDexFlag).toBe(false);
+    expect(g1.maxMoney).toBe(999999);
+    expect(g1.maxLevel).toBe(100);
+    expect(g1.tmHmPocketLayout).toBe('consumable');
+  });
+
+  it('Gen 2 (GSC) exposes the documented capability values (adds friendship/pokerus/forms)', () => {
+    expect(g2.hasFriendshipSystem).toBe(true);
+    expect(g2.hasPokerus).toBe(true);
+    expect(g2.hasFormSystem).toBe(true);   // Unown letters
+    expect(g2.hasMarkings).toBe(true);     // box-mark byte
+    // Still pre-Gen3 features:
+    expect(g2.hasContests).toBe(false);
+    expect(g2.hasRibbons).toBe(false);
+    expect(g2.hasBallType).toBe(false);
+    expect(g2.hasMetData).toBe(false);
+    expect(g2.hasNationalDexFlag).toBe(false);
+    expect(g2.maxMoney).toBe(999999);
+    expect(g2.maxLevel).toBe(100);
+    expect(g2.tmHmPocketLayout).toBe('consumable');
+  });
+
+  it('every capability flag is a defined value of the right primitive type (no undefined)', () => {
+    for (const a of [g1, g2]) {
+      for (const k of ['hasContests','hasRibbons','hasBallType','hasMetData','hasMarkings','hasFatefulEncounter','hasFriendshipSystem','hasPokerus','hasFormSystem','hasNationalDexFlag'] as const) {
+        expect(typeof a[k], `${k}`).toBe('boolean');
+      }
+      expect(typeof a.maxMoney).toBe('number');
+      expect(typeof a.maxLevel).toBe('number');
+      expect(['consumable', 'permanent']).toContain(a.tmHmPocketLayout);
+    }
+  });
+
+  it('capabilities monotonically grow Gen1 → Gen2 (no feature is lost)', () => {
+    // Every boolean capability true in Gen 1 must remain true in Gen 2.
+    for (const k of ['hasFriendshipSystem','hasPokerus','hasFormSystem','hasMarkings'] as const) {
+      if (g1[k]) expect(g2[k], `${k} regressed`).toBe(true);
+    }
+  });
+});
