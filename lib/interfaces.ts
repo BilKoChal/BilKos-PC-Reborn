@@ -72,17 +72,23 @@ export interface IStandalonePokemonFormat {
   checksumOffsets: number[];
 
   // ── Entity encryption hooks (TODO 1.3 / 8.5.3) ──
-  // Gen 3+ encrypts the entity data region (PID-seeded block shuffle + XOR for
-  // .pk3; CRC/obfuscation for .pk4/.pk5). Gen 1/2 are plaintext, so these are
-  // the identity transform. Defining the contract now means a Gen 3 format can
-  // be added without touching PCStorage.tsx / PokemonEditorModal.tsx.
+  // Gen 3+ encrypts the entity data region: four equal-size data blocks that are
+  // XOR-stream encrypted from a PID/OT-ID seed AND shuffled into one of 24
+  // orderings keyed by the PID. A bare `hasEncryption` boolean cannot express
+  // the shuffle, so a Gen 3-7 implementation does the work inside decryptBlock/
+  // encryptBlock using the reusable primitives in `lib/core/entityFormat.ts`
+  // (`getBlockOrderIndex`, `shuffleBlocks`/`unshuffleBlocks`) plus its own
+  // XOR/LCG stream and a refreshed 16-bit checksum (see `checksumOffsets`).
+  // Gen 1/2 are plaintext, so these are the identity transform. Defining the
+  // contract now means a Gen 3 format can be added without touching
+  // PCStorage.tsx / PokemonEditorModal.tsx.
 
-  /** Decrypt a raw entity buffer into plaintext struct bytes.
-   *  Gen1/2: identity (returns the input unchanged). */
+  /** Decrypt a raw entity buffer into plaintext struct bytes (unshuffle + XOR
+   *  for Gen 3+). Gen1/2: identity (returns the input unchanged). */
   decryptBlock(buffer: Uint8Array): Uint8Array;
 
-  /** Encrypt plaintext struct bytes into the on-disk entity buffer.
-   *  Gen1/2: identity (returns the input unchanged). */
+  /** Encrypt plaintext struct bytes into the on-disk entity buffer (refresh
+   *  checksum → XOR → shuffle for Gen 3+). Gen1/2: identity. */
   encryptBlock(buffer: Uint8Array): Uint8Array;
   
   /** Create a standalone .pkx file from a canonical Pokemon */

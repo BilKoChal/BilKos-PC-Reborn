@@ -378,6 +378,24 @@
   out-of-range behavior.
 - Result: **282 tests pass** (was 252), `tsc` clean, build OK.
 
+**Iteration 26 — Milestone M4: entity block-shuffle seam (8.5.3):**
+- **8.5.3** Make the Gen 3+ entity-encryption seam real (block-shuffle, not just `hasEncryption`) — DONE.
+  Added `lib/core/entityFormat.ts` with the two generation-agnostic primitives a future Gen 3-7
+  standalone format needs inside `decryptBlock`/`encryptBlock`: (a) a PID-keyed **block shuffle**
+  (`BLOCK_ORDERS` = the 24 deterministic permutations, `getBlockOrderIndex(pid, gen)` for Gen3 `pid%24`
+  vs Gen4/5 `((pid>>13)&31)%24`, and `shuffleBlocks`/`unshuffleBlocks` proven invertible for all 24
+  orders and both 12- and 32-byte block geometries), and (b) `getEntityFormatByLength()` (PKHeX's
+  `GetFormatInternal` counterpart) that maps loose `.pkX` sizes to a generation/context and reports the
+  **136-byte Gen4/5 stored** case as ambiguous (needs a checksum probe). Documented the seam on
+  `IStandalonePokemonFormat`'s crypto hooks. **No Gen 3 implementation** — explicitly noted that the
+  order *indexing* and XOR/LCG stream must be validated byte-for-byte against PKHeX + a real `.pk3`
+  fixture before shipping Gen 3; what's guaranteed now is the invertible round-trip and the size
+  waterfall (both fixture-independent).
+- Added `tests/entityFormat.test.ts` (10 tests): 24 unique permutations; invertible shuffle for all
+  orders (header preserved, non-identity actually moves bytes); Gen3 vs Gen4/5 PID indexing; index
+  always valid; length→format incl. the ambiguous 136 case and null for unknown sizes.
+- Result: **292 tests pass** (was 282), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -894,16 +912,15 @@ buffer and calls the same function — so it also repairs hand-edited saves. Tes
 validates; corrupt→recompute→repairs for both gens; idempotence). This is the seam Gen 3 sector
 checksums / Gen 8 hash-on-encrypt will plug into.
 
-### 8.5.3 `[GEN3+ PREP][P1]` Entity encryption hooks must cover **block-shuffle**, not just "hasEncryption"
-The PKHeX report makes the Gen 3+ entity format concrete: a header + **four data blocks** that are
-(a) XOR-stream encrypted from a PID/OT-ID seed **and** (b) **shuffled into one of 24 orderings keyed by
-`PID % 24`**. Our `IStandalonePokemonFormat.hasEncryption` is a bare boolean — it cannot express the
-shuffle. **Action (refines 1.3):** extend the standalone-format contract with explicit
-`decryptEntity(bytes)`/`encryptEntity(mon)` and document that Gen 3-7 implementations must do the
-block-unshuffle (`blockOrder = PID % 24`) + LCG-XOR, Gen 4+ reseed from PID, and refresh the 16-bit
-additive checksum before encrypt. Default no-op for Gen 1/2. Add `EntityFormat.getFormatByLength()`
-(PKHeX `EntityFormat.GetFormatInternal`) so loose `.pkX` files are detected by size with a checksum
-probe for the ambiguous 136-byte Gen4/5 case. **Do not implement Gen 3 yet — just make the seam real.**
+### 8.5.3 `[GEN3+ PREP][P1]` ✅ DONE — Entity encryption hooks cover **block-shuffle**
+Added `lib/core/entityFormat.ts`: the PID-keyed block-shuffle primitive (`BLOCK_ORDERS` 24 perms,
+`getBlockOrderIndex(pid,gen)` for Gen3 `pid%24` / Gen4-5 `((pid>>13)&31)%24`, invertible
+`shuffleBlocks`/`unshuffleBlocks` for 12- and 32-byte geometries) and `getEntityFormatByLength()`
+(PKHeX `GetFormatInternal` counterpart) that reports the ambiguous 136-byte Gen4/5 case. The
+`decryptBlock`/`encryptBlock` hooks (from 1.3) are documented as the entity seam that calls these.
+Tested (`tests/entityFormat.test.ts`, 10). **Not a Gen 3 implementation** — the order indexing + XOR/LCG
+stream must be validated against PKHeX + a real `.pk3` before Gen 3 ships; the invertible round-trip and
+size waterfall (fixture-independent) are what's guaranteed now.
 
 ### 8.5.4 `[GEN3+ PREP][P2]` Adopt PKHeX's "find a consistent encounter" framing for future legality
 PKHeX's legality thesis: *a mon is legal iff some real in-game encounter is consistent with every byte*,
