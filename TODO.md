@@ -423,6 +423,25 @@
   slot still maps to id 197.
 - Result: **302 tests pass** (was 301), `tsc` clean, build OK.
 
+**Iteration 29 — Item sprite URL fix + React types alignment (7.2):**
+- **USER BUG: wrong item sprite URLs.** `Inventory.tsx` built slugs with
+  `name.toLowerCase().replace(/ /g,'-')…` and never stripped accents, so "Poké Ball" became
+  `poké-ball` → the browser percent-encoded it to `pok%C3%A9-ball.png` (404). Centralized the logic in
+  `lib/sprites.ts`: new `itemNameToSlug()` (NFD accent strip é→e, camelCase split `TwistedSpoon`→
+  `twisted-spoon`, drop `'`/`.`, spaces→hyphens) + `ITEM_SLUG_OVERRIDES` for abbreviations/spelling
+  PokeAPI differs on (apricorn colors Blk/Blu/Grn/Pnk/Wht/Ylw, `Elixer`→elixir, `Thunderstone`→
+  thunder-stone, `Parlyz Heal`→paralyze-heal, `BrightPowder`/`SilverPowder`, `X Defend`→x-defense,
+  `X Special`→x-sp-atk, `Itemfinder`→dowsing-machine, `Exp. All`→exp-share, lineage berries). Repurposed
+  `getItemSpriteUrl` to take the item *name*; `Inventory.tsx` now calls it. **Verified every item name
+  against the live PokeAPI sprite repo**: 0 accent-leftovers, all spelling overrides resolve; the only
+  non-resolving names are non-bag entries (floor labels `1F`/`B2F`, badges, key items) which fall back
+  to the pokeball placeholder as before.
+- **7.2** Pin/align React types — DONE. `package.json` ran React 18.3.1 but pulled `@types/react@^19`;
+  aligned to `@types/react@^18.3.12` / `@types/react-dom@^18.3.1` (installed 18.3.30 / 18.3.7).
+  Typecheck clean with the matched types — no React-19-type drift.
+- Added 5 `itemNameToSlug` tests (accent strip, camelCase, apostrophe/period, overrides, clean ASCII URL).
+- Result: **307 tests pass** (was 302), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -863,10 +882,10 @@ resolve to HM01–07 / TM01–50. Locked by a test asserting no placeholders rem
 ### 7.1 `[DX][P1]` Add ESLint + Prettier
 There is no linter/formatter config in the repo. Add `eslint` (typescript-eslint, react-hooks,
 react-refresh) + `prettier`, an `npm run lint` script, and a CI `Lint` step before typecheck.
-### 7.2 `[DX][P2]` Pin / align React types
-`package.json` runs React 18.3.1 but pulls `@types/react@^19`. Align types to React 18 to avoid subtle
-type mismatches (`useDefineForClassFields:false` + decorators are already in place for the adapter
-pattern; keep them).
+### 7.2 `[DX][P2]` ✅ DONE — Pin / align React types
+Aligned `@types/react`/`@types/react-dom` from `^19` to `^18.3.12`/`^18.3.1` to match the React 18.3.1
+runtime (installed 18.3.30 / 18.3.7). Typecheck clean with the matched types; the adapter-pattern
+`useDefineForClassFields:false` + decorator settings are untouched.
 ### 7.3 `[DX][P2]` Bundle-size budget per gen
 Build already splits per gen (Gen2Adapter chunk ~289 KB raw / ~65 KB gz). Add a CI check that fails if a
 per-gen chunk exceeds a budget, so Gen 3+ data growth is caught early (Vite `build.rollupOptions` notes

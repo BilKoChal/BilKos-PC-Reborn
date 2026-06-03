@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Item } from '../../lib/parser/types';
+import { getItemSpriteUrl } from '../../lib/sprites';
 import { useTheme } from '../../context/ThemeContext';
 import { Backpack, Monitor, Trash2, Plus, ArrowDownAZ, Hash, Disc } from 'lucide-react';
 import { Autocomplete } from '../ui/Autocomplete';
@@ -227,10 +228,9 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
     const getSpriteUrl = (itemName: string, id: number) => {
         // TMs/HMs fallback
         if (itemName.startsWith('TM') || itemName.startsWith('HM')) return null;
-        
-        // Clean name for PokeAPI
-        const slug = itemName.toLowerCase().replace(/ /g, '-').replace(/\./g, '').replace(/'/g, '');
-        return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/${slug}.png`;
+        // Single source of truth for item-name → sprite URL (handles accents like
+        // "Poké Ball" → poke-ball, camelCase, and PokeAPI spelling overrides).
+        return getItemSpriteUrl(itemName);
     };
 
     return (

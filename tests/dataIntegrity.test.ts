@@ -916,3 +916,47 @@ describe('IStandalonePokemonFormat crypto + geometry contract (TODO 1.3)', () =>
     expect(parsed.nickname).toBe('CHIK');
   });
 });
+
+// ============================================================================
+// Item sprite slug conversion (fixes accented/camelCase/misspelled item URLs)
+// ============================================================================
+
+import { itemNameToSlug, getItemSpriteUrl } from '../lib/sprites';
+
+describe('itemNameToSlug — correct PokeAPI item slugs', () => {
+  it('strips accents: "Poké Ball" → poke-ball (was pok%C3%A9-ball)', () => {
+    expect(itemNameToSlug('Poké Ball')).toBe('poke-ball');
+    expect(itemNameToSlug('Poké Doll')).toBe('poke-doll');
+    expect(itemNameToSlug('Poké Flute')).toBe('poke-flute');
+    // The resulting slug must be pure ASCII (no char the browser would %-encode).
+    expect(/^[a-z0-9-]+$/.test(itemNameToSlug('Poké Ball'))).toBe(true);
+  });
+
+  it('splits camelCase Gen 2 names', () => {
+    expect(itemNameToSlug('TwistedSpoon')).toBe('twisted-spoon');
+  });
+
+  it('removes apostrophes and periods, lowercases, hyphenates spaces', () => {
+    expect(itemNameToSlug("King's Rock")).toBe('kings-rock');
+    expect(itemNameToSlug('Guard Spec.')).toBe('guard-spec');
+    expect(itemNameToSlug('Max Potion')).toBe('max-potion');
+  });
+
+  it('applies overrides for abbreviations and PokeAPI spelling differences', () => {
+    expect(itemNameToSlug('Blk Apricorn')).toBe('black-apricorn');
+    expect(itemNameToSlug('Ylw Apricorn')).toBe('yellow-apricorn');
+    expect(itemNameToSlug('Elixer')).toBe('elixir');          // GSC spelling → PokeAPI
+    expect(itemNameToSlug('Thunderstone')).toBe('thunder-stone');
+    expect(itemNameToSlug('Parlyz Heal')).toBe('paralyze-heal');
+    expect(itemNameToSlug('BrightPowder')).toBe('bright-powder');
+    expect(itemNameToSlug('X Defend')).toBe('x-defense');
+    expect(itemNameToSlug('Itemfinder')).toBe('dowsing-machine');
+  });
+
+  it('getItemSpriteUrl builds a clean ASCII URL', () => {
+    const url = getItemSpriteUrl('Poké Ball');
+    expect(url).toBe('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
+    expect(url).not.toContain('%');
+    expect(url).not.toMatch(/[^\x00-\x7f]/);
+  });
+});

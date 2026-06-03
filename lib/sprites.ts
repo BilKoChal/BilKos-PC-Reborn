@@ -380,9 +380,66 @@ export function getBadgeSpriteUrl(gen: number, index: number): string {
   return `${POKEAPI_SPRITES_BASE}/badges/${index + 1}.png`;
 }
 
-/** Item sprite URL — not affected by sprite mode */
-export function getItemSpriteUrl(slug: string): string {
-  return `${POKEAPI_SPRITES_BASE}/items/${slug}.png`;
+/**
+ * Item-name → PokeAPI sprite slug overrides.
+ *
+ * Covers names where a mechanical conversion produces the wrong slug:
+ *  - abbreviations the games use (apricorn colors: Blk/Blu/Grn/Pnk/Wht/Ylw),
+ *  - spelling differences (Gen 1/2 "Elixer" → PokeAPI "elixir"),
+ *  - words PokeAPI splits/joins differently (Thunderstone → thunder-stone),
+ *  - and Gen 1/2 items renamed in later gens, mapped to their modern sprite
+ *    (Itemfinder → dowsing-machine, Exp. All → exp-share, and the lineage
+ *    berries: Berry→oran, Bitter Berry→persim, Mint Berry→chesto).
+ * Verified against the live PokeAPI sprite repo. Items with no PokeAPI sprite
+ * at all (Berserk Gene, GS Ball, Pink/Polkadot Bow, etc.) are intentionally
+ * absent here and fall back to the pokeball placeholder via the caller's onError.
+ */
+const ITEM_SLUG_OVERRIDES: Record<string, string> = {
+  'Blk Apricorn': 'black-apricorn',
+  'Blu Apricorn': 'blue-apricorn',
+  'Grn Apricorn': 'green-apricorn',
+  'Pnk Apricorn': 'pink-apricorn',
+  'Red Apricorn': 'red-apricorn',
+  'Wht Apricorn': 'white-apricorn',
+  'Ylw Apricorn': 'yellow-apricorn',
+  'BrightPowder': 'bright-powder',
+  'SilverPowder': 'silver-powder',
+  'Elixer': 'elixir',
+  'Max Elixer': 'max-elixir',
+  'Thunderstone': 'thunder-stone',
+  'Parlyz Heal': 'paralyze-heal',
+  'Squirtbottle': 'squirt-bottle',
+  'X Defend': 'x-defense',
+  'X Special': 'x-sp-atk',
+  'Itemfinder': 'dowsing-machine',
+  'Exp. All': 'exp-share',
+  'Berry': 'oran-berry',
+  'Bitter Berry': 'persim-berry',
+  'Mint Berry': 'chesto-berry',
+};
+
+/**
+ * Convert an item display name to a PokeAPI sprite slug.
+ * Handles accents (é→e), camelCase Gen 2 names (TwistedSpoon→twisted-spoon),
+ * apostrophes/periods, and spaces, after applying {@link ITEM_SLUG_OVERRIDES}.
+ */
+export function itemNameToSlug(name: string): string {
+  const override = ITEM_SLUG_OVERRIDES[name];
+  if (override) return override;
+  return name
+    // Split camelCase boundaries BEFORE lowercasing (TwistedSpoon → Twisted Spoon).
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip diacritics: é → e
+    .toLowerCase()
+    .replace(/['.]/g, '')        // drop apostrophes and periods
+    .replace(/\s+/g, '-')        // spaces → hyphens
+    .replace(/[^a-z0-9-]/g, ''); // drop any remaining non-slug chars
+
+}
+
+/** Item sprite URL from an item display name — not affected by sprite mode. */
+export function getItemSpriteUrl(name: string): string {
+  return `${POKEAPI_SPRITES_BASE}/items/${itemNameToSlug(name)}.png`;
 }
 
 // ─── Static Artwork URLs (Home Page) ─────────────────────────────────────────
