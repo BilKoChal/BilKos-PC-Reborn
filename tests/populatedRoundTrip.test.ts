@@ -426,3 +426,92 @@ describe('recomputeChecksums named step (TODO 8.5.2)', () => {
     expect(adapter.validateSave(repaired)).toBe(true);
   });
 });
+
+// ============================================================================
+// 5.1 — Full-field identity round-trips (beyond status) + Gen 1 box coverage
+// ============================================================================
+
+import { syncCurrentBox } from '../lib/canonicalModel';
+
+describe('Full-field party identity round-trip (TODO 5.1)', () => {
+  it('Gen 1: nickname/OT/level/EXP/moves/PP/PP-Ups/DVs all survive write→parse', () => {
+    const adapter = new Gen1Adapter();
+    const save = adapter.parseSave(createMinimalGen1Save(), 'red.sav');
+    const mon = buildGen1PartyMon({
+      nickname: 'SPARKY', originalTrainerName: 'RED', level: 50, exp: 125000,
+      moveIds: [84, 45, 39, 98], movePp: [25, 40, 30, 28], movePpUps: [3, 0, 1, 0],
+      iv: { hp: 0, attack: 12, defense: 9, speed: 15, special: 7, spAtk: 7, spDef: 7 },
+    });
+    save.party = [mon]; save.partyCount = 1;
+
+    const rp = adapter.parseSave(adapter.writeSave(save), 'red.sav').party[0]!;
+    expect(rp.nickname).toBe('SPARKY');
+    expect(rp.originalTrainerName).toBe('RED');
+    expect(rp.level).toBe(50);
+    expect(rp.exp).toBe(125000);
+    expect(rp.moveIds).toEqual([84, 45, 39, 98]);
+    expect(rp.movePp).toEqual([25, 40, 30, 28]);
+    expect(rp.movePpUps).toEqual([3, 0, 1, 0]);
+    expect(rp.iv.attack).toBe(12);
+    expect(rp.iv.defense).toBe(9);
+    expect(rp.iv.speed).toBe(15);
+    expect(rp.iv.special).toBe(7);
+  });
+
+  it('Gen 2: nickname/OT/level/EXP/moves/PP/friendship/DVs survive write→parse', () => {
+    const adapter = new Gen2Adapter();
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+    const mon = buildGen2PartyMon({
+      nickname: 'BLAZE', originalTrainerName: 'GOLD', level: 40, exp: 64000, friendship: 70,
+      moveIds: [33, 43, 108, 52], movePp: [35, 30, 20, 25], movePpUps: [0, 1, 0, 2],
+      iv: { hp: 0, attack: 10, defense: 8, speed: 13, special: 6, spAtk: 6, spDef: 6 },
+    });
+    save.party = [mon]; save.partyCount = 1;
+
+    const rp = adapter.parseSave(adapter.writeSave(save), 'gold.sav').party[0]!;
+    expect(rp.nickname).toBe('BLAZE');
+    expect(rp.originalTrainerName).toBe('GOLD');
+    expect(rp.level).toBe(40);
+    expect(rp.exp).toBe(64000);
+    expect(rp.moveIds).toEqual([33, 43, 108, 52]);
+    expect(rp.movePp).toEqual([35, 30, 20, 25]);
+    expect(rp.movePpUps).toEqual([0, 1, 0, 2]);
+    expect(rp.friendship).toBe(70);
+    expect(rp.iv.attack).toBe(10);
+    expect(rp.iv.defense).toBe(8);
+    expect(rp.iv.speed).toBe(13);
+  });
+});
+
+describe('Gen 1 box-mon round-trip + active-box drift (TODO 5.1 / 2.9)', () => {
+  it('a Gen 1 box mon survives write→re-parse', () => {
+    const adapter = new Gen1Adapter();
+    const save = adapter.parseSave(createMinimalGen1Save(), 'red.sav');
+    expect(save.pcBoxes.length).toBeGreaterThan(0);
+    save.pcBoxes[0] = [buildGen1PartyMon({ isParty: false, nickname: 'BOXED', originalTrainerName: 'RED' })];
+
+    const rp = adapter.parseSave(adapter.writeSave(save), 'red.sav');
+    expect(rp.pcBoxes[0]!.length).toBe(1);
+    expect(rp.pcBoxes[0]![0]!.nickname).toBe('BOXED');
+    expect(rp.pcBoxes[0]![0]!.originalTrainerName).toBe('RED');
+  });
+
+  it('editing the ACTIVE box via pcBoxes survives, even if the cache is stale (2.9)', () => {
+    const adapter = new Gen1Adapter();
+    const save = adapter.parseSave(createMinimalGen1Save(), 'red.sav');
+    const activeId = save.currentBoxId ?? 0;
+    save.pcBoxes[activeId] = [buildGen1PartyMon({ isParty: false, nickname: 'ACTIVE', originalTrainerName: 'RED' })];
+
+    const rp = adapter.parseSave(adapter.writeSave(save), 'red.sav');
+    expect(rp.pcBoxes[activeId]![0]!.nickname).toBe('ACTIVE');
+  });
+
+  it('syncCurrentBox makes the active-box cache match pcBoxes before write', () => {
+    const adapter = new Gen1Adapter();
+    const save = adapter.parseSave(createMinimalGen1Save(), 'red.sav');
+    const activeId = save.currentBoxId ?? 0;
+    save.pcBoxes[activeId] = [buildGen1PartyMon({ isParty: false, nickname: 'SYNCED' })];
+    syncCurrentBox(save);
+    expect(save.currentBoxPokemon).toBe(save.pcBoxes[activeId]);
+  });
+});

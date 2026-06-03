@@ -1,4 +1,4 @@
-import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
+import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec, InventoryPocket } from '../../interfaces';
 import { ParsedSave, PokemonStats, SaveValidationResult } from '../../parser/types';
 import { detectGameVersion, validateGen1Checksum, parseGen1Save } from './parser';
 import { writeGen1Save, createPk1Binary, recomputeGen1Checksums } from './writer';
@@ -53,6 +53,12 @@ export class Gen1Adapter implements IGenerationAdapter {
   // Inventory capacities
   bagItemCapacity = 20;   // Gen1: 20 items in bag
   pcItemCapacity = 50;    // Gen1: 50 items in PC storage
+
+  // TODO 1.8: Gen 1 has a single bag pocket + PC item storage.
+  inventoryLayout: InventoryPocket[] = [
+    { id: 'items', label: 'Bag', source: 'items', capacity: 20, stackSize: 99 },
+    { id: 'pc', label: 'PC', source: 'pcItems', capacity: 50, stackSize: 99 },
+  ];
 
   // Feature capabilities
   hasHallOfFame = true;    // Gen1 has Hall of Fame

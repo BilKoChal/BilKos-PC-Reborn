@@ -1,5 +1,5 @@
-import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
-import { ParsedSave, PokemonStats, Gen2SaveExtension, isGen2SaveExtension, SaveValidationResult } from '../../parser/types';
+import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec, InventoryPocket } from '../../interfaces';
+import { ParsedSave, PokemonStats, Gen2SaveExtension, isGen2SaveExtension, isGen2Extension, SaveValidationResult } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
 import { writeGen2Save, writeGen2PokemonStruct, recomputeGen2Checksums } from './writer';
 import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
@@ -65,6 +65,16 @@ export class Gen2Adapter implements IGenerationAdapter {
   // Inventory capacities
   bagItemCapacity = 20;   // Gen2: 20 items per pocket
   pcItemCapacity = 50;    // Gen2: 50 items in PC storage
+
+  // TODO 1.8: Gen 2 splits the bag into Items / Key Items / Balls / TM-HM pockets,
+  // plus PC item storage. Capacities match the GSC pouch sizes.
+  inventoryLayout: InventoryPocket[] = [
+    { id: 'items', label: 'Items', source: 'items', capacity: 20, stackSize: 99 },
+    { id: 'keyItems', label: 'Key Items', source: 'keyItems', capacity: 26, stackSize: 1, quantityless: true },
+    { id: 'balls', label: 'Balls', source: 'balls', capacity: 12, stackSize: 99 },
+    { id: 'tms', label: 'TM/HM', source: 'tms', capacity: 57, stackSize: 99 },
+    { id: 'pc', label: 'PC', source: 'pcItems', capacity: 50, stackSize: 99 },
+  ];
 
   // Feature capabilities
   hasHallOfFame = true;     // Gen2 has Hall of Fame
@@ -671,8 +681,10 @@ export class Gen2Adapter implements IGenerationAdapter {
     raw: number;
   } | null {
     const ext = mon.genExtension;
-    if (!ext || ext.generation !== 2) return null;
-    const gen2Ext = ext as import('../../canonicalModel').Gen2Extension;
+    // Use the type guard (not an ad-hoc `generation !== 2` + `as` cast) so this
+    // honors the adapter-driven scalability rule enforced by scalabilityLint.
+    if (!isGen2Extension(ext)) return null;
+    const gen2Ext = ext;
     if (gen2Ext.caughtData === 0) return null;
     return {
       timeOfDay: gen2Ext.metTimeOfDay,

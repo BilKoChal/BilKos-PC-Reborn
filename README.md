@@ -23,7 +23,7 @@ Three-pillar design following the **Open-Closed Principle**:
 
 1. **Generation Adapter Pattern** — `IGenerationAdapter` with sub-interfaces. Add generations by creating adapters.
 2. **Canonical Data Model (CDM)** — `CanonicalPokemon`/`CanonicalSave` with `genExtension` for generation-specific data. The CDM is the single source of truth for all runtime data.
-3. **Modular UI + React Context** — `SaveContext` eliminates prop drilling. Extension system injects generation-specific UI panels.
+3. **Modular UI + React Context** — `SaveContext` (`SaveProvider`) exposes the active save to deeply-nested components, and an extension system injects generation-specific UI panels. Migration is partial: `EditorDashboard` provides `SaveContext` but still passes some props down to its tab composers, so prop-drilling and context coexist today (full consolidation onto `SaveContext` is tracked as a follow-up).
 
 ### Canonical Data Model
 
@@ -85,6 +85,19 @@ All Pokemon and trainer sprite URLs are resolved centrally through `lib/sprites.
 **Home page**: The hero section always uses static artwork sprites (Pikachu, Charizard, Blastoise) regardless of the user's sprite mode setting, providing a consistent branded appearance.
 
 **Implementation**: Every component calls `getPokemonSpriteUrl(dexId, spriteMode, gameVersion, isShiny)` instead of constructing URLs inline. The `getSpriteImgClasses()` helper ensures artwork sprites (475x475+ px) scale down to fit the same containers as pixel sprites (96x96 px) using `object-contain` and removing the `pixelated` CSS class. The `SpriteContext` persists the user's choice to `localStorage` and changes propagate instantly to all views.
+
+## Testing
+
+The project has an extensive vitest suite (**300+ tests**) run with `npm test`. Coverage includes round-trip identity (a fully-populated party/box Pokémon survives write→re-parse for both gens), the scalability invariant (a dummy "Gen 99" adapter runs the full lifecycle through public APIs only), data integrity (TM/HM tables, item-name→sprite slugs, codec-region wiring), cross-gen transfer, Pokédex completeness, stat calculators, gender/shiny DV buckets, text codecs, entity block-shuffle, and save-wrapper detection.
+
+```bash
+npm test          # run the full suite
+npm run typecheck # tsc --noEmit
+```
+
+## Generation Extensibility (Gen 3+ readiness)
+
+Adding a generation is additive — see **`docs/ADDING_A_GENERATION.md`** for the full checklist. The seams Gen 3+ will plug into already exist and are tested: lazy adapter registry (`registry.registerLazy(...)`), adapter-owned data (version themes, capability flags, `inventoryLayout`), the standalone entity-format contract (`decryptBlock`/`encryptBlock` + `lib/core/entityFormat.ts` block-shuffle), first-class `recomputeChecksums(buffer)`, and the `lib/core/saveWrappers.ts` detection waterfall.
 
 ## Quick Start
 

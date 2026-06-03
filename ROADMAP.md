@@ -6,6 +6,12 @@ The goal of this architecture is to adhere to the core software construction pri
 
 ---
 
+## Current Status (kept in sync with `TODO.md`)
+
+**All three phases below are complete and shipped.** Gen I and Gen II are fully supported (parse/edit/write, validated by a 300+ test vitest suite). The project is now in a **hardening + Gen 3+ preparation** phase: entity block-shuffle seam, save-wrapper detection waterfall, first-class `recomputeChecksums`, standalone-format crypto/geometry contract, adapter-driven `inventoryLayout`, data audits, and the OCP scalability-invariant test. The main known gap is consolidating the dashboard fully onto `SaveContext` (prop-drilling and context currently coexist). See `docs/ADDING_A_GENERATION.md` and `TODO.md`.
+
+---
+
 ## Technical Architecture Overview
 
 The multi-generational architecture is built on three pillars:
@@ -142,17 +148,15 @@ Create the core components for processing GSC save data:
 *   `GenderSection`: Leverages DV values inside `genExtension` to display the male/female indicator in the details view.
 *   `SpAtkSpDefSection`: Injects Split Sp.Atk / Sp.Def rows into `PokemonStatsPanel` to replace the single "Special" metric.
 
-#### Task 3.3: Register GSC Adapter in App.tsx
-Register the brand-new GSC engine:
+#### Task 3.3: Register the GSC Adapter
+Adapters are registered centrally in `lib/core/AdapterRegistry.ts` using **lazy factories** so Vite code-splits each generation into its own chunk:
 ```typescript
-import { AdapterRegistry } from './lib/core/AdapterRegistry';
-import { Gen1Adapter } from './lib/generations/gen1/Gen1Adapter';
-import { Gen2Adapter } from './lib/generations/gen2/Gen2Adapter';
-
-const registry = new AdapterRegistry();
-registry.register(new Gen1Adapter());
-registry.register(new Gen2Adapter()); // All Gen 2 support is live!
+// lib/core/AdapterRegistry.ts
+export const registry = new AdapterRegistry();
+registry.registerLazy(1, new LazyFactory(() => import('../generations/gen1/Gen1Adapter').then(m => new m.Gen1Adapter())));
+registry.registerLazy(2, new LazyFactory(() => import('../generations/gen2/Gen2Adapter').then(m => new m.Gen2Adapter())));
 ```
+Adding Gen 3 is a single additional `registry.registerLazy(3, …)` line — no other core edits.
 
 ---
 

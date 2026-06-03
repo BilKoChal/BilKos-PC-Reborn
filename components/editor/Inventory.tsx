@@ -74,9 +74,19 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const currentList = activeTab === 'bag' ? items : pcItems;
-    const capacity = activeTab === 'bag' 
-        ? (adapter?.bagItemCapacity ?? 20) 
-        : (adapter?.pcItemCapacity ?? 50);
+    // TODO 1.8: source pocket metadata (label + capacity) from the adapter's
+    // inventoryLayout rather than hardcoding. The component currently edits the
+    // `items` and `pcItems`-backed pockets; a generation that declares more
+    // pockets (Gen 2 KeyItems/Balls/TM-HM, Gen 3 Berries…) surfaces them here as
+    // its layout is plumbed through. Falls back to sane defaults with no adapter.
+    const layout = adapter?.inventoryLayout ?? [];
+    const bagPocket = layout.find(p => p.source === 'items');
+    const pcPocket = layout.find(p => p.source === 'pcItems');
+    const bagLabel = bagPocket?.label ?? 'Bag';
+    const pcLabel = pcPocket?.label ?? 'PC';
+    const bagCapacity = bagPocket?.capacity ?? adapter?.bagItemCapacity ?? 20;
+    const pcCapacity = pcPocket?.capacity ?? adapter?.pcItemCapacity ?? 50;
+    const capacity = activeTab === 'bag' ? bagCapacity : pcCapacity;
 
     // Reset move source if mode is disabled
     useEffect(() => {
@@ -310,7 +320,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
                     className={`flex-1 py-3 text-sm font-black uppercase flex items-center justify-center gap-2 transition-colors relative ${activeTab === 'bag' ? 'bg-white dark:bg-gray-800 text-theme-primary' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900/80'}`}
                 >
                     <Backpack size={18} />
-                    BAG <span className="text-[10px] opacity-60 ml-1">{items.length}/{adapter?.bagItemCapacity ?? 20}</span>
+                    {bagLabel.toUpperCase()} <span className="text-[10px] opacity-60 ml-1">{items.length}/{bagCapacity}</span>
                     {activeTab === 'bag' && (
                         <div 
                             className="absolute bottom-0 left-0 right-0 h-1 bg-theme-primary"
@@ -322,7 +332,7 @@ export const Inventory: React.FC<InventoryProps> = ({ items, pcItems, isMoveMode
                     className={`flex-1 py-3 text-sm font-black uppercase flex items-center justify-center gap-2 transition-colors relative ${activeTab === 'pc' ? 'bg-white dark:bg-gray-800 text-theme-primary' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900/80'}`}
                 >
                     <Monitor size={18} />
-                    PC <span className="text-[10px] opacity-60 ml-1">{pcItems.length}/{adapter?.pcItemCapacity ?? 50}</span>
+                    {pcLabel.toUpperCase()} <span className="text-[10px] opacity-60 ml-1">{pcItems.length}/{pcCapacity}</span>
                     {activeTab === 'pc' && (
                         <div 
                             className="absolute bottom-0 left-0 right-0 h-1 bg-theme-primary"

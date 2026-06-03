@@ -960,3 +960,42 @@ describe('itemNameToSlug — correct PokeAPI item slugs', () => {
     expect(url).not.toMatch(/[^\x00-\x7f]/);
   });
 });
+
+// ============================================================================
+// Adapter-driven inventory layout (TODO 1.8)
+// ============================================================================
+
+describe('inventoryLayout — generic, adapter-owned pocket structure (TODO 1.8)', () => {
+  const VALID_SOURCES = new Set(['items', 'pcItems', 'keyItems', 'balls', 'tms']);
+
+  it('Gen 1 declares a single bag + PC, reproduced from the table', () => {
+    const layout = new Gen1Adapter().inventoryLayout;
+    expect(layout.map(p => p.id)).toEqual(['items', 'pc']);
+    expect(layout.find(p => p.source === 'items')!.capacity).toBe(20);
+    expect(layout.find(p => p.source === 'pcItems')!.capacity).toBe(50);
+  });
+
+  it('Gen 2 declares Items/KeyItems/Balls/TM-HM/PC with GSC capacities', () => {
+    const layout = new Gen2Adapter().inventoryLayout;
+    expect(layout.map(p => p.id)).toEqual(['items', 'keyItems', 'balls', 'tms', 'pc']);
+    const bySource = Object.fromEntries(layout.map(p => [p.source, p]));
+    expect(bySource.items!.capacity).toBe(20);
+    expect(bySource.keyItems!.capacity).toBe(26);
+    expect(bySource.balls!.capacity).toBe(12);
+    expect(bySource.tms!.capacity).toBe(57);
+    expect(bySource.pcItems!.capacity).toBe(50);
+    // Key Items are quantityless (always 1 per slot).
+    expect(bySource.keyItems!.quantityless).toBe(true);
+  });
+
+  it('every pocket source maps to a real CanonicalSave field, with sane stack sizes', () => {
+    for (const adapter of [new Gen1Adapter(), new Gen2Adapter()]) {
+      for (const pocket of adapter.inventoryLayout) {
+        expect(VALID_SOURCES.has(pocket.source), `${pocket.id} source`).toBe(true);
+        expect(pocket.capacity).toBeGreaterThan(0);
+        expect(pocket.stackSize).toBeGreaterThan(0);
+        expect(pocket.label.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});

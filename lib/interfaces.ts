@@ -7,6 +7,23 @@ import { GameCartridge } from '../uiTypes';
 // ============================================================================
 
 /**
+ * A single inventory pocket in a generation's bag layout (TODO 1.8).
+ * `source` names the `CanonicalSave` array this pocket reads/writes, so the UI
+ * stays generation-agnostic: it renders one tab per pocket and binds to the
+ * named array. `stackSize` is the max quantity per slot (Gen 1/2: 99, Gen 3+: 999).
+ */
+export interface InventoryPocket {
+  id: string;
+  label: string;
+  /** Which CanonicalSave field backs this pocket. */
+  source: 'items' | 'pcItems' | 'keyItems' | 'balls' | 'tms';
+  capacity: number;
+  stackSize: number;
+  /** Key-item pockets have no per-slot quantity (always 1). */
+  quantityless?: boolean;
+}
+
+/**
  * Unified base stats structure used across all generation adapters.
  * Gen 1 mirrors spAtk/spDef from the single Special base stat.
  * Gen 2+ provides independent spAtk/spDef values.
@@ -189,6 +206,14 @@ export interface IGenerationMetadata {
   /** Maximum number of items in PC item storage.
    *  Gen1/2: 50, Gen3+: 0 (no PC item storage — removed in Gen4+). */
   pcItemCapacity: number;
+
+  /** Generic, ordered inventory layout (TODO 1.8). Replaces UI assumptions about
+   *  which pockets exist. Each pocket declares the `CanonicalSave` field it reads
+   *  (`source`), a stable id, a label, and a capacity. Gen 1 is a single bag + PC;
+   *  Gen 2 splits into Items/KeyItems/Balls/TM-HM + PC; a Gen 3 RSE adapter would
+   *  declare Items/Poké Balls/TMs-HMs/Berries/Key Items here as pure data, with no
+   *  `Inventory.tsx` change. The UI renders one tab per entry. */
+  inventoryLayout: InventoryPocket[];
 
   // ── Feature capabilities (replaces `generation === N` checks for tab visibility) ──
 
