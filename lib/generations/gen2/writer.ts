@@ -776,6 +776,25 @@ export function writeGen2Save(save: ParsedSave): Uint8Array {
     data.set(boxData, copyOffset);
   }
 
+  // ── Recompute all checksums + backup mirroring (TODO 8.5.2) ──
+  return recomputeGen2Checksums(data, offsets, gameVersion, region);
+}
+
+/**
+ * Recompute all Gen 2 save checksums (and backup-data mirroring) on an
+ * already-serialized buffer (TODO 8.5.2). This is the explicit, named
+ * "SetChecksums + GetFinalData" step in PKHeX's write pipeline. Each
+ * version/region has its own integrity + backup scheme (Crystal vs GS, and
+ * INT/JPN/KOR backup mirroring), all funnelled through this one seam — the
+ * place Gen 3's rotating-sector checksums will later analogize to. Pure: reads
+ * data bytes, writes checksum + backup bytes.
+ */
+export function recomputeGen2Checksums(
+  data: Uint8Array,
+  offsets: Gen2OffsetsConfig,
+  gameVersion: Gen2Version,
+  region: Gen2Region
+): Uint8Array {
   // ── Recompute per-box checksums ──
   for (let b = 0; b < offsets.boxCount; b++) {
     const boxOffset = getBoxOffset(b, offsets);

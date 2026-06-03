@@ -1,7 +1,7 @@
 import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
 import { ParsedSave, PokemonStats, SaveValidationResult } from '../../parser/types';
 import { detectGameVersion, validateGen1Checksum, parseGen1Save } from './parser';
-import { writeGen1Save, createPk1Binary } from './writer';
+import { writeGen1Save, createPk1Binary, recomputeGen1Checksums } from './writer';
 import { getGen1Offsets, detectGen1Region } from './data/offsets';
 import { calculateGen1Stat, recalculateStats } from '../../utils/statCalculator';
 import { getPokemonName, POKEMON_NAMES } from './data/pokemonNames';
@@ -150,7 +150,12 @@ export class Gen1Adapter implements IGenerationAdapter {
   }
 
   parseSave(buffer: Uint8Array, filename: string): ParsedSave {
-    return parseGen1Save(buffer, filename);
+    const parsed = parseGen1Save(buffer, filename);
+    // TODO 1.7: make the adapter-owned codec the single region-correct source of
+    // truth for UI sanitization. Previously setCodecRegion was never called, so
+    // `adapter.codec` was stuck at 'international' even for Japanese saves.
+    this.setCodecRegion(this.detectRegion(parsed));
+    return parsed;
   }
 
   writeSave(save: ParsedSave): Uint8Array {
@@ -159,6 +164,14 @@ export class Gen1Adapter implements IGenerationAdapter {
 
   validateSave(buffer: Uint8Array): boolean {
     return validateGen1Checksum(buffer);
+  }
+
+  /** TODO 8.5.2: first-class, named checksum step. Derives region from the
+   *  buffer and recomputes all Gen 1 checksums (per-box, bank, main). */
+  recomputeChecksums(buffer: Uint8Array): Uint8Array {
+    const region = detectGen1Region(buffer);
+    const offsets = getGen1Offsets(region);
+    return recomputeGen1Checksums(buffer, offsets, region === 'japanese');
   }
 
   validateSaveDetailed(buffer: Uint8Array): SaveValidationResult {

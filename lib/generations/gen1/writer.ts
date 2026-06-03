@@ -410,31 +410,19 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     }
 
     // --- EXTERNAL BANKS (PC BOXES) ---
-    
-    // Adaptive checksum config based on region
-    const BANK2_START = 0x4000;
-    const BANK2_CHKSUM_ALL = isJapanese ? 0x5D2C : 0x5A4C;
-    const BANK2_CHKSUM_INDIV = isJapanese ? 0x5D2D : 0x5A4D; 
-    const BANK2_END_DATA = isJapanese ? 0x5D32 : 0x5A52; 
-
-    const BANK3_START = 0x6000;
-    const BANK3_CHKSUM_ALL = isJapanese ? 0x7D2C : 0x7A4C;
-    const BANK3_CHKSUM_INDIV = isJapanese ? 0x7D2D : 0x7A4D; 
-    const BANK3_END_DATA = isJapanese ? 0x7D32 : 0x7A52;
-
+    // Box data is written here; all checksums (per-box, bank, main) are computed
+    // afterward by recomputeGen1Checksums (TODO 8.5.2).
     const buffer = writer.getBuffer();
     const maxBoxes = offsets.boxCount;
 
     for (let i = 0; i < maxBoxes; i++) {
-        let boxOffset = 0;
-        let isBank2 = false;
-        
-        isBank2 = i < offsets.boxSplitIndex;
-        if (isBank2) boxOffset = offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE);
-        else boxOffset = offsets.PC_BANK_3_START + ((i - offsets.boxSplitIndex) * offsets.BOX_STRUCT_SIZE);
-        
+        const isBank2 = i < offsets.boxSplitIndex;
+        const boxOffset = isBank2
+            ? offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE)
+            : offsets.PC_BANK_3_START + ((i - offsets.boxSplitIndex) * offsets.BOX_STRUCT_SIZE);
+
         const boxMons = save.pcBoxes[i] || [];
-        
+
         writer.seek(boxOffset);
         writeBox(writer, boxMons, offsets, isJapanese);
 
@@ -443,42 +431,66 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
             writer.seek(offsets.CURRENT_BOX_DATA);
             writeBox(writer, boxMons, offsets, isJapanese);
         }
+    }
 
-        // Calculate Individual Checksum
+    // TODO 8.5.2: checksums are now a single named, first-class step (symmetric
+    // with validateSaveDetailed). Recompute every Gen 1 checksum from the
+    // already-serialized buffer.
+    return recomputeGen1Checksums(buffer, offsets, isJapanese);
+}
+
+/**
+ * Recompute all Gen 1 save checksums on an already-serialized buffer (TODO 8.5.2).
+ *
+ * Covers: per-box individual checksums (both PC banks), the two bank-wide
+ * checksums, and the main-data checksum. This is the explicit "SetChecksums"
+ * step in PKHeX's `Write → … → SetChecksums` pipeline — the seam that Gen 3's
+ * rotating-sector checksums and Gen 8's hash-on-encrypt will plug into. Pure:
+ * it only reads data bytes and writes checksum bytes, so it can run as the final
+ * write step OR to repair a hand-edited buffer.
+ */
+export function recomputeGen1Checksums(buffer: Uint8Array, offsets: Gen1OffsetsConfig, isJapanese: boolean): Uint8Array {
+    const BANK2_START = 0x4000;
+    const BANK2_CHKSUM_ALL = isJapanese ? 0x5D2C : 0x5A4C;
+    const BANK2_CHKSUM_INDIV = isJapanese ? 0x5D2D : 0x5A4D;
+    const BANK2_END_DATA = isJapanese ? 0x5D32 : 0x5A52;
+
+    const BANK3_START = 0x6000;
+    const BANK3_CHKSUM_ALL = isJapanese ? 0x7D2C : 0x7A4C;
+    const BANK3_CHKSUM_INDIV = isJapanese ? 0x7D2D : 0x7A4D;
+    const BANK3_END_DATA = isJapanese ? 0x7D32 : 0x7A52;
+
+    const maxBoxes = offsets.boxCount;
+
+    // Per-box individual checksums.
+    for (let i = 0; i < maxBoxes; i++) {
+        const isBank2 = i < offsets.boxSplitIndex;
+        const boxOffset = isBank2
+            ? offsets.PC_BANK_2_START + (i * offsets.BOX_STRUCT_SIZE)
+            : offsets.PC_BANK_3_START + ((i - offsets.boxSplitIndex) * offsets.BOX_STRUCT_SIZE);
         const boxChecksum = calculateChecksum(buffer, boxOffset, boxOffset + offsets.BOX_STRUCT_SIZE - 1);
-        
         if (isBank2) {
-            const idxOffset = i;
-            writer.seek(BANK2_CHKSUM_INDIV + idxOffset);
-            writer.u8(boxChecksum);
+            buffer[BANK2_CHKSUM_INDIV + i] = boxChecksum;
         } else {
-            const idxOffset = i - offsets.boxSplitIndex;
-            writer.seek(BANK3_CHKSUM_INDIV + idxOffset);
-            writer.u8(boxChecksum);
+            buffer[BANK3_CHKSUM_INDIV + (i - offsets.boxSplitIndex)] = boxChecksum;
         }
     }
 
-    // Bank 2 Checksum
+    // Bank 2 wide checksum.
     let b2Sum = 0;
     for (let j = BANK2_START; j <= BANK2_END_DATA; j++) {
         if (j !== BANK2_CHKSUM_ALL) b2Sum += buffer[j]!;
     }
-    writer.seek(BANK2_CHKSUM_ALL);
-    writer.u8((~b2Sum) & 0xFF);
+    buffer[BANK2_CHKSUM_ALL] = (~b2Sum) & 0xFF;
 
-    // Bank 3 Checksum
+    // Bank 3 wide checksum.
     let b3Sum = 0;
     for (let j = BANK3_START; j <= BANK3_END_DATA; j++) {
         if (j !== BANK3_CHKSUM_ALL) b3Sum += buffer[j]!;
     }
-    writer.seek(BANK3_CHKSUM_ALL);
-    writer.u8((~b3Sum) & 0xFF);
+    buffer[BANK3_CHKSUM_ALL] = (~b3Sum) & 0xFF;
 
-    // Main Checksum — covers [PLAYER_NAME .. CHECKSUM-1], region-aware end.
-    // (Was hardcoded to INT's 0x3522, which corrupted JP saves on export.)
-    const mainChecksum = calculateChecksum(buffer, offsets.PLAYER_NAME, offsets.CHECKSUM - 1);
-    writer.seek(offsets.CHECKSUM);
-    writer.u8(mainChecksum);
-
+    // Main checksum — covers [PLAYER_NAME .. CHECKSUM-1], region-aware end.
+    buffer[offsets.CHECKSUM] = calculateChecksum(buffer, offsets.PLAYER_NAME, offsets.CHECKSUM - 1);
     return buffer;
 }

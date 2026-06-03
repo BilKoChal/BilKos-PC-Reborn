@@ -384,3 +384,45 @@ describe('Gen 2 daycare round-trip (TODO 3.5)', () => {
     expect(aext!.daycareParent1).toBeNull();
   });
 });
+
+// ============================================================================
+// 8.5.2 — recomputeChecksums is a first-class step symmetric with validate
+// ============================================================================
+
+describe('recomputeChecksums named step (TODO 8.5.2)', () => {
+  it('Gen 1: a freshly-written save already satisfies validateSave (writeSave applies the same step)', () => {
+    const adapter = new Gen1Adapter();
+    const save = adapter.parseSave(createMinimalGen1Save(), 'blue.sav');
+    const written = adapter.writeSave(save);
+    expect(adapter.validateSave(written)).toBe(true);
+  });
+
+  it('Gen 1: corrupting the main checksum then recomputing repairs it', () => {
+    const adapter = new Gen1Adapter();
+    const written = adapter.writeSave(adapter.parseSave(createMinimalGen1Save(), 'blue.sav'));
+    // Corrupt the stored main checksum byte.
+    written[0x3523] = (written[0x3523]! ^ 0xFF) & 0xFF;
+    expect(adapter.validateSave(written)).toBe(false);
+    const repaired = adapter.recomputeChecksums(written);
+    expect(adapter.validateSave(repaired)).toBe(true);
+  });
+
+  it('Gen 1: recomputeChecksums is idempotent on a valid save', () => {
+    const adapter = new Gen1Adapter();
+    const a = adapter.writeSave(adapter.parseSave(createMinimalGen1Save(), 'blue.sav'));
+    const b = adapter.recomputeChecksums(new Uint8Array(a));
+    expect(Array.from(b)).toEqual(Array.from(a));
+  });
+
+  it('Gen 2: a freshly-written save validates, and recompute repairs a corrupted checksum', () => {
+    const adapter = new Gen2Adapter();
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+    const written = adapter.writeSave(save);
+    expect(adapter.validateSave(written)).toBe(true);
+    // Corrupt the primary checksum (GS checksum1 region) and repair.
+    written[0x2D0D] = (written[0x2D0D]! ^ 0xFF) & 0xFF;
+    written[0x2D0E] = (written[0x2D0E]! ^ 0xFF) & 0xFF;
+    const repaired = adapter.recomputeChecksums(written);
+    expect(adapter.validateSave(repaired)).toBe(true);
+  });
+});

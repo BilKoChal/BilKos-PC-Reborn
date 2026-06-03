@@ -1,7 +1,7 @@
 import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec } from '../../interfaces';
 import { ParsedSave, PokemonStats, Gen2SaveExtension, isGen2SaveExtension, SaveValidationResult } from '../../parser/types';
 import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
-import { writeGen2Save, writeGen2PokemonStruct } from './writer';
+import { writeGen2Save, writeGen2PokemonStruct, recomputeGen2Checksums } from './writer';
 import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
 import { 
   GEN2_POKEMON_NAMES, 
@@ -205,11 +205,25 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   parseSave(buffer: Uint8Array, filename: string): ParsedSave {
-    return parseGen2Save(buffer, filename);
+    const parsed = parseGen2Save(buffer, filename);
+    // TODO 1.7: region-correct the adapter-owned codec from the parsed save
+    // (Gen2 stores region on the save extension). Makes `adapter.codec` the
+    // single source of truth for UI sanitization incl. JPN/KOR.
+    this.setCodecRegion(this.detectRegion(parsed));
+    return parsed;
   }
 
   writeSave(save: ParsedSave): Uint8Array {
     return writeGen2Save(save);
+  }
+
+  /** TODO 8.5.2: first-class, named checksum step. Derives version + region
+   *  from the buffer and recomputes all Gen 2 checksums + backup mirroring. */
+  recomputeChecksums(buffer: Uint8Array): Uint8Array {
+    const region = detectGen2Region(buffer);
+    const version = (this.detectSave(buffer, '').gameVersion || 'Gold') as Gen2Version;
+    const offsets = getGen2Offsets(version, region);
+    return recomputeGen2Checksums(buffer, offsets, version, region);
   }
 
   validateSave(buffer: Uint8Array): boolean {

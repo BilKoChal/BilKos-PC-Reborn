@@ -54,6 +54,36 @@ export interface IStandalonePokemonFormat {
   
   /** Whether this generation has the Nature system (Gen3+ = true) */
   hasNatures: boolean;
+
+  // ── Struct geometry (TODO 1.3) ──
+  // Byte sizes of the on-disk Pokémon struct, so generic PC/standalone code
+  // never hardcodes 33/44/32/48. A future Gen 3 .pk3 sets these to its own
+  // sizes and the shared UI/storage code keeps working unchanged.
+
+  /** Byte size of a *stored* (PC box) Pokémon struct. Gen1: 33, Gen2: 32. */
+  boxStructSize: number;
+
+  /** Byte size of a *party* Pokémon struct (includes battle stats). Gen1: 44, Gen2: 48. */
+  partyStructSize: number;
+
+  /** Byte offsets within the struct that hold checksums (Gen3+ CRC16, etc.).
+   *  Empty for Gen1/2 (no per-entity checksum). Lets generic validation/repair
+   *  code locate checksums without per-gen branching. */
+  checksumOffsets: number[];
+
+  // ── Entity encryption hooks (TODO 1.3 / 8.5.3) ──
+  // Gen 3+ encrypts the entity data region (PID-seeded block shuffle + XOR for
+  // .pk3; CRC/obfuscation for .pk4/.pk5). Gen 1/2 are plaintext, so these are
+  // the identity transform. Defining the contract now means a Gen 3 format can
+  // be added without touching PCStorage.tsx / PokemonEditorModal.tsx.
+
+  /** Decrypt a raw entity buffer into plaintext struct bytes.
+   *  Gen1/2: identity (returns the input unchanged). */
+  decryptBlock(buffer: Uint8Array): Uint8Array;
+
+  /** Encrypt plaintext struct bytes into the on-disk entity buffer.
+   *  Gen1/2: identity (returns the input unchanged). */
+  encryptBlock(buffer: Uint8Array): Uint8Array;
   
   /** Create a standalone .pkx file from a canonical Pokemon */
   createFile(mon: import('./parser/types').PokemonStats, region?: string): Uint8Array;
@@ -250,6 +280,14 @@ export interface IGenerationBinaryOps {
    *  values for each checksum component, enabling the UI to show
    *  a "checksum OK / repaired" indicator with detail popovers. */
   validateSaveDetailed(buffer: Uint8Array): import('./parser/types').SaveValidationResult;
+
+  /** Recompute and write all save checksums into the buffer, returning it
+   *  (TODO 8.5.2). This is the explicit, named "SetChecksums" step in PKHeX's
+   *  `Write → … → SetChecksums` pipeline — symmetric with `validateSaveDetailed`
+   *  (which reads them). `writeSave` applies the same scheme as its final step;
+   *  this method also lets callers repair a hand-edited buffer. The generation
+   *  owns its integrity scheme (additive Gen1/2; sector/CRC/hash for Gen3+). */
+  recomputeChecksums(buffer: Uint8Array): Uint8Array;
 
   /** Whether this generation supports standalone Pokemon file parsing/creation
    *  (e.g. .pk1 for Gen 1, .pk2 for Gen 2). Callers should check this flag

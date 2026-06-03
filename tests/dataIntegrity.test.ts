@@ -805,3 +805,107 @@ describe('Adapter capability flags (TODO 1.4)', () => {
     }
   });
 });
+
+// ============================================================================
+// Codec ownership: adapter.codec is region-correct after parse (TODO 1.7)
+// ============================================================================
+
+describe('adapter.codec reflects the parsed save region (TODO 1.7)', () => {
+  function buildGen1(region: 'international' | 'japanese'): Uint8Array {
+    const off = getGen1Offsets(region);
+    const buf = new Uint8Array(32768);
+    if (region === 'japanese') { buf[0x2ED5] = 1; buf[0x2ED6] = 0x99; buf[0x2F2C] = 0xFF; }
+    else { buf[0x2F2C] = 1; buf[0x2F2D] = 0x99; }
+    let sum = 0;
+    for (let i = off.PLAYER_NAME; i < off.CHECKSUM; i++) sum += buf[i]!;
+    buf[off.CHECKSUM] = (~sum) & 0xFF;
+    return buf;
+  }
+
+  it('defaults to international before any parse', () => {
+    const a = new Gen1Adapter();
+    expect((a.codec as unknown as { isJapanese: boolean }).isJapanese).toBe(false);
+    expect(a.codec.otNameMaxLength()).toBe(10);
+  });
+
+  it('flips adapter.codec to Japanese after parsing a JP save (setCodecRegion is now exercised)', () => {
+    const a = new Gen1Adapter();
+    a.parseSave(buildGen1('japanese'), 'Blue (JPN).sav');
+    expect((a.codec as unknown as { isJapanese: boolean }).isJapanese).toBe(true);
+    expect(a.codec.otNameMaxLength()).toBe(5); // JP names are shorter
+  });
+
+  it('stays international after parsing an INT save', () => {
+    const a = new Gen1Adapter();
+    a.parseSave(buildGen1('international'), 'Blue.sav');
+    expect((a.codec as unknown as { isJapanese: boolean }).isJapanese).toBe(false);
+    expect(a.codec.otNameMaxLength()).toBe(10);
+  });
+});
+
+// ============================================================================
+// Standalone format crypto/geometry contract (TODO 1.3)
+// ============================================================================
+
+import { Gen1StandaloneFormat } from '../lib/generations/gen1/StandaloneFormat';
+import { Gen2StandaloneFormat } from '../lib/generations/gen2/StandaloneFormat';
+
+describe('IStandalonePokemonFormat crypto + geometry contract (TODO 1.3)', () => {
+  const g1 = new Gen1StandaloneFormat();
+  const g2 = new Gen2StandaloneFormat();
+
+  it('exposes struct geometry (no hardcoded 33/44/32/48 needed by generic code)', () => {
+    expect(g1.boxStructSize).toBe(33);
+    expect(g1.partyStructSize).toBe(44);
+    expect(g2.boxStructSize).toBe(32);
+    expect(g2.partyStructSize).toBe(48);
+  });
+
+  it('Gen1/2 have no per-entity checksum offsets', () => {
+    expect(g1.checksumOffsets).toEqual([]);
+    expect(g2.checksumOffsets).toEqual([]);
+  });
+
+  it('Gen1/2 crypto hooks are identity (plaintext)', () => {
+    const sample = new Uint8Array([1, 2, 3, 250, 0, 255]);
+    expect(Array.from(g1.decryptBlock(sample))).toEqual(Array.from(sample));
+    expect(Array.from(g1.encryptBlock(sample))).toEqual(Array.from(sample));
+    expect(Array.from(g2.decryptBlock(sample))).toEqual(Array.from(sample));
+    expect(Array.from(g2.encryptBlock(sample))).toEqual(Array.from(sample));
+  });
+
+  it('a .pk2 round-trips through the (now hook-wired) create/parse path', () => {
+    const mon = createEmptyCanonicalPokemon({
+      speciesId: 155, speciesName: 'Cyndaquil', nickname: 'CYNDA', originalTrainerName: 'GOLD', level: 10,
+    }) as unknown as import('../lib/parser/types').PokemonStats;
+    const file = g2.createFile(mon, 'international');
+    const parsed = g2.parseFile(file, 'international');
+    expect(parsed.speciesId).toBe(155);
+    expect(parsed.nickname).toBe('CYNDA');
+    expect(parsed.originalTrainerName).toBe('GOLD');
+  });
+
+  it('the encrypt/decrypt SEAM works for a Gen3-style format (XOR round-trip)', () => {
+    // Prove the contract is rich enough for real crypto: a subclass that XORs
+    // the entity bytes must still round-trip through the same create/parse path.
+    class XorGen2Format extends Gen2StandaloneFormat {
+      override hasEncryption = true;
+      override encryptBlock(buf: Uint8Array): Uint8Array { return buf.map(b => b ^ 0x5A); }
+      override decryptBlock(buf: Uint8Array): Uint8Array { return buf.map(b => b ^ 0x5A); }
+    }
+    const fmt = new XorGen2Format();
+    const plain = new Gen2StandaloneFormat();
+    const mon = createEmptyCanonicalPokemon({
+      speciesId: 152, speciesName: 'Chikorita', nickname: 'CHIK', originalTrainerName: 'KRIS', level: 5,
+    }) as unknown as import('../lib/parser/types').PokemonStats;
+    const file = fmt.createFile(mon, 'international');
+    const plainFile = plain.createFile(mon, 'international');
+    // The encrypted struct region must differ on disk from the plaintext one
+    // (proves encryptBlock actually ran, so the round-trip is non-trivial).
+    expect(Array.from(file.slice(3, 3 + 48))).not.toEqual(Array.from(plainFile.slice(3, 3 + 48)));
+    const parsed = fmt.parseFile(file, 'international');
+    // XOR-encrypt on write + XOR-decrypt on read cancels → species survives.
+    expect(parsed.speciesId).toBe(152);
+    expect(parsed.nickname).toBe('CHIK');
+  });
+});

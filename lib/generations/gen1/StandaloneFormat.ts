@@ -22,6 +22,13 @@ export class Gen1StandaloneFormat implements IStandalonePokemonFormat {
   hasAbilities = false;
   hasNatures = false;
 
+  // Struct geometry + crypto contract (TODO 1.3). Gen 1 is plaintext.
+  boxStructSize = 33;
+  partyStructSize = 44;
+  checksumOffsets: number[] = []; // Gen 1 .pk1 has no per-entity checksum
+  decryptBlock(buffer: Uint8Array): Uint8Array { return buffer; } // identity
+  encryptBlock(buffer: Uint8Array): Uint8Array { return buffer; } // identity
+
   createFile(mon: PokemonStats, region?: string): Uint8Array {
     return createPk1Binary(mon, region === 'japanese' ? 'japanese' : 'international');
   }

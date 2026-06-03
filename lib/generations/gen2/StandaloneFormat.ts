@@ -23,6 +23,13 @@ export class Gen2StandaloneFormat implements IStandalonePokemonFormat {
   hasAbilities = false;
   hasNatures = false;
 
+  // Struct geometry + crypto contract (TODO 1.3). Gen 2 is plaintext.
+  boxStructSize = 32;
+  partyStructSize = 48;
+  checksumOffsets: number[] = []; // Gen 2 .pk2 has no per-entity checksum
+  decryptBlock(buffer: Uint8Array): Uint8Array { return buffer; } // identity
+  encryptBlock(buffer: Uint8Array): Uint8Array { return buffer; } // identity
+
   createFile(mon: PokemonStats, region?: string): Uint8Array {
     const strLen = region === 'japanese' ? 6 : 11;
     const SIZE_2PARTY = 48;
@@ -40,6 +47,9 @@ export class Gen2StandaloneFormat implements IStandalonePokemonFormat {
 
     // Bytes 3-50: Pokemon data (party format, 48 bytes)
     writeGen2PokemonStruct(buffer, 3, mon, true);
+    // TODO 1.3: run the written struct region through the encryption hook.
+    // Identity for Gen 2; a Gen 3 format would encrypt the entity here.
+    buffer.set(this.encryptBlock(buffer.slice(3, 3 + SIZE_2PARTY)), 3);
 
     // Use the codec for region-correct text encoding
     const codec = new GameBoyTextCodec(region === 'japanese' ? 'japanese' : 'international');
@@ -83,6 +93,11 @@ export class Gen2StandaloneFormat implements IStandalonePokemonFormat {
         `Invalid .pk2 file size: ${buffer.length}. Expected 73 (INT), 63 (JPN), 48 (party), or 32 (box).`
       );
     }
+
+    // TODO 1.3: run the entity bytes through the decryption hook before parsing.
+    // Gen 2 is plaintext (identity), but routing through the hook keeps the
+    // contract live so a Gen 3 .pk3 (block-shuffle + XOR) slots in here.
+    monData = this.decryptBlock(monData);
 
     // Use the codec for region-correct text decoding (fixes bug where
     // decodeText() always used international charmap even for Japanese saves)

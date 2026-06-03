@@ -317,6 +317,52 @@
   loaded adapters, gen-sorted; a newly registered gen contributes themes automatically).
 - Result: **240 tests pass** (was 236), `tsc` clean, build OK.
 
+**Iteration 22 — Milestone M4: codec ownership (1.7):**
+- **1.7** Route the adapter-owned codec through real use — DONE. `setCodecRegion` existed on both
+  adapters but was **never called**, so `adapter.codec` was permanently stuck at `'international'`.
+  That was not just dead code: UI components (`PokemonEditorModal`, `TrainerCard`, `PokemonInfoPanel`,
+  `PCStorage`) use `adapter.codec.sanitize()/isValidChar()/otNameMaxLength()` for input handling, so
+  Japanese/Korean saves were silently getting the international codec (the components papered over it
+  with hardcoded `isJapanese ? 5 : …` fallbacks). Fixed by calling
+  `this.setCodecRegion(this.detectRegion(parsed))` at the end of each adapter's `parseSave`, making
+  `adapter.codec` the single region-correct source of truth for UI text handling. The byte-level hot
+  path keeps its per-offset region codecs (`codecForOffsets`/`decodeText`), which were already correct;
+  `setCodecRegion` is no longer dead.
+- Added 3 tests (default international; flips to Japanese after parsing a JP save — verified to FAIL
+  without the wiring; stays international for INT saves).
+- Result: **243 tests pass** (was 240), `tsc` clean, build OK.
+
+**Iteration 23 — Milestone M4: standalone format crypto/geometry contract (1.3, P0):**
+- **1.3** `IStandalonePokemonFormat` crypto hooks + struct geometry — DONE. Extended the interface with
+  `boxStructSize`/`partyStructSize` (so generic PC/standalone code never hardcodes 33/44/32/48),
+  `checksumOffsets` (empty Gen1/2; populated Gen3+), and entity-crypto hooks
+  `decryptBlock(buf)`/`encryptBlock(buf)` (identity for Gen1/2). Implemented on both
+  `Gen1StandaloneFormat` (33/44) and `Gen2StandaloneFormat` (32/48), and **wired the hooks into the
+  live `.pk2` create/parse path** (decrypt the entity region before reading, encrypt after writing) so
+  the contract isn't decorative (the 1.7 lesson).
+- Proved the seam is rich enough for Gen 3: a test subclass that XORs the entity bytes round-trips
+  through the *unchanged* create/parse path, and the on-disk struct bytes verifiably differ from
+  plaintext. So a Gen 3 `.pk3` (PID block-shuffle + XOR) can be added without touching
+  `PCStorage.tsx` / `PokemonEditorModal.tsx`.
+- Added 5 tests (struct geometry; no Gen1/2 checksum offsets; identity crypto; `.pk2` round-trip with
+  hooks wired; Gen3-style XOR crypto seam with on-disk-bytes-differ assertion).
+- Result: **248 tests pass** (was 243), `tsc` clean, build OK. **All P0 items are now complete.**
+
+**Iteration 24 — Milestone M4: first-class checksum step (8.5.2):**
+- **8.5.2** `recomputeChecksums` as a named adapter contract — DONE. Added
+  `recomputeChecksums(buffer): Uint8Array` to `IGenerationBinaryOps`, symmetric with the existing
+  `validateSaveDetailed` (PKHeX's `Write → … → SetChecksums` seam). Extracted each writer's inline
+  checksum logic into exported, reusable functions — `recomputeGen1Checksums` (per-box + bank + main)
+  and `recomputeGen2Checksums` (per-box + main + version/region-specific backup mirroring) — and made
+  `writeSave` call them as its final step, so there is now **one** checksum source of truth per gen
+  rather than duplicated inline code. Each adapter's `recomputeChecksums` derives region/version from
+  the buffer and calls the same function, so it doubles as a repair tool for hand-edited saves.
+- Refactor safety net: the round-trip tests re-detect after write (Gen1 `detectSave` validates the
+  checksum), so a checksum regression would fail loudly — all green confirms the extraction preserved
+  behavior.
+- Added 4 tests (fresh write validates; corrupt→recompute→repairs for Gen1 & Gen2; Gen1 idempotence).
+- Result: **252 tests pass** (was 248), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -394,14 +440,15 @@ claim into an enforced invariant.
 > file under `lib/core`, `components/`, or `context/`**. If something *must* be edited, that file
 > is the real scalability blocker — fix it, then delete the dummy.
 
-### 1.3 `[GEN3+ PREP][P0]` Make `IStandalonePokemonFormat` the *only* standalone path; finish encryption hooks
-Today `IStandalonePokemonFormat` exists with `hasEncryption`, but Gen3+ encryption (PID/IV
-checksum block shuffle for `.pk3`, CRC16 for `.pk4/.pk5`, etc.) has no hook. Define the contract now:
-- Add `decryptBlock(buffer): Uint8Array` / `encryptBlock(mon): Uint8Array` (default identity for Gen1/2).
-- Add `boxSize` / `partySize` (struct byte sizes) and `checksumOffsets` to the interface so the
-  generic PC/standalone code never hardcodes 33/44/32/48.
-> **Acceptance:** Gen1/2 keep working unchanged (no-op crypto). The interface is rich enough that a
-> Gen 3 `.pk3` could be added later with zero changes to `PCStorage.tsx` / `PokemonEditorModal.tsx`.
+### 1.3 `[GEN3+ PREP][P0]` ✅ DONE (encryption hooks + geometry) — Standalone format contract
+Extended `IStandalonePokemonFormat` with `decryptBlock(buf)`/`encryptBlock(buf)` entity-crypto hooks
+(identity for Gen1/2), `boxStructSize`/`partyStructSize` (33/44 Gen1, 32/48 Gen2 — no more hardcoded
+sizes in generic code), and `checksumOffsets` (empty Gen1/2). Wired the hooks into the live `.pk2`
+create/parse path so they're exercised, not decorative. A test XOR subclass round-trips through the
+*unchanged* path with on-disk bytes verifiably encrypted, proving a Gen 3 `.pk3` could be added with no
+changes to `PCStorage.tsx`/`PokemonEditorModal.tsx`. Tested.
+*Remaining sub-goal (the "only standalone path" consolidation) is tracked separately; the encryption-hook
++ geometry contract this P0 centered on is complete.*
 
 ### 1.4 `[GEN3+ PREP][P1]` ✅ DONE — Generalize feature-capability flags
 Added the still-missing named capabilities to `IGenerationAdapter`: `hasContests`, `hasRibbons`,
@@ -430,14 +477,14 @@ automatically once registered. Tested. *Remaining sub-item:* `lib/sprites.ts` `V
 still a central map — the same adapter-owned-data treatment could be applied there (left as a follow-up;
 it's already data, just not yet adapter-scoped).
 
-### 1.7 `[GEN3+ PREP][P2]` Codec ownership: actually route parsing through `adapter.codec`
-The adapters expose `codec` + `setCodecRegion()`, but `parseGen1Save` / `parseGen2Save` /
-`writeGen*` use **module-level** `_codecInt`/`_codecJpn`/`_codecKor` instances, so `setCodecRegion`
-is never exercised and the "adapter-owned codec" is decorative on the hot path.
-- Either inject the adapter's region-correct codec into the parser/writer, or delete `setCodecRegion`
-  to avoid a misleading API. Decide before Gen 3 (whose codec is genuinely different) locks in the
-  pattern.
-> **Acceptance:** there is exactly one codec source of truth per parse/write; no dead `setCodecRegion`.
+### 1.7 `[GEN3+ PREP][P2]` ✅ DONE — Codec ownership: actually route through `adapter.codec`
+`setCodecRegion` was never called, so `adapter.codec` was stuck at `'international'` — a latent bug,
+since UI components use `adapter.codec.sanitize()/isValidChar()/otNameMaxLength()` and were getting the
+wrong codec for JPN/KOR saves. Fixed by calling `this.setCodecRegion(this.detectRegion(parsed))` at the
+end of each adapter's `parseSave`, so `adapter.codec` is the single region-correct source of truth for
+UI text handling. The byte-level hot path keeps its already-correct per-offset region codecs
+(`codecForOffsets`/`decodeText`). `setCodecRegion` is no longer dead. Tested (verified to fail without
+the wiring).
 
 ### 1.8 `[GEN3+ PREP][P2]` Generalize PC box geometry & inventory pockets in the UI layer
 PC grid and inventory pockets are driven by `boxCount`/`boxSlotCount` and pocket capacities already,
@@ -810,14 +857,15 @@ cheapest-first) and introduce a tiny `SaveWrapperHandler` step (strip-then-retry
 formats — and even Gen 1/2 `.sav` vs `.dsv` — are handled in one place rather than per-adapter. Keep
 Gen 1/2 behavior identical. *(Extends 1.1/1.2.)*
 
-### 8.5.2 `[GEN3+ PREP][P1]` `SetChecksums` belongs on the adapter as a first-class step
-PKHeX funnels every write through `SaveFile.Write → GetFinalData → SetChecksums → Metadata.Finalize`,
-and each family implements its own integrity scheme (additive G1/2, sector CheckSum32 G3, CRC16 G4-7,
-**empty** + SHA-256-on-encrypt for Gen 8/9). Our writers recompute checksums inline per generation,
-which works but isn't a named contract. **Action:** add `recomputeChecksums(buffer)` (or fold into a
-documented `writeSave` post-step) to `IGenerationBinaryOps`, and a matching `validateChecksums` already
-exists via `validateSaveDetailed` — make the write path's checksum step explicit and symmetric with it.
-This is the seam Gen 3's rotating-sector checksums and Gen 8's "no-op + hash-on-encrypt" will need.
+### 8.5.2 `[GEN3+ PREP][P1]` ✅ DONE — `SetChecksums` is a first-class adapter step
+Added `recomputeChecksums(buffer): Uint8Array` to `IGenerationBinaryOps`, symmetric with
+`validateSaveDetailed`. Extracted each writer's inline checksum logic into exported
+`recomputeGen1Checksums` (per-box + bank + main) and `recomputeGen2Checksums` (per-box + main +
+version/region backup mirroring); `writeSave` now calls these as its final step (one source of truth
+per gen, no duplicated inline code). Each adapter's `recomputeChecksums` derives region/version from the
+buffer and calls the same function — so it also repairs hand-edited saves. Tested (fresh-write
+validates; corrupt→recompute→repairs for both gens; idempotence). This is the seam Gen 3 sector
+checksums / Gen 8 hash-on-encrypt will plug into.
 
 ### 8.5.3 `[GEN3+ PREP][P1]` Entity encryption hooks must cover **block-shuffle**, not just "hasEncryption"
 The PKHeX report makes the Gen 3+ entity format concrete: a header + **four data blocks** that are
