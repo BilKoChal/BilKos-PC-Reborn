@@ -304,6 +304,19 @@
   section pointing at the invariant test and the 5.4 fixture caveat.
 - Result: **236 tests pass** (was 230), `tsc` clean, build OK.
 
+**Iteration 21 — Milestone M4: data-driven theme/version metadata (1.6):**
+- **1.6** Theme + version metadata data-driven per adapter — DONE. Moved the hardcoded Gen1/2 cartridge
+  list out of `data/games.ts` into per-generation data files (`lib/generations/gen1/data/themes.ts`
+  `GEN1_GAMES`, `gen2/data/themes.ts` `GEN2_GAMES`). `data/games.ts` now **aggregates** those
+  (`[...GEN1_GAMES, ...GEN2_GAMES]`) instead of holding a literal. Each adapter exposes
+  `versionThemes: GameCartridge[]`, and the registry gained `getAllVersionThemes()` which aggregates
+  the themes of all *loaded* adapters (gen-sorted) — so a Gen 3 adapter's themes appear automatically
+  once registered, with no central-literal edit. No circular imports (themes files import only the
+  `GameCartridge` type). `ThemeContext` keeps working via the unchanged `pokemonGames` export.
+- Added 4 tests (games.ts equals the aggregate; adapter exposes its themes; registry aggregates only
+  loaded adapters, gen-sorted; a newly registered gen contributes themes automatically).
+- Result: **240 tests pass** (was 236), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -408,13 +421,14 @@ props down. New gens inherit this double maintenance.
 > **Acceptance:** `EditorDashboard.tsx` shrinks substantially; adding a tab does not require threading
 > 10+ props through the shell.
 
-### 1.6 `[GEN3+ PREP][P2]` Make theme + version metadata data-driven per adapter
-`data/games.ts` and `lib/sprites.ts` `VERSION_SPRITE_MAP` are hardcoded Gen1/2. To keep "add a gen =
-add data," have each adapter expose `getVersionTheme(version)` and `getSpriteFolder(version)` (or a
-`versions: VersionMeta[]` array), and have `data/games.ts` / `sprites.ts` *aggregate from registered
-adapters* rather than hold a literal Gen1/2 list.
-> **Acceptance:** `GameVersionSelector` and theme sync read versions from the registry; Gen3 versions
-> would appear automatically once a Gen3 adapter registers.
+### 1.6 `[GEN3+ PREP][P2]` ✅ DONE (themes; sprite-map noted) — Make theme + version metadata data-driven per adapter
+Moved the hardcoded Gen1/2 cartridge list out of `data/games.ts` into per-gen data files
+(`gen1/data/themes.ts` `GEN1_GAMES`, `gen2/data/themes.ts` `GEN2_GAMES`). `data/games.ts` now
+aggregates them; each adapter exposes `versionThemes: GameCartridge[]`; and `registry.getAllVersionThemes()`
+aggregates the themes of all *loaded* adapters (gen-sorted), so a Gen 3 adapter's themes appear
+automatically once registered. Tested. *Remaining sub-item:* `lib/sprites.ts` `VERSION_SPRITE_MAP` is
+still a central map — the same adapter-owned-data treatment could be applied there (left as a follow-up;
+it's already data, just not yet adapter-scoped).
 
 ### 1.7 `[GEN3+ PREP][P2]` Codec ownership: actually route parsing through `adapter.codec`
 The adapters expose `codec` + `setCodecRegion()`, but `parseGen1Save` / `parseGen2Save` /

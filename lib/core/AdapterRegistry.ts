@@ -2,6 +2,7 @@ import { logger } from '../utils/logger';
 import { IGenerationAdapter } from '../interfaces';
 import { ParsedSave } from '../parser/types';
 import { LazyFactory } from './LazyFactory';
+import type { GameCartridge } from '../../uiTypes';
 
 /**
  * Singleton/Registry to manage generation adapters dynamically.
@@ -86,6 +87,20 @@ export class AdapterRegistry {
       }
     }
     return Array.from(loaded.values());
+  }
+
+  /**
+   * Aggregate the version cartridges + UI themes contributed by every *loaded*
+   * adapter (TODO 1.6). This is the registry-driven counterpart to the static
+   * `pokemonGames` aggregate: a Gen 3 adapter's themes appear here automatically
+   * once it is registered and loaded — no central literal to edit. Sorted by
+   * generation for stable ordering.
+   */
+  getAllVersionThemes(): GameCartridge[] {
+    return this.getAdapters()
+      .slice()
+      .sort((a, b) => a.generation - b.generation)
+      .flatMap(a => a.versionThemes ?? []);
   }
 
   /**

@@ -83,6 +83,11 @@ export interface IGenerationMetadata {
   generation: number;
   generationName: string;
   supportedVersions: string[];
+
+  /** Version cartridges + UI themes owned by this generation (TODO 1.6).
+   *  Aggregated by `data/games.ts` and `registry.getAllVersionThemes()` so adding a
+   *  generation contributes its themes as data, with no edit to a central literal. */
+  versionThemes: GameCartridge[];
   partySize: number;
   boxSlotCount: number;
   boxCount: number;

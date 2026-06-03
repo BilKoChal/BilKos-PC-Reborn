@@ -29,6 +29,7 @@ import { type GameEventDefinition } from '../../data/gameEvents';
 import { type EventPokemonData } from '../../data/eventPokemonTypes';
 import './extensions';
 import { registerGen2PanelExtensions } from './extensions';
+import { GEN2_GAMES } from './data/themes';
 
 export class Gen2Adapter implements IGenerationAdapter {
   constructor() {
@@ -43,6 +44,7 @@ export class Gen2Adapter implements IGenerationAdapter {
   generation = 2;
   generationName = "Generation II";
   supportedVersions = ['Gold', 'Silver', 'Crystal'];
+  versionThemes = GEN2_GAMES;
   partySize = 6;
   boxSlotCount = 20;
   boxCount = 14;

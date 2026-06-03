@@ -13,6 +13,7 @@ import { getGen1InternalSpeciesId } from './data/offsets';
 import { Gen1StandaloneFormat } from './StandaloneFormat';
 import { POKEDEX_ENTRIES } from './data/pokedexEntries';
 import { POKEMON_LOCATIONS } from './data/pokemonLocations';
+import { GEN1_GAMES } from './data/themes';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
 import { GEN1_EVENT_DISTRIBUTIONS } from './data/eventDistributions';
 import { GEN1_EVENTS } from './data/events';
@@ -31,6 +32,7 @@ export class Gen1Adapter implements IGenerationAdapter {
   generation = 1;
   generationName = "Generation I";
   supportedVersions = ['Red', 'Blue', 'Yellow'];
+  versionThemes = GEN1_GAMES;
   partySize = 6;
   boxSlotCount = 20;
   boxCount = 12;

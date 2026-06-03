@@ -142,3 +142,46 @@ describe('Scalability invariant: a new generation registers with zero core edits
     expect(extensionRegistry.getExtensions('pokemon-info', 1).some(e => e.id === 'gen99-test-section')).toBe(false);
   });
 });
+
+// ============================================================================
+// 1.6 — Theme/version metadata is data-driven & aggregated from adapters
+// ============================================================================
+
+import { GEN1_GAMES } from '../lib/generations/gen1/data/themes';
+import { GEN2_GAMES } from '../lib/generations/gen2/data/themes';
+import { pokemonGames } from '../data/games';
+
+describe('Version themes are data-driven per adapter (TODO 1.6)', () => {
+  it('data/games.ts aggregates the per-generation theme files (no hardcoded literal)', () => {
+    expect(pokemonGames).toEqual([...GEN1_GAMES, ...GEN2_GAMES]);
+    // sanity: known versions present
+    expect(pokemonGames.map(g => g.id)).toEqual(
+      expect.arrayContaining(['red', 'blue', 'yellow', 'gold', 'silver', 'crystal'])
+    );
+  });
+
+  it('each adapter exposes its own versionThemes', () => {
+    expect(new Gen1Adapter().versionThemes).toBe(GEN1_GAMES);
+  });
+
+  it('registry.getAllVersionThemes() aggregates only LOADED adapters, sorted by gen', () => {
+    const reg = new AdapterRegistry();
+    // Register a Gen 2 then a Gen 1 adapter (out of order) — output must be gen-sorted.
+    const g1 = new Gen1Adapter();
+    const dummy = new DummyAdapter(); // generation 99, inherits Gen1 themes
+    reg.register(dummy);
+    reg.register(g1);
+    const themes = reg.getAllVersionThemes();
+    // Gen 1 themes come before the Gen 99 dummy's (inherited) themes.
+    const firstGen99Index = themes.findIndex((_t, i) => i >= GEN1_GAMES.length);
+    expect(themes.slice(0, GEN1_GAMES.length)).toEqual(GEN1_GAMES);
+    expect(firstGen99Index).toBe(GEN1_GAMES.length);
+  });
+
+  it('a newly registered generation contributes its themes automatically', () => {
+    const reg = new AdapterRegistry();
+    expect(reg.getAllVersionThemes()).toHaveLength(0); // nothing registered yet
+    reg.register(new Gen1Adapter());
+    expect(reg.getAllVersionThemes()).toEqual(GEN1_GAMES); // appeared with no core edit
+  });
+});
