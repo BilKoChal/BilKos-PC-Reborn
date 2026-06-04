@@ -94,4 +94,43 @@ describe('Scalability lint guard (TODO 7.4)', () => {
     expect(guardFile).toMatch(/isGen2Extension/);
     expect(guardFile).toMatch(/ext\.generation === 2/);
   });
+
+  // ── CDM field-creep guard (§3 — genExtension discipline) ──
+  // The Canonical Data Model contract: generation-specific data lives in
+  // `genExtension`, NOT as optional fields on `CanonicalPokemon`. Optional core
+  // fields are how the model silently rots into a per-generation grab-bag, so
+  // every new one must be a conscious decision — enforced here, not by review.
+  //
+  // The two sanctioned exceptions are `heldItemId?` / `heldItemName?`: deliberately
+  // mirrored to the top level for O(1) UI access, with `genExtension` as the source
+  // of truth (documented at their definition). A NEW optional field fails this test
+  // until it is either moved into a genExtension or added to this allowlist with a
+  // documented justification.
+  it('CanonicalPokemon has no un-allowlisted optional fields (genExtension discipline)', () => {
+    const CDM_OPTIONAL_FIELD_ALLOWLIST = ['heldItemId', 'heldItemName'];
+
+    const src = readFileSync(join(REPO_ROOT, 'lib/canonicalModel.ts'), 'utf8');
+    const start = src.indexOf('export interface CanonicalPokemon {');
+    expect(start, 'CanonicalPokemon interface not found').toBeGreaterThanOrEqual(0);
+    // Walk to the matching closing brace of the interface block.
+    const bodyStart = src.indexOf('{', start) + 1;
+    let depth = 1;
+    let i = bodyStart;
+    for (; i < src.length && depth > 0; i++) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}') depth--;
+    }
+    const body = stripCommentsAndStrings(src.slice(bodyStart, i - 1));
+
+    // Top-level optional members look like `  name?: Type` (ignore nested objects).
+    const optionalFields = [...body.matchAll(/(?:^|\n)\s*(\w+)\s*\?\s*:/g)].map((m) => m[1]!);
+    const unexpected = optionalFields.filter((f) => !CDM_OPTIONAL_FIELD_ALLOWLIST.includes(f));
+
+    expect(
+      unexpected,
+      `New optional field(s) on CanonicalPokemon: ${unexpected.join(', ')}.\n` +
+        `Generation-specific data must live in genExtension, not as optional core fields.\n` +
+        `If this is a deliberate universal mirror, add it to CDM_OPTIONAL_FIELD_ALLOWLIST with a justification.`,
+    ).toEqual([]);
+  });
 });

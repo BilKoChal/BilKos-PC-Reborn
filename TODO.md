@@ -11,6 +11,31 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
 
 ## ✅ Recently Done
 
+### Round 2 — legality engine groundwork + CDM guard
+
+- [x] **`P1` Structural legality verifiers (§4).** Added `lib/legality/verifiers.ts`
+  with adapter-driven `StructuralLimits` (`limitsFromAdapter`) and pure verifiers for
+  level, IV/DV range, EV per-stat + total cap, species range, and duplicate moves.
+  Orchestrated by `analyzeStructure(entity, limits)` in `lib/legality/index.ts`, which
+  sets `analyzed:true` but whose summary always states "no encounter analysis" so the
+  boundary never implies a full legality guarantee. No `generation === N` branching —
+  Gen 1/2 (DV 0–15, no EV cap) and Gen 3 (IV 0–31, 510 cap) run the same code. 🔺
+- [x] **`P1` Bulk clone analyzer (§4 backlog).** Added `lib/legality/bulk.ts`
+  (`analyzeBulk`) — the third validation layer from the module README. Detects
+  duplicate identities (PID for Gen 3+, composite species+DVs+OT+nickname for Gen 1/2)
+  and reports them as `Fishy` clone groups. 🔺
+- [x] **`P1` CDM field-creep guard (§3).** Extended `tests/scalabilityLint.test.ts` to
+  fail if a new optional field is added to `CanonicalPokemon` (allowlisting the two
+  sanctioned held-item mirrors), enforcing the "generation data lives in
+  `genExtension`" contract as a test rather than by review. 🔺
+- [x] **`P1` Modal focus/Esc audit (§2).** Verified: all 9 overlay/modal components
+  (Export, LoadSave, SortSettings, the three `modals/*`, PokemonEditor,
+  GameVersionSelector, PokemonDetailView) already route through `useModalA11y` for
+  focus trap + restore + Esc. No changes needed.
+- Coverage: +19 tests (`tests/legalityStructural.test.ts`, CDM guard) → 359 total.
+
+### Round 1 — data-loss guard, error copy, a11y labels
+
 - [x] **`P0` Unsaved-work guard.** Added `lib/utils/sessionGuard.ts`
   (`hasUnsavedWork` / `createBeforeUnloadHandler`) and wired a `beforeunload`
   listener in `App.tsx` that warns only when a tab is dirty. Covered by
@@ -68,9 +93,9 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   `EditorTools`, `MoveModeFAB`, and `SaveTabBar`. ✅ *Remaining:* run axe DevTools
   across the editor tabs (bulk-action buttons in `Pokedex.tsx:180`, panel controls)
   and close the findings here.
-- [ ] **`P1` Focus management in modals.** `useModalA11y` exists — verify every modal
-  (`LoadSaveModal`, `ExportModal`, `PokemonEditorModal`, the three `modals/*`) traps
-  focus, restores focus on close, and closes on `Esc`. List any that don't.
+- [x] **`P1` Focus management in modals.** ✅ *Verified done.* All 9 overlay/modal
+  components already use `useModalA11y` for focus trap, focus restore on close, and
+  Esc handling. Audited; no gaps found.
 - [x] **`P1` Undo/redo affordance.** ✅ *Done (already shipped).* Visible Undo/Redo
   buttons in `EditorTools` are bound to `canUndo()`/`canRedo()` and stay reactive
   because every mutation pairs with a `setData` re-render. Keyboard shortcuts live in
@@ -107,10 +132,10 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   extract presentational sub-components from the big React files. 🔺 *Gen 3 will add
   a third large parser/writer pair — establish the per-section file layout now so it's
   a template, not a copy-paste of a 1300-line monolith.*
-- [ ] **`P1` `genExtension` discipline check.** The CDM contract says generation-specific
-  fields live ONLY in `genExtension`, never as optional fields on `CanonicalPokemon`
-  (`lib/canonicalModel.ts`). Add/keep the scalability-lint test green and extend it to
-  catch new optional `?:` core fields in CI before Gen 3 work starts.
+- [x] **`P1` `genExtension` discipline check.** ✅ *Done.* `tests/scalabilityLint.test.ts`
+  now fails if a new optional `?:` field appears on `CanonicalPokemon`, allowlisting the
+  two sanctioned held-item mirrors. The "generation data lives in `genExtension`"
+  contract is now enforced in CI before Gen 3 work starts.
 - [ ] **`P2` Resolve the `TODO 4.x` markers.** Outstanding numbered TODOs reference real
   follow-ups, e.g. `parser/types.ts:83` (Special-DV mirroring), `Gen2Adapter.ts:36` /
   `extensions.tsx:308` (explicit panel-extension registration, TODO 4.7),
@@ -133,13 +158,14 @@ The architecture is already primed for this (lazy adapter registry, block-shuffl
 seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub in
 `canonicalModel.ts`). Track the concrete gaps:
 
-- [ ] **`P1` Build the legality engine — start with the boundary that already exists.**
-  `lib/legality/index.ts` is an honest placeholder returning "Valid (not checked)" and
-  must never be presented as a guarantee. Gen 3 is where legality first becomes
-  meaningful (PID/nature/ability/gender consistency, IV/EV caps, encounter slots).
-  Implement the per-generation `Verifier` design sketched in `lib/legality/README.md`,
-  starting with cheap structural checks (EV total ≤ 510, IV range) gated behind the
-  `analyzed` flag so the UI can show real results without false guarantees.
+- [~] **`P1` Build the legality engine — structural pass landed; encounter pass remains.**
+  `analyzeLegality()` stays an honest placeholder, but `analyzeStructure(entity, limits)`
+  now runs real structural verifiers (level, IV/EV ranges, EV total cap, species range,
+  duplicate moves) behind `analyzed:true`, with summaries that never claim full legality.
+  `analyzeBulk()` adds cross-entity clone detection. ✅ *Remaining:* the encounter-
+  consistency engine (per-generation `EncounterProvider` + move-learnability / gender↔PID
+  / met-data verifiers) and wiring `analyzeStructure` into the editor UI as a non-blocking
+  advisory. Gen 3 is where the encounter pass first becomes meaningful.
 - [ ] **`P1` Gen3 entity crypto + block shuffle.** The seams exist
   (`lib/core/entityFormat.ts`, `IGenerationBinaryOps.unscramble/rescramble`,
   `checksumOffsets`, CRC16 hooks in `interfaces.ts`). Implement the Gen 3 24-byte
@@ -178,11 +204,12 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
 
 ### Suggested next sprint
 
-With the unsaved-work guard, error copy, and an initial a11y label pass landed, the
+With the unsaved-work guard, error copy, a11y label pass, the structural legality
+analyzer + bulk clone detection, and the CDM field-creep guard all landed, the
 highest-leverage next steps are:
 
-1. Keyboard drag-and-drop + modal focus audit (§2) — biggest remaining UX/a11y gap.
-2. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
-3. Legality structural checks behind the `analyzed` flag (§4) — turns the placeholder
-   into something real without overpromising.
+1. Wire `analyzeStructure` into the editor as a non-blocking advisory badge (§4) —
+   the engine exists; surface it.
+2. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap.
+3. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
 4. First React Testing Library component tests (§5) — the suite is logic-only today.

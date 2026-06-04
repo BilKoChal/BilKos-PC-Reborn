@@ -10,6 +10,7 @@
  */
 import { CanonicalPokemon } from '../canonicalModel';
 import { LegalityAnalysis, LegalitySeverity } from './types';
+import { StructuralLimits, structuralVerifiers, isEmptySlot } from './verifiers';
 
 /**
  * Analyze a single entity's legality.
@@ -35,3 +36,49 @@ export function analyzeLegality(_entity: CanonicalPokemon): LegalityAnalysis {
 }
 
 export * from './types';
+
+/**
+ * Run the structural (non-encounter) legality checks against an entity.
+ *
+ * Unlike {@link analyzeLegality}, this performs a *real* analysis (`analyzed:true`)
+ * of the dimensions it covers — stat ranges, EV totals, level, species range, move
+ * sanity — using limits sourced from the adapter (see {@link StructuralLimits}). The
+ * summary always makes the partial scope explicit, so the UI can show concrete
+ * findings without implying a full legality guarantee.
+ */
+export function analyzeStructure(entity: CanonicalPokemon, limits: StructuralLimits): LegalityAnalysis {
+  if (isEmptySlot(entity)) {
+    return {
+      valid: true,
+      analyzed: true,
+      results: [{ severity: LegalitySeverity.Valid, category: 'General', comment: 'Empty slot — nothing to analyze.' }],
+      summary: 'Empty slot.',
+    };
+  }
+
+  const results = structuralVerifiers(entity, limits);
+  const invalidCount = results.filter((r) => r.severity === LegalitySeverity.Invalid).length;
+  const fishyCount = results.filter((r) => r.severity === LegalitySeverity.Fishy).length;
+
+  if (results.length === 0) {
+    results.push({
+      severity: LegalitySeverity.Valid,
+      category: 'General',
+      comment: 'All structural checks passed.',
+    });
+  }
+
+  let summary: string;
+  if (invalidCount > 0) {
+    summary = `${invalidCount} structural problem(s) found (no encounter analysis).`;
+  } else if (fishyCount > 0) {
+    summary = 'Structural checks passed with warnings (no encounter analysis).';
+  } else {
+    summary = 'Structural checks passed (no encounter analysis).';
+  }
+
+  return { valid: invalidCount === 0, analyzed: true, results, summary };
+}
+
+export * from './verifiers';
+export * from './bulk';
