@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Save-file privacy & provenance
+    url: https://github.com/BilKoChal/BilKos-PC-Reborn/blob/main/CONTRIBUTING.md
+    about: "Before filing: a save contains personal data. Do NOT attach real saves or copyrighted game data — see CONTRIBUTING.md."

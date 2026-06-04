@@ -488,6 +488,48 @@
   proven by catching `entityFormat`'s `generation <= 3` before allowlisting).
 - Added 4 guard tests. Result: **319 tests pass** (was 315), `tsc` clean, build OK.
 
+**Iteration 33 — Milestone M5: contribution guide + issue/PR templates (8.4):**
+- **8.4** Contribution guide + bug-report template — DONE. Added `CONTRIBUTING.md` (dev workflow, the
+  enforced scalability rules — no `as any`/`generation === N`, pointer to `docs/ADDING_A_GENERATION.md`,
+  PR expectations) with a prominent **save-file provenance & privacy** section: saves contain PII
+  (player name, TID, OT/nicknames), so contributors must not attach real saves to public issues —
+  describe provenance (game/version/region/how-produced) and prefer a synthetic repro using the test
+  helpers; redact + share privately only if essential; no ROMs/copyrighted data. Added
+  `.github/ISSUE_TEMPLATE/bug_report.md` (asks for provenance, not the save; privacy checklist),
+  `feature_request.md`, `config.yml` (disables blank issues + privacy contact link), and
+  `pull_request_template.md` (test/typecheck/build + no-`as any`/no-real-saves checklist). Linked
+  CONTRIBUTING from the README. Docs/config only — **319 tests pass**, `tsc` clean, build OK.
+
+**Iteration 33 — Milestone M4: per-gen bundle-size budget (7.3):**
+- **7.3** Bundle-size budget per gen — DONE. Added `scripts/check-bundle-size.mjs`: reads the built
+  `dist/assets/*.js` chunks, computes raw + gzip size, and fails (exit 1) if any chunk exceeds its
+  budget. Each `GenNAdapter` chunk shares a per-gen budget (100 KB gz / 400 KB raw) so a future Gen 3
+  adapter's data growth is caught before it regresses load time; named vendor/index chunks have their
+  own budgets. Robust chunk naming via prefix-match (Vite hashes can contain hyphens, e.g.
+  `Gen2Adapter-B-H6ibCp.js`, and `vendor-react` must not be swallowed by `vendor`). Wired `npm run
+  check:bundle` and added a "Check bundle size budget" step after Build in `ci.yml`.
+- Current: Gen2Adapter 64.4 KB gz / 284 KB raw, Gen1Adapter 28.1 / 84 — comfortably within budget.
+  Verified the check fails when over budget (temporarily lowered the per-gen budget → exit 1) and passes
+  when restored.
+- Result: **319 tests pass** (unchanged — script-based check, not a vitest test), `tsc` clean, build +
+  `check:bundle` green.
+
+**Iteration 34 — Milestone M4: legality boundary + validation-layer naming (8.5.4 + 8.5.6):**
+- **8.5.4** Legality boundary + design note — DONE (boundary only, no engine). Added `lib/legality/`:
+  `types.ts` mirrors PKHeX's result objects (`LegalitySeverity` Valid/Fishy/Invalid, `CheckResult` with
+  category + comment, `LegalityAnalysis`, `isLegal()`); `index.ts` exposes `analyzeLegality(entity)` as
+  an explicit `analyzed:false` placeholder (must not be shown as a guarantee); `README.md` is the
+  one-page design note (the "find a consistent encounter" thesis, why a boundary-not-engine now, and a
+  sketch of how per-gen `EncounterProvider` + `Verifier`s plug in without `generation === N` branching).
+- **8.5.6** Save-vs-entity validation naming — DONE. The design note formalizes three distinct layers —
+  **save integrity** (`validateSaveDetailed`/`SaveValidationResult`, implemented), **entity legality**
+  (`lib/legality/`, boundary only), and **bulk analysis** (cross-entity duplicate/clone detection,
+  backlogged with a concrete `analyzeBulk()` sketch) — so the namings stay separate as PKHeX keeps
+  `ChecksumsValid` vs per-`PKM` legality vs `BulkAnalysis`.
+- Added 3 tests locking the boundary contract (severity values; placeholder is non-failing + `analyzed:false`;
+  `isLegal` false iff any Invalid, Fishy is only a warning). New code passes the `scalabilityLint` guard.
+- Result: **322 tests pass** (was 319), `tsc` clean, build OK.
+
 ---
 
 ## Legend
@@ -933,10 +975,11 @@ react-refresh) + `prettier`, an `npm run lint` script, and a CI `Lint` step befo
 Aligned `@types/react`/`@types/react-dom` from `^19` to `^18.3.12`/`^18.3.1` to match the React 18.3.1
 runtime (installed 18.3.30 / 18.3.7). Typecheck clean with the matched types; the adapter-pattern
 `useDefineForClassFields:false` + decorator settings are untouched.
-### 7.3 `[DX][P2]` Bundle-size budget per gen
-Build already splits per gen (Gen2Adapter chunk ~289 KB raw / ~65 KB gz). Add a CI check that fails if a
-per-gen chunk exceeds a budget, so Gen 3+ data growth is caught early (Vite `build.rollupOptions` notes
-already anticipate this).
+### 7.3 `[DX][P2]` ✅ DONE — Bundle-size budget per gen
+`scripts/check-bundle-size.mjs` (npm `check:bundle`) measures each `dist/assets/*.js` chunk (raw + gzip)
+and fails if over budget. Per-gen adapter chunks share a 100 KB gz / 400 KB raw budget so Gen 3+ data
+growth is caught early; vendor/index have their own. Added as a CI step after Build. Verified it fails
+when over budget. Current: Gen2 64 KB gz, Gen1 28 KB gz — within.
 ### 7.4 `[DX][P1]` ✅ DONE (as guard test) — Ban `generation === N` branches and `as any`
 Implemented as `tests/scalabilityLint.test.ts` (ESLint not yet set up — 7.1): scans app source (comments
 + strings stripped) and fails on any `as any` cast or `generation <op> <number>` comparison, with a
@@ -960,7 +1003,11 @@ Code-verified checklist: genN folder/modules, data tables, the single `registerL
 `docs/SAVE_FORMAT_CONSTANTS.md` — per-gen offset/struct/checksum reference mirrored from the real
 `genN/data/offsets.ts` (Gen 1 + Gen 2, Crystal-INT divergences, JPN/KOR notes), cited to PKHeX
 `SAV1`/`SAV2`/`PK1`/`PK2`, with a "how the code uses these" section. Offsets spot-checked vs code.
-### 8.4 `[DX][P2]` Contribution guide + bug-report template referencing save provenance/privacy.
+### 8.4 `[DX][P2]` ✅ DONE — Contribution guide + bug-report template referencing save provenance/privacy
+Added `CONTRIBUTING.md` (dev workflow, enforced scalability rules, PR expectations) with a save-file
+**provenance & privacy** section (saves are PII — don't attach real saves to public issues; give
+provenance + synthetic repro; no ROMs/copyrighted data). Added `.github/ISSUE_TEMPLATE/` (bug_report,
+feature_request, config disabling blank issues + privacy link) and a PR template; linked from README.
 
 ---
 
@@ -1023,14 +1070,12 @@ Tested (`tests/entityFormat.test.ts`, 10). **Not a Gen 3 implementation** — th
 stream must be validated against PKHeX + a real `.pk3` before Gen 3 ships; the invertible round-trip and
 size waterfall (fixture-independent) are what's guaranteed now.
 
-### 8.5.4 `[GEN3+ PREP][P2]` Adopt PKHeX's "find a consistent encounter" framing for future legality
-PKHeX's legality thesis: *a mon is legal iff some real in-game encounter is consistent with every byte*,
-found by `EncounterFinder` then checked by 50+ `Verifier`s. We have **no** legality engine and shouldn't
-build one for Gen 1/2 now — but our roadmap should *name* it as the eventual home for scattered
-validation (IV/EV ranges, move-learnability, gender/PID consistency) so we don't grow ad-hoc checks that
-later fight a real engine. **Action:** add a placeholder `lib/legality/` boundary + a one-page design note
-(no implementation) describing a `LegalityAnalysis`-style result object (`CheckResult[]` with
-Valid/Fishy/Invalid severities). This keeps option value open without scope creep.
+### 8.5.4 `[GEN3+ PREP][P2]` ✅ DONE — Legality boundary + design note (no engine)
+Added `lib/legality/`: `types.ts` (PKHeX-style `LegalitySeverity` Valid/Fishy/Invalid, `CheckResult`,
+`LegalityAnalysis`, `isLegal`), `index.ts` (`analyzeLegality` explicit `analyzed:false` placeholder), and
+a one-page `README.md` design note (the "consistent encounter" thesis; how per-gen `EncounterProvider` +
+`Verifier`s would plug in). No engine — boundary only, so future entity validation has a typed home.
+Tested (`tests/legality.test.ts`).
 
 ### 8.5.5 `[GEN3+ PREP][P2]` HOME is the modern interop hub — plan transfers around it, not pairwise
 PKHeX routes **all** Gen 8+ inter-game transfers through the HOME format (`PKH`) rather than NxN pairwise
@@ -1040,11 +1085,11 @@ to `CanonicalPokemon` itself, which we already have) instead of adding O(N²) co
 design-note + a note in `crossGenConverter` — our `CanonicalPokemon` is already well-positioned to *be*
 that hub.
 
-### 8.5.6 `[DATA][P2]` Validate save integrity separately from entity integrity (already partly done)
-PKHeX separates `SaveFile.ChecksumsValid` (whole-save) from per-`PKM` checksums, and adds a **bulk
-analyzer** (duplicate PIDs/ECs, clone detection). We have `validateSaveDetailed` (good, save-level).
-**Action:** keep entity-level vs save-level validation distinct in our API naming, and log a future
-"bulk box analyzer" idea (duplicate-detection across a box) as a post-Gen-2 nicety. No work now.
+### 8.5.6 `[DATA][P2]` ✅ DONE — Save integrity vs entity integrity (naming distinction)
+`lib/legality/README.md` formalizes three distinct layers: **save integrity** (`validateSaveDetailed`/
+`SaveValidationResult`, implemented), **entity legality** (`lib/legality/`, boundary only), and **bulk
+analysis** (cross-entity duplicate/clone detection, backlogged with an `analyzeBulk()` sketch) — keeping
+the namings separate exactly as PKHeX separates `ChecksumsValid` / per-`PKM` legality / `BulkAnalysis`.
 
 > **Bottom line for the maintainer:** nothing in the PKHeX read invalidates the current plan or any
 > shipped fix. The Gen 1/2 correctness work (§2) and the scalability seams (§1) are the right

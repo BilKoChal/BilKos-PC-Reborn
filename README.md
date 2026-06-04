@@ -86,6 +86,10 @@ All Pokemon and trainer sprite URLs are resolved centrally through `lib/sprites.
 
 **Implementation**: Every component calls `getPokemonSpriteUrl(dexId, spriteMode, gameVersion, isShiny)` instead of constructing URLs inline. The `getSpriteImgClasses()` helper ensures artwork sprites (475x475+ px) scale down to fit the same containers as pixel sprites (96x96 px) using `object-contain` and removing the `pixelated` CSS class. The `SpriteContext` persists the user's choice to `localStorage` and changes propagate instantly to all views.
 
+## Contributing
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the dev workflow, the architecture/scalability rules, and — important for a save editor — **save-file provenance & privacy** guidance (please don't attach real saves to public issues). Bug reports use the issue template, which asks for save *provenance* rather than the save itself.
+
 ## Testing
 
 The project has an extensive vitest suite (**300+ tests**) run with `npm test`. Coverage includes round-trip identity (a fully-populated party/box Pokémon survives write→re-parse for both gens), the scalability invariant (a dummy "Gen 99" adapter runs the full lifecycle through public APIs only), data integrity (TM/HM tables, item-name→sprite slugs, codec-region wiring), cross-gen transfer, Pokédex completeness, stat calculators, gender/shiny DV buckets, text codecs, entity block-shuffle, and save-wrapper detection.
