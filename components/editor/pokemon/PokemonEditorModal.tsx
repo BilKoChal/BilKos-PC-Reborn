@@ -19,6 +19,8 @@ import { getGrowthRate, getLevelFromExp as calculateLevel, getExpAtLevel as calc
 // NOTE: MOVES_LIST and MOVES_PP are now accessed via adapter.getAllMoveNames() and
 // adapter.getMoveBasePp() respectively, eliminating direct Gen1 data imports.
 import { useSaveContextSafe } from '../../../context/SaveContext';
+import { LegalityBadge } from './LegalityBadge';
+import { useLegality } from '../../../lib/hooks/useLegality';
 
 // Import sub-components
 import { PokemonInfoPanel } from '../panels/PokemonInfoPanel';
@@ -84,6 +86,9 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
     // Adapter-driven IV/EV limits (A2 fix: replaces hardcoded clamp values)
     const ivMax = adapter?.ivMax ?? 15;
     const evMax = adapter?.evMax ?? 65535;
+
+    // Live structural-legality advisory for the entity being edited (TODO §4).
+    const legality = useLegality(mon, adapter);
 
     // Recalculate Stats when EVs/DVs/Level change (A3 fix: routed through adapter)
     // Use adapter.getBaseStats() for species data lookup (correct per-generation),
@@ -317,6 +322,7 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
                             {isDirty && <span className="text-[10px] sm:text-xs font-bold bg-white/20 px-3 py-1.5 rounded-full animate-pulse flex items-center gap-2 w-fit whitespace-nowrap"><div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-yellow-400 rounded-full"></div> Unsaved Changes</span>}
                         </div>
                         <div className="flex items-center gap-2">
+                            <LegalityBadge analysis={legality} />
                             <button 
                                 onClick={() => setShowDexEntry(true)}
                                 className="p-2 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors"

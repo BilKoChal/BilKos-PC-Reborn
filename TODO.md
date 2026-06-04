@@ -11,6 +11,24 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
 
 ## ✅ Recently Done
 
+### Round 3 — legality wired into the UI + Gen 3 sprite coverage
+
+- [x] **`P1` Surface structural legality in the editor (§4).** Added `useLegality`
+  (`lib/hooks/useLegality.ts`), pure display mappers (`lib/legality/display.ts`:
+  `analysisTone` / `analysisHeadline` / `notableResults`), and a non-blocking
+  `LegalityBadge` (`components/editor/pokemon/`) wired into the Pokémon editor header.
+  It recomputes as you edit and its popover states "structural checks only", so it
+  never implies a full legality guarantee. 🔺
+- [x] **`P1` Save-level clone scan (§4).** Added `analyzeSaveClones`
+  (`lib/legality/save.ts`) — flattens party + all boxes, runs `analyzeBulk`, and maps
+  each duplicate group back to concrete `{ location, index, boxIndex }` slots so the UI
+  can point at offending Pokémon. Makes the round-2 bulk analyzer usable app-side. 🔺
+- [x] **`P2` Gen 3 sprite coverage (§4).** Confirmed + locked with
+  `tests/spriteCoverage.test.ts`: master/artwork resolve by Dex ID for 252–386, and
+  game-specific gracefully falls back to the master sprite for unmapped (Gen 3)
+  versions. No code change needed — the resolver was already data-driven. 🔺
+- Coverage: +11 tests (`legalityDisplay`, `spriteCoverage`) → 370 total.
+
 ### Round 2 — legality engine groundwork + CDM guard
 
 - [x] **`P1` Structural legality verifiers (§4).** Added `lib/legality/verifiers.ts`
@@ -158,14 +176,15 @@ The architecture is already primed for this (lazy adapter registry, block-shuffl
 seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub in
 `canonicalModel.ts`). Track the concrete gaps:
 
-- [~] **`P1` Build the legality engine — structural pass landed; encounter pass remains.**
+- [~] **`P1` Build the legality engine — structural pass + UI wiring landed; encounter pass remains.**
   `analyzeLegality()` stays an honest placeholder, but `analyzeStructure(entity, limits)`
-  now runs real structural verifiers (level, IV/EV ranges, EV total cap, species range,
+  runs real structural verifiers (level, IV/EV ranges, EV total cap, species range,
   duplicate moves) behind `analyzed:true`, with summaries that never claim full legality.
-  `analyzeBulk()` adds cross-entity clone detection. ✅ *Remaining:* the encounter-
-  consistency engine (per-generation `EncounterProvider` + move-learnability / gender↔PID
-  / met-data verifiers) and wiring `analyzeStructure` into the editor UI as a non-blocking
-  advisory. Gen 3 is where the encounter pass first becomes meaningful.
+  `analyzeBulk()` / `analyzeSaveClones()` add cross-entity clone detection, and a
+  non-blocking `LegalityBadge` now surfaces structural findings live in the editor.
+  ✅ *Remaining:* the encounter-consistency engine (per-generation `EncounterProvider` +
+  move-learnability / gender↔PID / met-data verifiers), and surfacing `analyzeSaveClones`
+  in a box/storage view. Gen 3 is where the encounter pass first becomes meaningful.
 - [ ] **`P1` Gen3 entity crypto + block shuffle.** The seams exist
   (`lib/core/entityFormat.ts`, `IGenerationBinaryOps.unscramble/rescramble`,
   `checksumOffsets`, CRC16 hooks in `interfaces.ts`). Implement the Gen 3 24-byte
@@ -179,9 +198,11 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
   (this is the OCP promise the project is built on).
 - [ ] **`P2` `secretId` stub.** `Gen3Extension.secretId` is a stub; Gen 3 trainer ID is
   a 32-bit (TID+SID) value used in shiny calc. Plumb it through parser → CDM → UI.
-- [ ] **`P2` Sprite coverage for 252–386.** Confirm `lib/sprites.ts` resolves Gen 3
-  species across all sprite modes (game-specific/master/artwork + shiny) before the
-  Pokédex max bumps to 386.
+- [x] **`P2` Sprite coverage for 252–386.** ✅ *Done (verified + locked).* `lib/sprites.ts`
+  resolves Gen 3 species in master/artwork modes (URL templated by Dex ID), and
+  game-specific falls back to the master sprite for unmapped versions. Regression-locked
+  by `tests/spriteCoverage.test.ts`. Game-specific *folders* for Gen 3 are pre-staged as
+  commented `VERSION_SPRITE_MAP` rows, to enable when the Gen 3 adapter lands.
 
 ---
 
@@ -204,12 +225,12 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
 
 ### Suggested next sprint
 
-With the unsaved-work guard, error copy, a11y label pass, the structural legality
-analyzer + bulk clone detection, and the CDM field-creep guard all landed, the
-highest-leverage next steps are:
+With legality now wired into the editor (badge + clone scan) and Gen 3 sprite
+coverage confirmed, the highest-leverage next steps are:
 
-1. Wire `analyzeStructure` into the editor as a non-blocking advisory badge (§4) —
-   the engine exists; surface it.
+1. Surface `analyzeSaveClones` in the PC storage view (highlight clone slots) — the
+   helper exists; show it.
 2. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap.
 3. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
-4. First React Testing Library component tests (§5) — the suite is logic-only today.
+4. First React Testing Library component tests (§5) — would let us render-test the
+   new `LegalityBadge` directly.
