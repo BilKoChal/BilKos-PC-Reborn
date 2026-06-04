@@ -544,6 +544,19 @@
   parser reads it back. Added 3 tests (flag values; isEgg=true and =false both survive write→re-parse).
 - Result: **325 tests pass** (was 322), `tsc` clean, build OK.
 
+**Iteration 36 — USER follow-up: egg badge placement + encounter-egg box bug:**
+- **Egg placement** — per feedback, reverted "replace the whole sprite with an egg." The species sprite
+  stays fully visible; a small, clean inline-SVG egg badge now sits in the **bottom-left** corner over
+  the sprite (white ring for contrast), in `PokemonSprite.tsx`. Applies everywhere the component renders
+  (party, box, summary).
+- **USER BUG: encounter eggs added to box as non-eggs.** `EncounterDatabase.handleAddEvent` parsed the
+  event bytes (which do **not** encode egg-ness — verified: all 15 egg-tagged Gen 2 events parse to
+  `isEgg=false`) and added the mon without setting the egg flag, even though the preview used the `egg`
+  tag. Fixed: after parsing, set `mon.isEgg = adapter.hasEggs && event.tags.includes('egg')` so egg
+  encounters (Togepi, Odd Egg, etc.) land in the box as actual eggs (and round-trip as eggs).
+- Added 2 tests (every egg-tagged event yields isEgg via the handler rule; an encounter egg in a box
+  round-trips as an egg). Result: **327 tests pass** (was 325), `tsc` clean, build OK.
+
 ---
 
 ## Legend

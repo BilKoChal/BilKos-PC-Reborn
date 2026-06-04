@@ -544,3 +544,32 @@ describe('Egg support: capability flag + round-trip', () => {
     expect(rp.isEgg).toBe(false);
   });
 });
+
+describe('Encounter eggs carry isEgg into the box (USER bug fix)', () => {
+  it('egg-tagged Gen 2 events parse to non-egg, but the handler rule marks them eggs', () => {
+    const adapter = new Gen2Adapter();
+    const eggEvents = adapter.getEventDistributions().filter(e => e.tags.includes('egg'));
+    expect(eggEvents.length).toBeGreaterThan(0);
+    for (const evt of eggEvents) {
+      const mon = adapter.standaloneFormat.parseFile(new Uint8Array(evt.bytes));
+      // The raw event bytes don't encode egg-ness (this was the bug)…
+      // …so the add-encounter handler must set it from the 'egg' tag:
+      const isEgg = adapter.hasEggs && evt.tags.includes('egg');
+      expect(isEgg).toBe(true);
+      mon.isEgg = isEgg;
+      expect(mon.isEgg).toBe(true);
+    }
+  });
+
+  it('an encounter egg placed in a box round-trips as an egg', () => {
+    const adapter = new Gen2Adapter();
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+    const evt = adapter.getEventDistributions().find(e => e.tags.includes('egg'))!;
+    const mon = adapter.standaloneFormat.parseFile(new Uint8Array(evt.bytes));
+    mon.isEgg = adapter.hasEggs && evt.tags.includes('egg');
+    mon.isParty = false;
+    save.pcBoxes[0] = [mon];
+    const rp = adapter.parseSave(adapter.writeSave(save), 'gold.sav');
+    expect(rp.pcBoxes[0]![0]!.isEgg).toBe(true);
+  });
+});

@@ -60,6 +60,13 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
         
         if (mon) {
             mon.isParty = false;
+            // Carry the encounter's egg status into the created Pokémon. Some Gen 2
+            // gift encounters are eggs (tagged 'egg'); without this they were added
+            // to the box as non-eggs. Gated on hasEggs so non-egg generations are
+            // unaffected.
+            if (adapter?.hasEggs && event.tags.includes('egg')) {
+                mon.isEgg = true;
+            }
             onAddPokemon(mon, 'pc');
             onToast(`Redeemed ${event.title}! Added to PC.`);
         } else {
