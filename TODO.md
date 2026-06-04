@@ -11,6 +11,24 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
 
 ## ✅ Recently Done
 
+### Round 6 — Gen 3 entity crypto, ID/shiny helpers, synthetic fixture
+
+- [x] **`P1` Gen 3 entity crypto + block shuffle (§4).** Added `lib/generations/gen3/entity.ts`
+  — the PK3 (80-byte) XOR-by-`PID^OTID` crypt + `PID % 24` block shuffle + word-sum
+  checksum, built on the validated `entityFormat` shuffle primitives. Locked by
+  `tests/gen3Entity.test.ts`: byte-exact encrypt→decrypt round-trip across PIDs hitting
+  all 24 orderings, checksum validation, and tamper detection. The exact `sv`→permutation
+  mapping and block field offsets still need byte-for-byte validation against PKHeX + a
+  real `.pk3` when the Gen 3 parser lands. 🔺
+- [x] **`P2` Gen 3 ID / shiny helpers (§4, secretId).** Added `lib/generations/gen3/identity.ts`
+  — `combinedTrainerId`/`splitTrainerId` (TID low / SID high), `shinyValueGen3`, and
+  `isShinyGen3` (Gen 3-5 threshold 8). These are the durable core a Gen 3 parser plugs
+  `Gen3Extension.secretId` into. Unit-tested. 🔺
+- [x] **`P2` Gen 3 synthetic fixture (§5).** A legally-clean, programmatically-built PK3
+  fixture (no ROM data) proves the encrypt→detect→decrypt path end-to-end, including the
+  `getEntityFormatByLength(80)` → Gen 3 stored recognition. 🔺
+- Coverage: +15 tests (`gen3Entity`, `gen3Identity`) → 407 total.
+
 ### Round 5 — a11y gate, memo dedup, empty-box state
 
 - [x] **`P2` Accessibility CI gate (§5).** Added `vitest-axe`; the `LegalityBadge` and
@@ -222,19 +240,23 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
   ✅ *Remaining:* the encounter-consistency engine (per-generation `EncounterProvider` +
   move-learnability / gender↔PID / met-data verifiers), and surfacing `analyzeSaveClones`
   in a box/storage view. Gen 3 is where the encounter pass first becomes meaningful.
-- [ ] **`P1` Gen3 entity crypto + block shuffle.** The seams exist
-  (`lib/core/entityFormat.ts`, `IGenerationBinaryOps.unscramble/rescramble`,
-  `checksumOffsets`, CRC16 hooks in `interfaces.ts`). Implement the Gen 3 24-byte
-  block shuffle + XOR-by-PID decryption against these interfaces and lock it with a
-  round-trip test mirroring `tests/roundTrip.test.ts`.
+- [x] **`P1` Gen3 entity crypto + block shuffle.** ✅ *Done (algorithm + round-trip).*
+  `lib/generations/gen3/entity.ts` implements PK3 XOR-by-`PID^OTID` + `PID % 24` block
+  shuffle + word-sum checksum on the `entityFormat` seam; byte-exact round-trip across all
+  24 orderings, checksum + tamper tests (`tests/gen3Entity.test.ts`). *Remaining:* validate
+  the `sv`→permutation mapping and data-block field offsets byte-for-byte against PKHeX +
+  a real `.pk3` when the Gen 3 adapter/parser is built.
 - [ ] **`P1` Gen3 UI panels via the extension system, not new dashboard code.** Abilities
   and natures already have `hasAbilities`/`hasNatures` metadata flags and a
   `Gen3Extension` (abilityId, natureId, ribbons, contestStats). New panels should
   register through `ExtensionRegistry` exactly like `gen2/extensions.tsx` — verify a
   Gen 3 panel can mount with **zero** edits to `EditorDashboard`/`PokemonEditorModal`
   (this is the OCP promise the project is built on).
-- [ ] **`P2` `secretId` stub.** `Gen3Extension.secretId` is a stub; Gen 3 trainer ID is
-  a 32-bit (TID+SID) value used in shiny calc. Plumb it through parser → CDM → UI.
+- [~] **`P2` `secretId`.** ✅ *Helpers landed.* `lib/generations/gen3/identity.ts` provides
+  `combinedTrainerId`/`splitTrainerId` (TID low / SID high) and `isShinyGen3` /
+  `shinyValueGen3` — the durable shiny-calc core that uses `Gen3Extension.secretId`
+  (which already exists on the CDM). *Remaining:* plumb `secretId` parser → CDM → UI once
+  the Gen 3 parser exists.
 - [x] **`P2` Sprite coverage for 252–386.** ✅ *Done (verified + locked).* `lib/sprites.ts`
   resolves Gen 3 species in master/artwork modes (URL templated by Dex ID), and
   game-specific falls back to the master sprite for unmapped versions. Regression-locked
@@ -259,18 +281,21 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
   globally Prettier-formatted (149 files differ) and instead formats *changed* files on
   commit via `lint-staged`. Adding it would force a noisy whole-repo reformat; revisit
   only if the team decides to adopt repo-wide Prettier in one dedicated PR.
-- [ ] **`P2` Gen3 fixture early.** Add a (legally-sourced/synthetic) Gen 3 save fixture
-  under `tests/fixtures/` so detection and parsing can be TDD'd before the adapter is
-  written.
+- [x] **`P2` Gen3 fixture early.** ✅ *Done (synthetic).* `tests/gen3Entity.test.ts` builds
+  a legally-clean PK3 fixture programmatically (no ROM data) and TDDs the
+  encrypt→detect→decrypt path, including `getEntityFormatByLength(80)` → Gen 3 stored.
+  A real `.pk3` capture can be added under `tests/fixtures/` later to validate the exact
+  PKHeX byte layout.
 
 ---
 
 ### Suggested next sprint
 
-With the a11y gate, memo dedup, and empty-box state in place, the highest-leverage
-next steps are:
+With the Gen 3 entity crypto, ID/shiny helpers, and a synthetic fixture in place, the
+highest-leverage next steps are:
 
-1. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap; render + axe testable.
-2. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
-3. Surface `analyzeSaveClones` in the PC storage view (highlight clone slots).
+1. Stand up the Gen 3 adapter + parser/writer using the crypto + shuffle now proven,
+   then validate the `sv`→permutation map against a real `.pk3` (§4).
+2. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap.
+3. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
 4. Extend component/axe tests to drag-to-move, multi-select, and tab switching (§5).
