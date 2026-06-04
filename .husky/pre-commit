@@ -1,0 +1,3 @@
+# Pre-commit (TODO 7.5): format/lint changed files, then typecheck.
+npx lint-staged
+npm run typecheck

@@ -20,6 +20,13 @@
  *
  * DESIGN: The CanonicalPokemon's `dexId` (National Dex) is the universal key.
  * All conversions route through it: sourceGen internal ID → dexId → targetGen internal ID.
+ *
+ * HUB-AND-SPOKE (TODO 8.5.5): this converter is pairwise today, which is fine for the
+ * Gen 1 ↔ Gen 2 scope. As the generation matrix grows (past ~Gen 5), transfers should
+ * pivot from O(N²) pairwise converters to routing through a neutral hub format — and
+ * `CanonicalPokemon` is already that hub (the role HOME's `PKH` plays in PKHeX). Each
+ * generation then only converts to/from the hub (O(N) spokes), not to every peer. See
+ * `docs/CROSS_GEN_TRANSFER.md`.
  */
 
 import { PokemonStats } from '../parser/types';

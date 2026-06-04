@@ -1,11 +1,7 @@
 import React from 'react';
-import { ParsedSave, isGen2SaveExtension, Gen2Mail } from '../../../lib/parser/types';
+import { isGen2SaveExtension, Gen2Mail } from '../../../lib/parser/types';
 import { Mail, Inbox, Send, User } from 'lucide-react';
 import { useSaveContextSafe } from '../../../context/SaveContext';
-
-interface MailboxTabProps {
-    data: ParsedSave;
-}
 
 /** Map mail type item IDs to their names */
 const MAIL_TYPE_NAMES: Record<number, string> = {
@@ -92,9 +88,11 @@ const MailCard: React.FC<{ mail: Gen2Mail; index: number; label: string }> = ({ 
     );
 };
 
-export const MailboxTab: React.FC<MailboxTabProps> = ({ data }) => {
+export const MailboxTab: React.FC = () => {
     const saveCtx = useSaveContextSafe();
     const adapter = saveCtx?.adapter;
+    const data = saveCtx?.data;
+    if (!data) return null;
 
     // D1: Use adapter capability flag instead of `data.generation !== 2`.
     // The parent tab already conditionally renders this tab via adapter?.hasMailbox.

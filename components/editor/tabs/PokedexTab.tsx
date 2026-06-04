@@ -1,19 +1,18 @@
 import React from 'react';
-import { ParsedSave } from '../../../lib/parser/types';
 import { Pokedex } from '../Pokedex';
+import { useSaveContextSafe } from '../../../context/SaveContext';
 
 interface PokedexTabProps {
-    data: ParsedSave;
     handlePokedexUpdate: (owned: boolean[], seen: boolean[]) => void;
 }
 
-export const PokedexTab: React.FC<PokedexTabProps> = ({
-    data,
-    handlePokedexUpdate
-}) => {
+// TODO 1.5: `data` comes from SaveContext; only the update handler is a prop.
+export const PokedexTab: React.FC<PokedexTabProps> = ({ handlePokedexUpdate }) => {
+    const ctx = useSaveContextSafe();
+    if (!ctx) return null;
     return (
         <div className="w-full">
-            <Pokedex data={data} onUpdate={handlePokedexUpdate} />
+            <Pokedex data={ctx.data} onUpdate={handlePokedexUpdate} />
         </div>
     );
 };

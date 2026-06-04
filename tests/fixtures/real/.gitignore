@@ -1,0 +1,5 @@
+# Never commit real save dumps (may contain personal data). See ../README.md
+*.sav
+*.dsv
+*.srm
+*.fla

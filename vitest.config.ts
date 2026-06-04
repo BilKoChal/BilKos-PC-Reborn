@@ -9,6 +9,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['lib/**/*.ts'],
+      // Coverage gate (TODO 5.7): thresholds set as a *floor* just below the
+      // current numbers so `npm run test:coverage` passes today and any drop
+      // fails CI. Ratchet these upward as coverage improves.
+      thresholds: {
+        statements: 55,
+        lines: 55,
+        functions: 42,
+        branches: 37,
+      },
     },
   },
   resolve: {

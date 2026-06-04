@@ -1,17 +1,14 @@
 import React from 'react';
-import { ParsedSave } from '../../../lib/parser/types';
 import { HallOfFame } from '../HallOfFame';
+import { useSaveContextSafe } from '../../../context/SaveContext';
 
-interface HallOfFameTabProps {
-    data: ParsedSave;
-}
-
-export const HallOfFameTab: React.FC<HallOfFameTabProps> = ({
-    data
-}) => {
+// TODO 1.5: reads `data` from SaveContext instead of a drilled prop.
+export const HallOfFameTab: React.FC = () => {
+    const ctx = useSaveContextSafe();
+    if (!ctx) return null;
     return (
         <div className="w-full">
-            <HallOfFame data={data} />
+            <HallOfFame data={ctx.data} />
         </div>
     );
 };

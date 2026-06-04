@@ -244,7 +244,7 @@ const App: React.FC = () => {
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          let baseName = tab.filename.replace(/\.(sav|srm)$/i, "");
+          const baseName = tab.filename.replace(/\.(sav|srm)$/i, "");
           a.download = `${baseName}.${extension}`;
           document.body.appendChild(a);
           a.click();

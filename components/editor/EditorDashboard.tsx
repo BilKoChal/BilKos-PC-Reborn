@@ -481,15 +481,12 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
 
                         {activeTab === 'encounters' && (
                             <EncountersTab
-                                data={data}
                                 handleAddPokemon={handleAddPokemon}
-                                onShowToast={onShowToast}
                             />
                         )}
                         
                         {activeTab === 'pokedex' && (
                             <PokedexTab
-                                data={data}
                                 handlePokedexUpdate={handlePokedexUpdate}
                             />
                         )}
@@ -508,15 +505,11 @@ export const EditorDashboard: React.FC<EditorDashboardProps> = ({
                         )}
 
                         {activeTab === 'hof' && (
-                            <HallOfFameTab
-                                data={data}
-                            />
+                            <HallOfFameTab />
                         )}
 
                         {activeTab === 'mailbox' && (
-                            <MailboxTab
-                                data={data}
-                            />
+                            <MailboxTab />
                         )}
                     </motion.div>
                 </AnimatePresence>

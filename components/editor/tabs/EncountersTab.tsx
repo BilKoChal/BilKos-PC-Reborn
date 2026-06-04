@@ -1,24 +1,22 @@
 import React from 'react';
-import { ParsedSave, PokemonStats } from '../../../lib/parser/types';
+import { PokemonStats } from '../../../lib/parser/types';
 import { EncounterDatabase } from '../EncounterDatabase';
+import { useSaveContextSafe } from '../../../context/SaveContext';
 
 interface EncountersTabProps {
-    data: ParsedSave;
     handleAddPokemon: (mon: PokemonStats, target: 'party' | 'pc') => void;
-    onShowToast: (msg: string) => void;
 }
 
-export const EncountersTab: React.FC<EncountersTabProps> = ({
-    data,
-    handleAddPokemon,
-    onShowToast
-}) => {
+// TODO 1.5: `data` and `onShowToast` come from SaveContext.
+export const EncountersTab: React.FC<EncountersTabProps> = ({ handleAddPokemon }) => {
+    const ctx = useSaveContextSafe();
+    if (!ctx) return null;
     return (
         <div className="w-full">
-            <EncounterDatabase 
-                data={data} 
+            <EncounterDatabase
+                data={ctx.data}
                 onAddPokemon={handleAddPokemon}
-                onToast={onShowToast}
+                onToast={ctx.onShowToast}
             />
         </div>
     );

@@ -310,3 +310,27 @@ describe('getTransferImpactDescription', () => {
     expect(getTransferImpactDescription(makeGen1Pikachu(), 1, 1)).toEqual([]);
   });
 });
+
+// ============================================================================
+// Hub-and-spoke invariant (TODO 8.5.5): dexId is the transfer hub key
+// ============================================================================
+
+describe('Hub-and-spoke transfer: National Dex id survives a round-trip (TODO 8.5.5)', () => {
+  it('Gen 1 → Gen 2 → Gen 1 preserves the dexId (the hub key)', () => {
+    const original = makeGen1Pikachu();
+    const toGen2 = convertPokemonForTransfer(original, 1, 2);
+    expect(toGen2.mon).not.toBeNull();
+    expect(toGen2.mon!.dexId).toBe(original.dexId); // hub key preserved outbound
+
+    const backToGen1 = convertPokemonForTransfer(toGen2.mon!, 2, 1);
+    expect(backToGen1.mon).not.toBeNull();
+    expect(backToGen1.mon!.dexId).toBe(original.dexId); // …and on the return hop
+  });
+
+  it('conversion routes through dexId, not pairwise internal ids (internal id is recomputed)', () => {
+    // Pikachu: Gen 1 internal id 84, Gen 2 internal id = National Dex 25.
+    const res = convertPokemonForTransfer(makeGen1Pikachu(), 1, 2);
+    expect(res.mon!.dexId).toBe(25);
+    expect(res.mon!.speciesId).toBe(25); // target-gen internal id derived FROM the hub dexId
+  });
+});

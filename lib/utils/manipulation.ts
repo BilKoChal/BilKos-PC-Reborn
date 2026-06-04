@@ -215,8 +215,8 @@ export function transferPokemonBatch(
     // 1. Create Working Copies
     // If same save, source and target structure references must share the same arrays to avoid overwrites.
     
-    let sourceParty = [...sourceSave.party];
-    let sourceBoxes = sourceSave.pcBoxes.map(b => [...b]);
+    const sourceParty = [...sourceSave.party];
+    const sourceBoxes = sourceSave.pcBoxes.map(b => [...b]);
     let targetParty: PokemonStats[];
     let targetBoxes: PokemonStats[][];
 
