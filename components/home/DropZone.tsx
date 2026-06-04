@@ -83,7 +83,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, isBusy = fa
                     {/* Screen Glare */}
                     <div className="absolute top-0 right-0 w-full h-full bg-gradient-to-bl from-white/10 to-transparent pointer-events-none rounded-lg z-20"></div>
 
-                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".sav,.srm" multiple />
+                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} className="hidden" accept=".sav,.srm" aria-label="Upload save file" multiple />
 
                     <div className="relative z-30 flex flex-col items-center text-center p-4 w-full h-full justify-center">
                         <div className={`

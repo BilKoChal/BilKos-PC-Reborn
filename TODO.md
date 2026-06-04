@@ -11,6 +11,22 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
 
 ## ✅ Recently Done
 
+### Round 5 — a11y gate, memo dedup, empty-box state
+
+- [x] **`P2` Accessibility CI gate (§5).** Added `vitest-axe`; the `LegalityBadge` and
+  `DropZone` render tests now assert zero axe violations. Runs inside the suite (so
+  CI's `test:coverage` step enforces it). The gate immediately caught a real bug — the
+  hidden file `<input>` had no accessible name — now fixed with an `aria-label`
+  (also advances the §2 SR-labels item).
+- [x] **`P2` Centralize `React.memo` comparators (§3).** Extracted the shared slot-prop
+  comparison into `lib/utils/slotMemo.ts` (`arePokemonSlotPropsEqual`); `PCStorage`
+  composes it with its `viewMode`/`viewedBoxIndex` extras and `PartyList` uses it
+  directly. Unit-tested in `tests/slotMemo.test.ts`.
+- [x] **`P2` Empty-box state (§2).** `PCStorage` now shows a friendly "This box is empty
+  — drag a Pokémon here…" hint above the grid when the viewed box has no Pokémon
+  (first-run is already handled by the Hero + DropZone screen).
+- Coverage: +10 tests (`slotMemo` + axe gates) → 392 total.
+
 ### Round 4 — render-test harness, loading state, cache-sync routing
 
 - [x] **`P1` Component/render test harness (§5).** Added happy-dom + Testing Library +
@@ -125,10 +141,10 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   `useMoveMode` hook, with `aria-grabbed`/`aria-dropeffect` (or the modern
   `aria-live` announcement pattern) on slots in `PCStorage.tsx` / `PartyList.tsx`.
 - [ ] **`P1` Screen-reader labels on sprites & controls.** Sprites have `alt` text
-  (good). A first pass added `aria-label`s to the icon-only buttons in `Header`,
-  `EditorTools`, `MoveModeFAB`, and `SaveTabBar`. ✅ *Remaining:* run axe DevTools
-  across the editor tabs (bulk-action buttons in `Pokedex.tsx:180`, panel controls)
-  and close the findings here.
+  (good). Prior passes labelled the icon-only buttons in `Header`, `EditorTools`,
+  `MoveModeFAB`, `SaveTabBar`, and the hidden file `<input>` in `DropZone` (caught by
+  the new axe gate). ✅ *Remaining:* run axe across the editor tabs (bulk-action buttons
+  in `Pokedex.tsx:180`, panel controls) and close the findings here.
 - [x] **`P1` Focus management in modals.** ✅ *Verified done.* All 9 overlay/modal
   components already use `useModalA11y` for focus trap, focus restore on close, and
   Esc handling. Audited; no gaps found.
@@ -144,8 +160,9 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   for touch via `elementFromPoint`. Verify auto-scroll near screen edges and the
   400ms hover tab-switch behave on small viewports; add haptic feedback on drop where
   available.
-- [ ] **`P2` Empty/zero states.** Ensure first-run (no save loaded), empty box, and
-  "Pokédex 0% seen" states have friendly guidance rather than blank grids.
+- [~] **`P2` Empty/zero states.** Empty box now shows a friendly "This box is empty…"
+  hint (`PCStorage`), and first-run is handled by the Hero + DropZone screen. ✅
+  *Remaining (optional):* empty-party and "Pokédex 0% seen" guidance.
 
 ---
 
@@ -183,9 +200,10 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   "feasible at ~200KB per snapshot for Gen 1/2." 🔺 *Gen 3 saves are larger and may be
   edited more granularly — switch to a slot-diff/changelog model (PKHeX's
   `SlotChangelog` approach the comment references) before snapshots get expensive.*
-- [ ] **`P2` Centralize remaining `React.memo` comparators.** `PCStorage.tsx:438` and
-  `PartyList.tsx:313` hand-roll `gameVersion ===` equality checks. Extract a shared
-  `arePropsEqual` helper to avoid drift as fields are added.
+- [x] **`P2` Centralize remaining `React.memo` comparators.** ✅ *Done.* The shared
+  slot-prop comparison now lives in `lib/utils/slotMemo.ts` (`arePokemonSlotPropsEqual`),
+  composed by `PCStorage` (+ `viewMode`/`viewedBoxIndex`) and used directly by
+  `PartyList`. Unit-tested; a new shared prop is now added in one place.
 
 ---
 
@@ -231,11 +249,16 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
   Library + jest-dom; `.test.tsx` support; per-file `@vitest-environment`). First tests
   cover `LegalityBadge` and `DropZone`. *Remaining:* the highest-risk interactions —
   drag-to-move, multi-select, tab switching, and the export flow.
-- [ ] **`P2` Accessibility CI gate.** Add `jest-axe`/`vitest-axe` assertions to the new
-  component tests so the a11y items in §2 don't regress.
-- [ ] **`P2` Wire up the existing tooling consistently.** `lint`, `format:check`,
-  `typecheck`, `test:coverage`, and `check:bundle` scripts exist — ensure they all run
-  in CI (`.github/`) on every PR, and that the coverage gate has a real threshold.
+- [x] **`P2` Accessibility CI gate.** ✅ *Done.* `vitest-axe` assertions in the
+  `LegalityBadge` and `DropZone` render tests assert zero violations; they run in the
+  standard suite, so CI's `test:coverage` step enforces them. Extend to new components
+  as they gain render tests.
+- [~] **`P2` Wire up the existing tooling consistently.** `ci.yml` already runs `lint`,
+  `typecheck`, `test:coverage` (real thresholds), `build`, and `check:bundle` on every
+  push/PR. ✅ *Decision:* `format:check` is intentionally NOT in CI — the repo isn't
+  globally Prettier-formatted (149 files differ) and instead formats *changed* files on
+  commit via `lint-staged`. Adding it would force a noisy whole-repo reformat; revisit
+  only if the team decides to adopt repo-wide Prettier in one dedicated PR.
 - [ ] **`P2` Gen3 fixture early.** Add a (legally-sourced/synthetic) Gen 3 save fixture
   under `tests/fixtures/` so detection and parsing can be TDD'd before the adapter is
   written.
@@ -244,11 +267,10 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
 
 ### Suggested next sprint
 
-With the render-test harness in place, a loading state, and cache-sync centralised,
-the highest-leverage next steps are:
+With the a11y gate, memo dedup, and empty-box state in place, the highest-leverage
+next steps are:
 
-1. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap; now render-testable.
+1. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap; render + axe testable.
 2. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
 3. Surface `analyzeSaveClones` in the PC storage view (highlight clone slots).
-4. Extend component tests to drag-to-move / multi-select / tab switching, and add a
-   `vitest-axe` a11y gate (§5) now that the harness supports it.
+4. Extend component/axe tests to drag-to-move, multi-select, and tab switching (§5).

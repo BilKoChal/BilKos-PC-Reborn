@@ -7,6 +7,7 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { axe } from 'vitest-axe';
 import { DropZone } from '../components/home/DropZone';
 
 describe('<DropZone>', () => {
@@ -38,5 +39,11 @@ describe('<DropZone>', () => {
 
     fireEvent.click(screen.getByText(/click or drag files/i));
     expect(clickSpy).toHaveBeenCalled();
+  });
+
+  it('has no axe accessibility violations while busy', async () => {
+    const { container } = render(<DropZone onFilesSelected={() => {}} isBusy />);
+    const results = await axe(container);
+    expect(results.violations.map((v) => v.id)).toEqual([]);
   });
 });

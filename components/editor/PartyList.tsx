@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
 import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter } from '../../lib/sprites';
 import { PokemonSprite } from '../ui/PokemonSprite';
+import { arePokemonSlotPropsEqual } from '../../lib/utils/slotMemo';
 import { Heart, Ban, MousePointer2, CheckSquare, Square, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
@@ -306,15 +307,8 @@ const PokemonSlot = memo<{
     );
 // FIX: Add tabId and onDropPokemon to memo comparison
 }, (prev, next) => {
-    return (
-        prev.mon === next.mon && 
-        prev.isSelected === next.isSelected && 
-        prev.isMoveMode === next.isMoveMode &&
-        prev.gameVersion === next.gameVersion &&
-        prev.tabId === next.tabId &&
-        prev.spriteMode === next.spriteMode &&
-        prev.onDropPokemon === next.onDropPokemon
-    );
+    // Shared slot-prop comparison lives in lib/utils/slotMemo (TODO §3).
+    return arePokemonSlotPropsEqual(prev, next);
 });
 
 export const PartyList: React.FC<PartyListProps> = ({ 

@@ -4,6 +4,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useSpriteMode } from '../../context/SpriteContext';
 import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses, getUnownFormLetter } from '../../lib/sprites';
 import { PokemonSprite } from '../ui/PokemonSprite';
+import { arePokemonSlotPropsEqual } from '../../lib/utils/slotMemo';
 import { Grid, ChevronLeft, ChevronRight, Monitor, List, ChevronDown, CheckCircle2, Box, MousePointer2, CheckSquare, Square, Move, Shuffle, Power, Download, Plus } from 'lucide-react';
 import { TypeBadge, StatusBadge } from '../ui/PokemonBadges';
 import { MoveLocation } from '../../lib/utils/manipulation';
@@ -430,15 +431,9 @@ const BoxSlot = memo<{
 // FIX (Phase 5): Add tabId and onDropPokemon to memo comparison
 }, (prev, next) => {
     return (
-        prev.mon === next.mon &&
-        prev.isSelected === next.isSelected &&
+        arePokemonSlotPropsEqual(prev, next) &&
         prev.viewMode === next.viewMode &&
-        prev.isMoveMode === next.isMoveMode &&
-        prev.viewedBoxIndex === next.viewedBoxIndex &&
-        prev.gameVersion === next.gameVersion &&
-        prev.tabId === next.tabId &&
-        prev.spriteMode === next.spriteMode &&
-        prev.onDropPokemon === next.onDropPokemon
+        prev.viewedBoxIndex === next.viewedBoxIndex
     );
 });
 
@@ -465,6 +460,7 @@ export const PCStorage: React.FC<PCStorageProps> = ({
     const [editBoxNameValue, setEditBoxNameValue] = useState('');
 
     const activeBox = boxes[viewedBoxIndex] || [];
+    const isBoxEmpty = !activeBox.some(m => m && m.speciesId !== 0);
     const MAX_BOXES = boxes.length;
 
     // Close menu when clicking outside
@@ -837,6 +833,13 @@ export const PCStorage: React.FC<PCStorageProps> = ({
 
             {/* --- CONTENT AREA --- */}
             <div className="p-4 bg-gray-100 dark:bg-black/20">
+                {isBoxEmpty && (
+                    <div data-testid="empty-box-hint" className="flex flex-col items-center justify-center text-center gap-2 py-6 mb-3 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500">
+                        <Box size={28} className="opacity-60" />
+                        <p className="text-sm font-semibold">This box is empty</p>
+                        <p className="text-xs">Drag a Pokémon here, or sort one over from another box.</p>
+                    </div>
+                )}
                 {viewMode === 'grid' ? (
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3">
                         {Array.from({ length: boxSlotCount }).map((_, slotIndex) => (

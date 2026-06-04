@@ -8,6 +8,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { axe } from 'vitest-axe';
 import { LegalityBadge } from '../components/editor/pokemon/LegalityBadge';
 import { LegalitySeverity, type LegalityAnalysis } from '../lib/legality';
 
@@ -56,5 +57,14 @@ describe('<LegalityBadge>', () => {
     render(<LegalityBadge analysis={mk(LegalitySeverity.Valid)} />);
     fireEvent.click(screen.getByRole('button', { name: /legality:/i }));
     expect(screen.getByText(/no structural problems found/i)).toBeInTheDocument();
+  });
+
+  it('has no axe accessibility violations (open, with findings)', async () => {
+    const { container } = render(
+      <LegalityBadge analysis={mk(LegalitySeverity.Fishy, LegalitySeverity.Invalid)} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /legality:/i }));
+    const results = await axe(container);
+    expect(results.violations.map((v) => v.id)).toEqual([]);
   });
 });
