@@ -3,9 +3,11 @@ import { Loader2, UploadCloud, Monitor, AlertTriangle, Files } from 'lucide-reac
 
 interface DropZoneProps {
     onFilesSelected: (files: File[]) => void;
+    /** True while a dropped save is being parsed — shows a loading state. */
+    isBusy?: boolean;
 }
 
-export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected }) => {
+export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, isBusy = false }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   
@@ -21,6 +23,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected }) => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    if (isBusy) return;
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         const fileList = Array.from(e.dataTransfer.files);
         onFilesSelected(fileList);
@@ -37,6 +40,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected }) => {
   };
 
   const handleClick = () => {
+    if (isBusy) return;
     fileInputRef.current?.click();
   };
 
@@ -89,7 +93,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected }) => {
                                 : 'border-stone-500/30 dark:border-blue-500/30 bg-white/20 dark:bg-black/20 text-stone-600 dark:text-blue-300 group-hover:scale-110'
                             }
                         `}>
-                            {isDragOver ? <Files size={32} /> : <Monitor size={32} />}
+                            {isBusy ? <Loader2 size={32} className="animate-spin" /> : isDragOver ? <Files size={32} /> : <Monitor size={32} />}
                         </div>
                         
                         <h3 className="font-mono text-lg font-bold text-stone-700 dark:text-blue-200 mb-1 group-hover:text-stone-900 dark:group-hover:text-blue-100 uppercase tracking-tight">
@@ -97,14 +101,14 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected }) => {
                         </h3>
                         
                         <div className="text-[10px] md:text-xs font-mono font-medium text-stone-600 dark:text-blue-400/80 px-2 py-1 bg-stone-100/50 dark:bg-black/20 rounded">
-                            {isDragOver ? 'RELEASE TO LOAD FILES' : 'CLICK OR DRAG FILES'}
+                            {isBusy ? 'LOADING SAVE…' : isDragOver ? 'RELEASE TO LOAD FILES' : 'CLICK OR DRAG FILES'}
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Power LED */}
-            <div className={`absolute bottom-2 right-8 w-2 h-2 md:w-3 md:h-3 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.8)] transition-colors duration-200 bg-red-500`}></div>
+            <div className={`absolute bottom-2 right-8 w-2 h-2 md:w-3 md:h-3 rounded-full transition-colors duration-200 ${isBusy ? 'bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.9)] animate-pulse' : 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]'}`}></div>
         </div>
 
         {/* Monitor Stand */}

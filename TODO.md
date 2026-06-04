@@ -11,6 +11,23 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
 
 ## ✅ Recently Done
 
+### Round 4 — render-test harness, loading state, cache-sync routing
+
+- [x] **`P1` Component/render test harness (§5).** Added happy-dom + Testing Library +
+  jest-dom, a `tests/setup.ts` (matchers + auto-cleanup, guarded so node-env logic
+  tests are unaffected), and `.test.tsx` support in `vitest.config.ts`. First render
+  tests cover `LegalityBadge` (tone/headline, a11y label, popover findings). Component
+  tests opt into the DOM per-file via `// @vitest-environment happy-dom`.
+- [x] **`P2` Loading / busy state (§2).** `DropZone` now takes `isBusy` (wired from
+  `App`'s `isProcessingQueue`/queue length): shows a spinner + "LOADING SAVE…", flips
+  the power LED green, and suppresses click/drop so a second file can't be queued
+  mid-parse. Render-tested in `tests/DropZone.test.tsx`.
+- [x] **`P1` `currentBoxPokemon` cache-drift routing (§1).** The hand-rolled active-box
+  re-derivations in `manipulation.ts` (×2) and `sortManager.ts` (×2) now route through
+  the single `syncCurrentBox` helper, so the invariant lives in one place. Locked by
+  `tests/cacheSync.test.ts` (reference-equality + no drift warning after a sort).
+- Coverage: +12 tests (`LegalityBadge`, `DropZone`, `cacheSync`) → 382 total.
+
 ### Round 3 — legality wired into the UI + Gen 3 sprite coverage
 
 - [x] **`P1` Surface structural legality in the editor (§4).** Added `useLegality`
@@ -82,12 +99,13 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   buffers to IndexedDB (binary saves are ~32KB Gen1/2; fine to store) with a
   "restore unsaved session?" prompt on next load. 🔺 *Gen 3 saves are 128KB+;
   design the store key/size budget now.*
-- [ ] **`P1` `currentBoxPokemon` cache drift.** The test suite repeatedly logs
-  `[invariant] currentBoxPokemon is out of sync with pcBoxes[...]` (visible in
-  `dataIntegrity` / `populatedRoundTrip` runs). The writer guards against it, but
-  callers must remember to call `syncCurrentBox()` after editing `pcBoxes`. Make the
-  active-box cache derived (selector/memo) instead of a separately-mutated field so
-  the drift class of bug becomes unrepresentable.
+- [~] **`P1` `currentBoxPokemon` cache drift.** The active-box re-derivations in
+  `manipulation.ts` and `sortManager.ts` now route through the single `syncCurrentBox`
+  helper (locked by `tests/cacheSync.test.ts`), so the mutation paths can no longer
+  hand-roll the cache. The deliberate `dataIntegrity` test still exercises the dev-only
+  drift *warning*. ✅ *Remaining (optional, larger):* drop the cached field entirely in
+  favour of a `getActiveBox(save)` selector so the drift class is fully unrepresentable
+  — deferred because it changes the `CanonicalSave` shape (parsers/writers/UI touch it).
 - [x] **`P2` Generic load/export error copy.** ✅ *Done.* `App.tsx` previously showed
   "Unexpected error processing …" and "Failed to generate save file." with no detail.
   Both paths now append the underlying `Error.message` so users can self-diagnose.
@@ -118,9 +136,10 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   buttons in `EditorTools` are bound to `canUndo()`/`canRedo()` and stay reactive
   because every mutation pairs with a `setData` re-render. Keyboard shortcuts live in
   `EditorDashboard.tsx`.
-- [ ] **`P2` Loading / busy states.** `isProcessingQueue` exists in `App.tsx` but
-  confirm the DropZone and tab bar show a spinner/skeleton while large saves parse,
-  so the app doesn't appear frozen. 🔺 *Matters more for bigger Gen 3 buffers.*
+- [x] **`P2` Loading / busy states.** ✅ *Done.* `DropZone` shows a spinner + "LOADING
+  SAVE…" (and a green LED) while `App`'s `isProcessingQueue` is set, and blocks
+  click/drop during parse so no second file is queued mid-parse. Render-tested.
+  *Remaining (optional):* a skeleton in the tab bar for very large multi-file queues.
 - [ ] **`P2` Mobile drag preview polish.** `lib/hooks/touchDnD.ts` reimplements DnD
   for touch via `elementFromPoint`. Verify auto-scroll near screen edges and the
   400ms hover tab-switch behave on small viewports; add haptic feedback on drop where
@@ -208,9 +227,9 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
 
 ## 5. Testing & Tooling
 
-- [ ] **`P1` Add component/render tests.** The suite is excellent for logic
-  (round-trip, codecs, stat calc, scalability invariant) but has **no** UI/render
-  tests. Add React Testing Library coverage for the highest-risk interactions:
+- [~] **`P1` Add component/render tests.** ✅ *Harness established* (happy-dom + Testing
+  Library + jest-dom; `.test.tsx` support; per-file `@vitest-environment`). First tests
+  cover `LegalityBadge` and `DropZone`. *Remaining:* the highest-risk interactions —
   drag-to-move, multi-select, tab switching, and the export flow.
 - [ ] **`P2` Accessibility CI gate.** Add `jest-axe`/`vitest-axe` assertions to the new
   component tests so the a11y items in §2 don't regress.
@@ -225,12 +244,11 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
 
 ### Suggested next sprint
 
-With legality now wired into the editor (badge + clone scan) and Gen 3 sprite
-coverage confirmed, the highest-leverage next steps are:
+With the render-test harness in place, a loading state, and cache-sync centralised,
+the highest-leverage next steps are:
 
-1. Surface `analyzeSaveClones` in the PC storage view (highlight clone slots) — the
-   helper exists; show it.
-2. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap.
-3. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
-4. First React Testing Library component tests (§5) — would let us render-test the
-   new `LegalityBadge` directly.
+1. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap; now render-testable.
+2. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
+3. Surface `analyzeSaveClones` in the PC storage view (highlight clone slots).
+4. Extend component tests to drag-to-move / multi-select / tab switching, and add a
+   `vitest-axe` a11y gate (§5) now that the harness supports it.

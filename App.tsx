@@ -443,7 +443,7 @@ const App: React.FC = () => {
         ) : (
             <div className="flex-grow w-full flex flex-col items-center justify-start pb-24">
               <Hero />
-              <DropZone onFilesSelected={handleFilesSelected} />
+              <DropZone onFilesSelected={handleFilesSelected} isBusy={isProcessingQueue || fileQueue.length > 0} />
               <div className="max-w-[100rem] mx-auto px-4 sm:px-6 lg:px-8 w-full flex justify-center"><Features /></div>
             </div>
         )}

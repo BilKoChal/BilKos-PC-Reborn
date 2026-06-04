@@ -1,5 +1,6 @@
 import { logger } from './logger';
 import { ParsedSave, PokemonStats } from '../parser/types';
+import { syncCurrentBox } from '../canonicalModel';
 import { registry } from '../core/AdapterRegistry';
 import { convertPokemonForTransfer } from './crossGenConverter';
 
@@ -145,14 +146,12 @@ export function movePokemonBatch(
 
     return {
         success: true,
-        newData: {
+        newData: syncCurrentBox({
             ...data,
             party: newParty,
             partyCount: newParty.length,
             pcBoxes: newBoxes,
-            currentBoxPokemon: newBoxes[data.currentBoxId]!,
-            currentBoxCount: newBoxes[data.currentBoxId]!.length
-        }
+        })
     };
 }
 
@@ -352,14 +351,12 @@ export function transferPokemonBatch(
         const cleanedParty = cleanList(newParty);
         const cleanedBoxes = newBoxes.map(b => cleanList(b));
         
-        return {
+        return syncCurrentBox({
             ...original,
             party: cleanedParty,
             partyCount: cleanedParty.length,
             pcBoxes: cleanedBoxes,
-            currentBoxPokemon: cleanedBoxes[original.currentBoxId]!,
-            currentBoxCount: cleanedBoxes[original.currentBoxId]!.length
-        };
+        });
     };
 
     if (sameSave) {

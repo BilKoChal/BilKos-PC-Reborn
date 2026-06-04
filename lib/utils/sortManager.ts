@@ -1,5 +1,6 @@
 import { logger } from './logger';
 import { ParsedSave, PokemonStats } from '../parser/types';
+import { syncCurrentBox } from '../canonicalModel';
 import { IGenerationAdapter } from '../interfaces';
 import { registry } from '../core/AdapterRegistry';
 import { convertPokemonForTransfer } from './crossGenConverter';
@@ -265,14 +266,12 @@ function sortLivingDex(
 
     return {
         success: true,
-        newData: {
+        newData: syncCurrentBox({
             ...targetSave,
             pcBoxes: newBoxes,
             party: finalParty,
             partyCount: finalParty.length,
-            currentBoxPokemon: newBoxes[targetSave.currentBoxId] ?? [],
-            currentBoxCount: (newBoxes[targetSave.currentBoxId] ?? []).length
-        },
+        }),
         externalRemovals
     };
 }
@@ -328,11 +327,9 @@ export function sortPCBoxes(
 
   return {
     success: true,
-    newData: {
+    newData: syncCurrentBox({
       ...targetSave,
       pcBoxes: newBoxes,
-      currentBoxPokemon: newBoxes[targetSave.currentBoxId] ?? [],
-      currentBoxCount: (newBoxes[targetSave.currentBoxId] ?? []).length
-    }
+    })
   };
 }
