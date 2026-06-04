@@ -91,6 +91,7 @@ export class Gen2Adapter implements IGenerationAdapter {
   hasFatefulEncounter = false; // Gen 3+
   hasFriendshipSystem = true;  // friendship/happiness introduced in Gen 2
   hasPokerus = true;           // Pokérus introduced in Gen 2
+  hasEggs = true;              // breeding/eggs introduced in Gen 2
   hasFormSystem = true;        // Unown letter forms
   hasNationalDexFlag = false;  // National Dex unlock concept is Gen 3+
   maxMoney = 999999;

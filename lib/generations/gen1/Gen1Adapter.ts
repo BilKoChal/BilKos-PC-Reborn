@@ -75,6 +75,7 @@ export class Gen1Adapter implements IGenerationAdapter {
   hasFatefulEncounter = false;
   hasFriendshipSystem = false; // friendship/happiness introduced in Gen 2
   hasPokerus = false;          // Pokérus introduced in Gen 2
+  hasEggs = false;             // breeding/eggs introduced in Gen 2
   hasFormSystem = false;       // no alternate forms in Gen 1
   hasNationalDexFlag = false;
   maxMoney = 999999;

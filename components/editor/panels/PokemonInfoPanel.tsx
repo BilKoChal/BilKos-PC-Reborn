@@ -119,6 +119,23 @@ export const PokemonInfoPanel: React.FC<PokemonInfoPanelProps> = ({
                     />
                 </div>
 
+                {/* Is Egg toggle — only for generations that have breeding/eggs
+                    (adapter.hasEggs). Gen 1 has no eggs, so this is hidden there. */}
+                {adapter?.hasEggs && (
+                    <label className="w-full mt-3 flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 cursor-pointer select-none hover:border-green-300 dark:hover:border-green-600 transition-colors">
+                        <span className="flex items-center gap-2 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                            <span aria-hidden>🥚</span> Egg
+                            <span className="text-[10px] font-normal text-gray-400">unhatched</span>
+                        </span>
+                        <input
+                            type="checkbox"
+                            checked={!!mon.isEgg}
+                            onChange={(e) => updateField('isEgg', e.target.checked)}
+                            className="h-5 w-5 accent-green-500 cursor-pointer"
+                        />
+                    </label>
+                )}
+
                 {/* Unown Form Selector (Gen 2, species 201) — adjusts DVs to match (TODO 3.8) */}
                 {mon.dexId === 201 && (
                     <div className="w-full mt-2">

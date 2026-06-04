@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getPokemonSpriteUrl, POKEMON_SPRITE_FALLBACK, getSpriteImgClasses, isGen2GameSpecificShiny } from '../../lib/sprites';
 import { SpriteMode } from '../../context/SpriteContext';
 import { GameVersion } from '../../lib/parser/types';
-import { Egg, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 // ─── Gen 2 Shiny Sprite Canvas Padding ──────────────────────────────────────
 // Gen 2 game-specific shiny sprites from PokeAPI are 40x40px, while regular
@@ -118,6 +118,39 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
 
   const imgSrc = paddedSrc || originalSrc;
 
+  // Egg redesign: show a clean egg graphic INSTEAD of the species sprite (an egg
+  // hides its species in-game), rather than overlaying a badge on the visible
+  // species — which read as a sticker. Dependency-free inline SVG so it always
+  // renders crisply at any size.
+  if (isEgg) {
+    return (
+      <div className={`relative flex items-center justify-center ${className}`} style={style}>
+        <svg viewBox="0 0 100 120" role="img" aria-label={`${speciesName} (Egg)`}
+          className={`w-full h-full object-contain drop-shadow-lg ${imgClassName}`}>
+          <defs>
+            <radialGradient id="eggShade" cx="40%" cy="35%" r="75%">
+              <stop offset="0%" stopColor="#fffdf7" />
+              <stop offset="70%" stopColor="#f3ecd9" />
+              <stop offset="100%" stopColor="#e2d7bd" />
+            </radialGradient>
+          </defs>
+          {/* Egg body: narrower/pointed top, rounded bottom (classic egg silhouette) */}
+          <path d="M50 6 C72 6 90 44 90 74 C90 99 72 116 50 116 C28 116 10 99 10 74 C10 44 28 6 50 6 Z"
+            fill="url(#eggShade)" stroke="#c9bb97" strokeWidth="2.5" />
+          {/* Spots (the iconic Gen 2 egg blotches) */}
+          <g fill="#6ee7b7" opacity="0.9">
+            <ellipse cx="38" cy="52" rx="11" ry="9" />
+            <ellipse cx="63" cy="44" rx="7" ry="6" />
+            <ellipse cx="60" cy="78" rx="12" ry="10" />
+            <ellipse cx="36" cy="88" rx="6" ry="5" />
+          </g>
+          {/* Soft highlight */}
+          <ellipse cx="38" cy="34" rx="12" ry="16" fill="#ffffff" opacity="0.45" />
+        </svg>
+      </div>
+    );
+  }
+
   return (
     <div className={`relative ${className}`}>
       <img
@@ -129,14 +162,6 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
         onError={onError || ((e) => { (e.target as HTMLImageElement).src = POKEMON_SPRITE_FALLBACK })}
         loading={loading}
       />
-      {/* Egg overlay — lucide Egg icon */}
-      {isEgg && showOverlays && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-          <div className="bg-green-400/80 dark:bg-green-500/80 rounded-full p-1.5 shadow-lg border-2 border-white dark:border-gray-800">
-            <Egg size={16} className="text-white" />
-          </div>
-        </div>
-      )}
       {/* Shiny overlay — lucide Sparkles icon badge */}
       {isShiny && showOverlays && (
         <div className="absolute -top-1 -right-1 flex items-center justify-center bg-yellow-400 dark:bg-yellow-500 rounded-full border-2 border-white dark:border-gray-800 shadow-lg z-10">

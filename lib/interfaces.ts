@@ -266,6 +266,10 @@ export interface IGenerationMetadata {
   /** Pokérus infection status byte. false Gen1, true Gen2+. */
   hasPokerus: boolean;
 
+  /** Breeding/eggs exist (a Pokémon can be an unhatched egg). false Gen1,
+   *  true Gen2+. Gates the "Is Egg" toggle in the editor and egg rendering. */
+  hasEggs: boolean;
+
   /** Alternate forms beyond cosmetic (e.g. Unown letters Gen2; Deoxys/etc Gen3+).
    *  true for Gen2+ (Unown), true Gen3+. false for Gen1. */
   hasFormSystem: boolean;

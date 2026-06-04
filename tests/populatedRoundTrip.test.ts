@@ -515,3 +515,32 @@ describe('Gen 1 box-mon round-trip + active-box drift (TODO 5.1 / 2.9)', () => {
     expect(save.currentBoxPokemon).toBe(save.pcBoxes[activeId]);
   });
 });
+
+// ============================================================================
+// Egg toggle — capability flag + write→parse round-trip (UI "Is Egg" feature)
+// ============================================================================
+
+describe('Egg support: capability flag + round-trip', () => {
+  it('only Gen 2 advertises hasEggs (Gen 1 has no breeding/eggs)', () => {
+    expect(new Gen1Adapter().hasEggs).toBe(false);
+    expect(new Gen2Adapter().hasEggs).toBe(true);
+  });
+
+  it('Gen 2: toggling isEgg=true survives write→re-parse', () => {
+    const adapter = new Gen2Adapter();
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+    save.party = [buildGen2PartyMon({ speciesId: 175, speciesName: 'Togepi', isEgg: true })];
+    save.partyCount = 1;
+    const rp = adapter.parseSave(adapter.writeSave(save), 'gold.sav').party[0]!;
+    expect(rp.isEgg).toBe(true);
+  });
+
+  it('Gen 2: a non-egg stays non-egg through write→re-parse', () => {
+    const adapter = new Gen2Adapter();
+    const save = adapter.parseSave(createMinimalGen2Save(), 'gold.sav');
+    save.party = [buildGen2PartyMon({ speciesId: 152, speciesName: 'Chikorita', isEgg: false })];
+    save.partyCount = 1;
+    const rp = adapter.parseSave(adapter.writeSave(save), 'gold.sav').party[0]!;
+    expect(rp.isEgg).toBe(false);
+  });
+});

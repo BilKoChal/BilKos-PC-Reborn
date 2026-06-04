@@ -530,6 +530,20 @@
   `isLegal` false iff any Invalid, Fishy is only a warning). New code passes the `scalabilityLint` guard.
 - Result: **322 tests pass** (was 319), `tsc` clean, build OK.
 
+**Iteration 35 — USER request: egg visual redesign + "Is Egg" toggle + `hasEggs` flag:**
+- **Egg visual was bad** — `PokemonSprite.tsx` overlaid a tiny lucide `Egg` badge on top of the still-
+  visible species sprite (looked like a sticker). Redesigned: when `isEgg`, render a clean, dependency-
+  free inline-SVG egg (classic silhouette + Gen 2 spots + highlight) **instead of** the species sprite
+  (an egg hides its species in-game). Removed the now-unused `Egg` import.
+- **"Is Egg" toggle** — added a checkbox to the Pokémon summary (`PokemonInfoPanel`) that sets
+  `isEgg` via `updateField`. Gated on the new capability flag so it only appears where eggs exist.
+- **`hasEggs` capability flag** — added to `IGenerationMetadata`; Gen 1 = false (no breeding/eggs),
+  Gen 2 = true. The toggle uses `adapter.hasEggs` (NOT `generation === N`), so it passes the
+  `scalabilityLint` guard and Gen 1 correctly never shows it.
+- Verified the toggle's data path: Gen 2 writer persists `isEgg` (species-list header `0xFD`) and the
+  parser reads it back. Added 3 tests (flag values; isEgg=true and =false both survive write→re-parse).
+- Result: **325 tests pass** (was 322), `tsc` clean, build OK.
+
 ---
 
 ## Legend
