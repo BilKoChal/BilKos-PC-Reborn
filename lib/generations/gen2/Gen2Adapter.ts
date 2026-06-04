@@ -1,6 +1,6 @@
 import { IGenerationAdapter, BaseStats, IStandalonePokemonFormat, ITextCodec, InventoryPocket } from '../../interfaces';
 import { ParsedSave, PokemonStats, Gen2SaveExtension, isGen2SaveExtension, isGen2Extension, SaveValidationResult } from '../../parser/types';
-import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct } from './parser';
+import { parseGen2Save, calculateGen2Checksum, isGen2Shiny, parseGen2PokemonStruct, getGen2Gender } from './parser';
 import { writeGen2Save, writeGen2PokemonStruct, recomputeGen2Checksums } from './writer';
 import { calculateGen2Stat, recalculateGen2Stats } from './statCalculator';
 import { 
@@ -388,6 +388,12 @@ export class Gen2Adapter implements IGenerationAdapter {
   recalculateStats(mon: PokemonStats, baseStats: BaseStats): PokemonStats {
     const result = recalculateGen2Stats(mon, baseStats);
     result.isShiny = isGen2Shiny(result.iv.attack, result.iv.defense, result.iv.speed, result.iv.special);
+    // GSC gender is derived from the Attack DV (like shininess), so keep it in
+    // sync whenever DVs change. Eggs stay Genderless until they hatch.
+    result.gender = result.isEgg ? 'Genderless' : getGen2Gender(result.dexId, result.iv.attack);
+    if (isGen2Extension(result.genExtension)) {
+      result.genExtension.gender = result.gender;
+    }
     return result;
   }
 

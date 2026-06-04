@@ -11,6 +11,25 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
 
 ## ✅ Recently Done
 
+### Round 7 — Gen 2 gender bug fix, Crystal-branch audit, tab tests, undo bound
+
+- [x] **`fix` Party gender always Male.** GSC gender is a function of the Attack DV (like
+  shininess), but `Gen2Adapter.recalculateStats` only re-derived `isShiny`, leaving
+  `gender` stale whenever DVs changed (e.g. maxing IVs → all Male). It now re-derives
+  `gender` from the Attack DV (eggs stay Genderless) and keeps `genExtension.gender` in
+  sync. Regression-tested in `tests/gen2Gender.test.ts`.
+- [x] **`P2` Crystal-branch audit (§1).** Confirmed `EventsTab`'s `=== 'Crystal'` is a
+  legitimate within-Gen2 version distinction (Crystal-only events/UI), already behind the
+  `isGen2SaveExtension` guard — documented inline; no abstraction leak.
+- [x] **`P1` Component tests → interactions (§5).** Added `tests/SaveTabBar.test.tsx`
+  (tab switch, close-tab by label, open-new / close-all, empty render, axe), extending the
+  harness beyond static components.
+- [x] **`P2` Undo history bound + depth (§3).** `useUndoHistory` now takes a configurable
+  `maxHistory` (so Gen 3 can lower it for bigger saves), skips no-op pushes, and exposes
+  `historyDepth()`. Tested with `renderHook` in `tests/useUndoHistory.test.tsx`. The full
+  slot-diff/changelog model remains the longer-term plan.
+- Coverage: +14 tests (`gen2Gender`, `SaveTabBar`, `useUndoHistory`) → 421 total.
+
 ### Round 6 — Gen 3 entity crypto, ID/shiny helpers, synthetic fixture
 
 - [x] **`P1` Gen 3 entity crypto + block shuffle (§4).** Added `lib/generations/gen3/entity.ts`
@@ -143,9 +162,10 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
 - [x] **`P2` Generic load/export error copy.** ✅ *Done.* `App.tsx` previously showed
   "Unexpected error processing …" and "Failed to generate save file." with no detail.
   Both paths now append the underlying `Error.message` so users can self-diagnose.
-- [ ] **`P2` Audit `gameVersion === 'Crystal'` branch** in `EventsTab.tsx:57`. This is
-  one of the few remaining hardcoded version checks in the UI; confirm it routes
-  through adapter metadata, or document why Crystal events are a legitimate exception.
+- [x] **`P2` Audit `gameVersion === 'Crystal'` branch** in `EventsTab.tsx`. ✅ *Done.*
+  It's a legitimate within-Gen2 version distinction (Crystal-only events/UI), already
+  routed through the `isGen2SaveExtension` guard — documented inline as an accepted
+  exception, not an abstraction leak.
 
 ---
 
@@ -213,11 +233,11 @@ here blocks — and several items actively prepare for — **Gen 3+ support**.
   `extensions.tsx:308` (explicit panel-extension registration, TODO 4.7),
   `EditorDashboard.tsx:306` (generic save-extension field updater, TODO 3.9). Triage
   which are pre-Gen3 cleanups vs. deferrable.
-- [ ] **`P2` Undo snapshot strategy.** `useUndoHistory` deep-clones the *entire*
-  `ParsedSave` (`structuredClone`, MAX_HISTORY=50). The code itself notes this is
-  "feasible at ~200KB per snapshot for Gen 1/2." 🔺 *Gen 3 saves are larger and may be
-  edited more granularly — switch to a slot-diff/changelog model (PKHeX's
-  `SlotChangelog` approach the comment references) before snapshots get expensive.*
+- [~] **`P2` Undo snapshot strategy.** `useUndoHistory` now accepts a configurable
+  `maxHistory` (memory bound Gen 3 can tune down), skips no-op pushes, and exposes
+  `historyDepth()` — tested via `renderHook`. ✅ *Remaining:* the full slot-diff /
+  changelog model (PKHeX `SlotChangelog`-style) to replace full `structuredClone`
+  snapshots for large saves.
 - [x] **`P2` Centralize remaining `React.memo` comparators.** ✅ *Done.* The shared
   slot-prop comparison now lives in `lib/utils/slotMemo.ts` (`arePokemonSlotPropsEqual`),
   composed by `PCStorage` (+ `viewMode`/`viewedBoxIndex`) and used directly by
@@ -269,8 +289,9 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
 
 - [~] **`P1` Add component/render tests.** ✅ *Harness established* (happy-dom + Testing
   Library + jest-dom; `.test.tsx` support; per-file `@vitest-environment`). First tests
-  cover `LegalityBadge` and `DropZone`. *Remaining:* the highest-risk interactions —
-  drag-to-move, multi-select, tab switching, and the export flow.
+  cover `LegalityBadge`, `DropZone`, and `SaveTabBar` (tab switch / close / open).
+  *Remaining:* the remaining high-risk interactions — drag-to-move, multi-select,
+  and the export flow.
 - [x] **`P2` Accessibility CI gate.** ✅ *Done.* `vitest-axe` assertions in the
   `LegalityBadge` and `DropZone` render tests assert zero violations; they run in the
   standard suite, so CI's `test:coverage` step enforces them. Extend to new components
@@ -291,11 +312,11 @@ seam, `checksumOffsets`, standalone-format crypto contract, `Gen3Extension` stub
 
 ### Suggested next sprint
 
-With the Gen 3 entity crypto, ID/shiny helpers, and a synthetic fixture in place, the
-highest-leverage next steps are:
+With the Gen 2 gender fix, Crystal-branch audit, tab-bar tests, and a bounded undo
+history in place, the highest-leverage next steps are:
 
 1. Stand up the Gen 3 adapter + parser/writer using the crypto + shuffle now proven,
    then validate the `sv`→permutation map against a real `.pk3` (§4).
 2. Keyboard drag-and-drop (§2) — biggest remaining UX/a11y gap.
 3. `SaveContext` consolidation (§3) — unblocks clean Gen 3 panel insertion.
-4. Extend component/axe tests to drag-to-move, multi-select, and tab switching (§5).
+4. Extend component/axe tests to drag-to-move and multi-select (§5).

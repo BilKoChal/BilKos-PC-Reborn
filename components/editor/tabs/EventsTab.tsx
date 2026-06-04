@@ -54,6 +54,11 @@ export const EventsTab: React.FC<EventsTabProps> = ({
     // D1/D2: Use isGen2SaveExtension type guard instead of manual `as Gen2SaveExtension` cast
     // + `.generation === 2` check. Follows PKHeX's `sav is SAV2` pattern.
     const gen2Ext = isGen2SaveExtension(data.genExtension) ? data.genExtension : null;
+    // NOTE (§1 audit): this `=== 'Crystal'` is a legitimate *within-generation*
+    // version distinction, NOT a cross-generation leak. Crystal has events/UI that
+    // Gold/Silver lack (e.g. the Battle Tower, Odd Egg, female player), so gating
+    // them on the version is correct. It already flows through the Gen2 type guard
+    // above, so it does not bypass the adapter abstraction.
     const isCrystal = gen2Ext?.gameVersion === 'Crystal';
 
     return (
