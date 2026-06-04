@@ -16,6 +16,7 @@ export const MoveModeFAB: React.FC<MoveModeFABProps> = ({ isActive, selectedCoun
                 onClick={onExit}
                 className="w-14 h-14 bg-red-500 hover:bg-red-600 text-white rounded-full shadow-2xl flex items-center justify-center transition-transform hover:scale-110 active:scale-95 group"
                 title="Exit Move Mode"
+                aria-label="Exit Move Mode"
             >
                 <X size={28} strokeWidth={3} className="group-hover:rotate-90 transition-transform" />
             </button>

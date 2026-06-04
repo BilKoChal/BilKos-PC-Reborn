@@ -76,8 +76,8 @@ export const SaveTabBar: React.FC<SaveTabBarProps> = ({
             })}
 
             {/* Tab Actions */}
-            <button onClick={onOpenNew} className="p-2 h-10 rounded-lg bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900/30 transition-colors shadow-sm mb-1 ml-1" title="Open New Save"><Plus size={18} /></button>
-            <button onClick={onCloseAll} className="p-2 h-10 rounded-lg bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 transition-colors shadow-sm mb-1" title="Close All Tabs"><Trash2 size={18} /></button>
+            <button onClick={onOpenNew} className="p-2 h-10 rounded-lg bg-white dark:bg-gray-700 hover:bg-blue-50 dark:hover:bg-gray-600 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-900/30 transition-colors shadow-sm mb-1 ml-1" title="Open New Save" aria-label="Open New Save"><Plus size={18} /></button>
+            <button onClick={onCloseAll} className="p-2 h-10 rounded-lg bg-red-100 dark:bg-red-900/20 hover:bg-red-200 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 transition-colors shadow-sm mb-1" title="Close All Tabs" aria-label="Close All Tabs"><Trash2 size={18} /></button>
         </div>
     );
 };
@@ -166,10 +166,10 @@ const DragAwareTab: React.FC<DragAwareTabProps> = ({
                     {tab.filename}
                 </span>
                 <span className="text-[10px] text-gray-400 font-mono flex items-center gap-1">
-                    {tab.version} Version {tab.isDirty && <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 ml-1" title="Unsaved Changes"></span>}
+                    {tab.version} Version {tab.isDirty && <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 ml-1" title="Unsaved Changes" aria-label="Unsaved changes" role="img"></span>}
                 </span>
             </div>
-            <button onClick={(e) => onCloseTab(e, tab.id)} className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+            <button onClick={(e) => onCloseTab(e, tab.id)} aria-label={`Close ${tab.filename}`} className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                 <X size={12} className="text-gray-500" />
             </button>
         </div>

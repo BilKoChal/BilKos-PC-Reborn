@@ -226,6 +226,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
               <button 
                 onClick={() => setIsMenuOpen(false)}
                 className="p-1 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-full transition-colors"
+                aria-label="Close Menu"
               >
                 <X size={24} />
               </button>
@@ -308,7 +309,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
                 </div>
                 <div>
                   <h5 className="font-bold text-gray-900 dark:text-white text-sm">BilKo's PC</h5>
-                  <p className="text-xs text-gray-500">Gen 1 Save Editor</p>
+                  <p className="text-xs text-gray-500">Gen 1 &amp; 2 Save Editor</p>
                 </div>
               </div>
             </div>

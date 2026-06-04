@@ -24,6 +24,7 @@ import { MoveModeFAB } from './components/ui/MoveModeFAB';
 import { CloseConfirmationModal } from './components/editor/modals/CloseConfirmationModal';
 import { ErrorModal } from './components/editor/modals/ErrorModal';
 import { CloseAllModal } from './components/editor/modals/CloseAllModal';
+import { hasUnsavedWork, createBeforeUnloadHandler } from './lib/utils/sessionGuard';
 
 interface SaveTab {
     id: string;
@@ -95,6 +96,16 @@ const App: React.FC = () => {
       }
   }, [activeTab, setActiveGameId]);
 
+  // --- Warn before leaving with unsaved changes (TODO §1) ---
+  // Saves live only in state, so a refresh/close would discard edits silently.
+  // The handler re-reads `tabs` at unload time via the closure below.
+  useEffect(() => {
+      if (!hasUnsavedWork(tabs)) return;
+      const handler = createBeforeUnloadHandler(() => hasUnsavedWork(tabs));
+      window.addEventListener('beforeunload', handler);
+      return () => window.removeEventListener('beforeunload', handler);
+  }, [tabs]);
+
   // --- Auto-adjust Active Tab when tabs list changes ---
   useEffect(() => {
       if (tabs.length === 0) {
@@ -140,7 +151,8 @@ const App: React.FC = () => {
               }
           } catch (e) {
               console.error(e);
-              setErrorMessage(`Unexpected error processing "${currentFile!.name}".`);
+              const reason = e instanceof Error ? e.message : String(e);
+              setErrorMessage(`Unexpected error processing "${currentFile!.name}".\n\nReason: ${reason}`);
               setFileQueue(prev => prev.slice(1));
           } finally {
               setIsProcessingQueue(false);
@@ -258,7 +270,8 @@ const App: React.FC = () => {
           }
       } catch (e) {
           console.error("Failed to save", e);
-          setErrorMessage("Failed to generate save file.");
+          const reason = e instanceof Error ? e.message : String(e);
+          setErrorMessage(`Failed to generate save file.\n\nReason: ${reason}`);
       }
   };
 

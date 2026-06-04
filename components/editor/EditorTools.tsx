@@ -80,6 +80,7 @@ export const EditorTools: React.FC<EditorToolsProps> = ({
                                         : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                                 }`}
                                 title="Undo (Ctrl+Z)"
+                                aria-label="Undo"
                             >
                                 <Undo2 size={16} />
                             </button>
@@ -92,6 +93,7 @@ export const EditorTools: React.FC<EditorToolsProps> = ({
                                         : 'text-gray-300 dark:text-gray-600 cursor-not-allowed'
                                 }`}
                                 title="Redo (Ctrl+Shift+Z)"
+                                aria-label="Redo"
                             >
                                 <Redo2 size={16} />
                             </button>
@@ -109,6 +111,7 @@ export const EditorTools: React.FC<EditorToolsProps> = ({
                                         : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30'
                                 }`}
                                 title={isSaveValid ? 'Checksum valid — click to verify' : 'Checksum invalid — click for details'}
+                                aria-label={isSaveValid ? 'Checksum valid, verify save' : 'Checksum invalid, view details'}
                             >
                                 {isSaveValid ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
                                 <span className="hidden sm:inline">{isSaveValid ? 'Valid' : 'Invalid'}</span>
