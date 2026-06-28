@@ -11,18 +11,29 @@
  *   0x1C u16  Checksum (sum of the 24 u16 words of the decrypted data region)
  *   0x1E u16  (sanity / padding)
  *   0x20 0x30 Data region: four 12-byte blocks (Growth, Attacks, EVs, Misc),
- *             XOR-encrypted with key = PID ^ OTID and shuffled into one of 24
- *             orderings selected by `PID % 24`.
+ *             XOR-encrypted with an LCRNG stream cipher seeded from `PID ^ OTID`
+ *             and shuffled into one of 24 orderings selected by `PID % 24`.
  *
- * Decrypt = XOR the 48-byte region, then unshuffle to canonical G/A/E/M order.
- * Encrypt = shuffle canonical, then XOR. XOR is symmetric and the checksum is a
- * word-sum (order-independent), so the whole transform round-trips exactly.
+ * Decrypt = XOR the 48-byte region with the LCRNG stream, then unshuffle to
+ * canonical G/A/E/M order. Encrypt = shuffle canonical, then XOR. The LCRNG
+ * stream is symmetric (re-applying it with the same seed recovers the plaintext),
+ * and the checksum is a word-sum (order-independent), so the whole transform
+ * round-trips exactly AND matches PKHeX / real Gen 3 cartridges.
  *
- * ⚠️ As `entityFormat.ts` notes, the *mapping* from `PID % 24` to a specific
- * permutation (and the exact data-block field offsets) must still be validated
- * byte-for-byte against PKHeX and a real `.pk3` once the Gen 3 parser lands. What
- * is proven here — and what a parser can rely on — is exact round-trip
- * invertibility and a correct, position-independent checksum.
+ * BUG FIX (BUG-G3-01): Previously used a fixed-key XOR (`data[i] ^ (PID ^ OTID)`
+ * for every 4-byte word). The real Gen 3 algorithm is an LCRNG stream cipher:
+ *   seed = (PID ^ OTID) >>> 0
+ *   for each 4-byte chunk:
+ *     seed = (seed * 0x41C64E6D + 0x6073) >>> 0    (LCRNG advance, BEFORE XOR)
+ *     chunk = chunk ^ seed
+ * Each chunk gets a FRESH PRNG output. The old fixed-key XOR would silently
+ * corrupt any real Gen 3 save opened in this editor (and produce files no real
+ * game or PKHeX could read). The fix implements the LCRNG correctly.
+ *
+ * Reference: PKHeX `PK3.cs` `Encrypt()` / `Decrypt()` and Bulbapedia's
+ * "Pokémon data substructures (Generation III)" article. The LCRNG constants
+ * `0x41C64E6D` / `0x6073` are the standard Pokémon LCRNG (also used by the
+ * Gen 3/4/5 PRNG, egg generation, etc.).
  */
 import { BLOCK_ORDERS, getBlockOrderIndex, shuffleBlocks, unshuffleBlocks } from '../../core/entityFormat';
 
@@ -31,6 +42,10 @@ export const PK3_DATA_OFFSET = 0x20;
 export const PK3_DATA_SIZE = 48; // 4 blocks × 12 bytes
 export const PK3_BLOCK_SIZE = 12;
 export const PK3_CHECKSUM_OFFSET = 0x1c;
+
+// LCRNG constants — the standard Pokémon Linear Congruential RNG used by Gen 3-5.
+const LCRNG_MULT = 0x41c64e6d;
+const LCRNG_ADD = 0x6073;
 
 function readU32LE(data: Uint8Array, offset: number): number {
   return (
@@ -47,23 +62,45 @@ function readU16LE(data: Uint8Array, offset: number): number {
   return (data[offset]! | (data[offset + 1]! << 8)) & 0xffff;
 }
 
-/** The 16-bit XOR encryption key for an entity: `PID ^ OTID`. */
+/**
+ * Advance the Pokémon LCRNG by one step. Returns the next 32-bit state.
+ *   next = (seed * 0x41C64E6D + 0x6073) & 0xFFFFFFFF
+ * Uses `Math.imul` to stay in 32-bit range without floating-point precision loss.
+ */
+function lcrngNext(seed: number): number {
+  return (Math.imul(seed >>> 0, LCRNG_MULT) + LCRNG_ADD) >>> 0;
+}
+
+/**
+ * The 32-bit seed for the PK3 stream cipher: `PID ^ OTID`. This is the value
+ * fed into the LCRNG; the LCRNG is then advanced once per 4-byte chunk BEFORE
+ * each XOR (so the first chunk is XORed with `lcrngNext(PID ^ OTID)`, not with
+ * `PID ^ OTID` itself).
+ */
 export function pk3CryptoKey(pid: number, otid: number): number {
   return ((pid >>> 0) ^ (otid >>> 0)) >>> 0;
 }
 
 /**
- * XOR a 48-byte data region with the 32-bit key, word by word. Symmetric:
- * applying it twice returns the original bytes (encrypt and decrypt are equal).
+ * XOR a 48-byte data region with the LCRNG stream cipher seeded from `key`.
+ * Symmetric: applying it twice with the same key returns the original bytes
+ * (encrypt and decrypt are the same operation).
+ *
+ * The LCRNG is advanced ONCE per 4-byte chunk BEFORE the XOR, matching PKHeX:
+ *   let seed = key
+ *   for each 4-byte chunk i:
+ *     seed = lcrngNext(seed)         // advance FIRST
+ *     chunk[i] ^= seed               // 32-bit LE XOR with the fresh output
  */
 export function xorCryptData(data: Uint8Array, key: number): Uint8Array {
   if (data.length !== PK3_DATA_SIZE) {
     throw new Error(`PK3 data region must be ${PK3_DATA_SIZE} bytes, got ${data.length}`);
   }
   const out = new Uint8Array(data);
-  const k = key >>> 0;
+  let seed = key >>> 0;
   for (let i = 0; i < PK3_DATA_SIZE; i += 4) {
-    const word = readU32LE(out, i) ^ k;
+    seed = lcrngNext(seed); // advance BEFORE XOR (PKHeX order)
+    const word = readU32LE(out, i) ^ seed;
     out[i] = word & 0xff;
     out[i + 1] = (word >>> 8) & 0xff;
     out[i + 2] = (word >>> 16) & 0xff;

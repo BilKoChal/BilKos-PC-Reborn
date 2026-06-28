@@ -4,10 +4,21 @@ import { PokemonStats, Generation } from '../parser/types';
 import { BaseStats } from '../interfaces';
 
 // --- Gen 1 Formula ---
-// HP: floor(( (Base + DV) * 2 + floor( ceil( sqrt(Stat Exp) ) / 4 ) ) * Level / 100) + Level + 10
-// Other: floor(( (Base + DV) * 2 + floor( ceil( sqrt(Stat Exp) ) / 4 ) ) * Level / 100) + 5
+// Correct Gen 1/2 stat formula (verified against pokered disassembly `GetSquareRoot`
+// and PKHeX `StatCalculator`):
+//   evFactor = floor( sqrt(StatExp) / 4 )
+// The ROM's integer-square-root returns floor(sqrt(x)), then shifts right by 2
+// (`srl c; srl c`), yielding floor(floor(sqrt(x)) / 4) = floor(sqrt(x) / 4).
+//
+// BUG FIX (BUG-G01): previously used `Math.ceil(Math.sqrt(statExp))`, which rounds
+// UP, inflating evFactor by 1 whenever sqrt(StatExp) is non-integer and the
+// ceiling crosses a /4 boundary. This made Mewtwo Lv100 max EV Special report 407
+// instead of the correct 406. All stat-derived UI values were 1 too high.
+//
+// HP:   floor(((Base + DV) * 2 + floor(sqrt(StatExp) / 4)) * Level / 100) + Level + 10
+// Other: floor(((Base + DV) * 2 + floor(sqrt(StatExp) / 4)) * Level / 100) + 5
 export function calculateGen1Stat(base: number, dv: number, statExp: number, level: number, isHp: boolean): number {
-    const evFactor = Math.floor(Math.ceil(Math.sqrt(statExp)) / 4);
+    const evFactor = Math.floor(Math.sqrt(statExp) / 4);
     const core = ((base + dv) * 2 + evFactor) * level;
 
     if (isHp) {
@@ -22,7 +33,7 @@ export function deriveBaseStats(mon: PokemonStats, generation: Generation): Base
     if (mon.maxHp === 0 || mon.level === 0) return null;
 
     const derive = (statVal: number, iv: number, ev: number, level: number, isHp: boolean): number => {
-         const evFactor = Math.floor(Math.ceil(Math.sqrt(ev)) / 4);
+         const evFactor = Math.floor(Math.sqrt(ev) / 4);
          const targetCore = isHp ? (statVal - level - 10) * 100 : (statVal - 5) * 100;
          return Math.round(((targetCore / level - evFactor) / 2) - iv);
     };

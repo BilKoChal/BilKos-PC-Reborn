@@ -103,9 +103,19 @@ export class BitUtils {
 }
 
 // Helper: Decode Status Byte
+//
+// BUG FIX (BUG-G02): Previously checked `byte & (1 << 2)` (i.e. `0x04`), which only
+// caught sleep counter values 4-7. Sleep counter values 1, 2, 3 (bytes 0x01, 0x02,
+// 0x03) were silently misdecoded as "OK" — sleeping Pokémon appeared awake in the
+// editor, and the round-trip writer could either lose the original sleep counter
+// (replacing 0x03 with 0x04) or preserve the sleep bit when the user set "OK".
+//
+// The correct check is `byte & 0x07` — any of bits 0-2 set means the Pokémon is
+// asleep (counter 1-7). Priority order: SLP → PSN → BRN → FRZ → PAR matches the
+// on-cartridge display priority.
 export function decodeStatus(byte: number): string {
     if (byte === 0) return "OK";
-    if (byte & (1 << 2)) return "SLP";
+    if (byte & 0x07) return "SLP";   // bits 0-2: sleep turn counter (1-7 = asleep)
     if (byte & (1 << 3)) return "PSN";
     if (byte & (1 << 4)) return "BRN";
     if (byte & (1 << 5)) return "FRZ";

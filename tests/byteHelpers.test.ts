@@ -187,6 +187,21 @@ describe('decodeStatus', () => {
     expect(decodeStatus(0x04)).toBe('SLP'); // bit 2 set
   });
 
+  // BUG-G02 regression: sleep counter values 1, 2, 3 must decode to SLP, not OK.
+  // The old buggy code only checked `byte & (1 << 2)` (= 0x04), missing counters
+  // 1 (0x01), 2 (0x02), and 3 (0x03), which silently decoded as "OK".
+  it('BUG-G02 regression: sleep counter 1-3 decodes to SLP (not OK)', () => {
+    expect(decodeStatus(0x01)).toBe('SLP'); // 1 turn remaining
+    expect(decodeStatus(0x02)).toBe('SLP'); // 2 turns remaining
+    expect(decodeStatus(0x03)).toBe('SLP'); // 3 turns remaining
+  });
+
+  it('BUG-G02 regression: all sleep counters 1-7 decode to SLP', () => {
+    for (let counter = 1; counter <= 7; counter++) {
+      expect(decodeStatus(counter), `counter=${counter}`).toBe('SLP');
+    }
+  });
+
   it('should decode Poison status', () => {
     expect(decodeStatus(0x08)).toBe('PSN'); // bit 3
   });
@@ -201,6 +216,11 @@ describe('decodeStatus', () => {
 
   it('should decode Paralysis status', () => {
     expect(decodeStatus(0x40)).toBe('PAR'); // bit 6
+  });
+
+  it('should prioritize SLP over other statuses when sleep bits are set', () => {
+    // Sleep counter 3 + Poison bit → SLP wins (Gen 1/2 priority order)
+    expect(decodeStatus(0x0B)).toBe('SLP'); // 0x08 (PSN) | 0x03 (SLP counter 3)
   });
 });
 

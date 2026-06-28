@@ -631,7 +631,7 @@ import { writeGen2PokedexFlags } from '../lib/generations/gen2/writer';
 import { getPokedexFlagsGen2 } from '../lib/generations/gen2/parser';
 
 describe('Gen 2 Pokédex flags write→read round-trip (TODO 3.7)', () => {
-  it('writes 1-indexed flags that parse back to the same species', () => {
+  it('writes 1-indexed flags that parse back to the same species (BUG-G03 fix)', () => {
     const buf = new Uint8Array(64); // 32-byte flag region + headroom
     const offset = 0;
     // Mark a spread of species caught (1-indexed array as the model stores it).
@@ -640,14 +640,18 @@ describe('Gen 2 Pokédex flags write→read round-trip (TODO 3.7)', () => {
     for (const id of caught) flags[id] = true;
 
     writeGen2PokedexFlags(buf, offset, flags);
-    const read = getPokedexFlagsGen2(buf, offset); // 0-indexed bit array
+    const read = getPokedexFlagsGen2(buf, offset); // now 1-indexed (BUG-G03 fix)
 
+    // After the BUG-G03 fix, the parser is 1-indexed: read[N] = species N.
+    // The writer writes flags[1] to bit 0, so species N lands at bit (N-1),
+    // which the parser now returns at read[N].
     for (const id of caught) {
-      // species id N is stored at bit (N-1) in the parsed array.
-      expect(read[id - 1], `species ${id}`).toBe(true);
+      expect(read[id], `species ${id}`).toBe(true);
     }
     // A non-marked species stays false.
-    expect(read[50 - 1]).toBe(false);
+    expect(read[50]).toBe(false);
+    // Index 0 is a dummy and must be false.
+    expect(read[0]).toBe(false);
   });
 
   it('clears the region before writing (no stale bits leak through)', () => {

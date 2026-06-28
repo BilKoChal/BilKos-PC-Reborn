@@ -127,8 +127,19 @@ export function calculateGen2Checksum(data: Uint8Array, start: number, end: numb
 }
 
 // Parses Pokedex bitflags in Gen 2 saves
+//
+// BUG FIX (BUG-G03): Previously returned a 0-indexed array (flags[0] = Bulbasaur),
+// but the writer (`writeGen2PokedexFlags`) and the UI (`Pokedex.tsx`) both expect a
+// 1-indexed array (flags[1] = Bulbasaur, matching the Gen 1 parser). This off-by-one
+// caused every species to display the NEXT species' caught/seen status, and every
+// round-trip shifted all flags left by 1 (Bulbasaur's bit got Ivysaur's value, etc.,
+// Celebi's bit got padding). The fix makes the Gen 2 parser 1-indexed by pushing a
+// dummy `false` at index 0, exactly like `getPokedexFlags` in `lib/generations/gen1/parser.ts`.
 export function getPokedexFlagsGen2(data: Uint8Array, offset: number): boolean[] {
   const flags: boolean[] = [];
+  // Index 0 is a dummy (no species #0) — makes the array 1-indexed so
+  // flags[N] corresponds to National Dex species N, matching the writer and UI.
+  flags.push(false);
   // GSC Pokedex uses 32 bytes per flag set (256 bits).
   // This covers all 251 species with 5 bits of padding at the end.
   const POKEDEX_FLAG_BITS = 256;

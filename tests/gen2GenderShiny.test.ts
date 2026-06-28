@@ -259,41 +259,45 @@ describe('getGen2Gender', () => {
 // ============================================================================
 
 describe('getPokedexFlagsGen2', () => {
-  it('should return 256 flags for the full Pokédex range', () => {
+  // BUG-G03 fix: the parser now returns a 1-indexed array (flags[1] = species #1
+  // = Bulbasaur), matching the Gen 1 parser, the writer, and the UI. Index 0 is a
+  // dummy `false`. The array length is 257 (1 dummy + 256 bits).
+  it('should return 257 flags (1 dummy + 256 bits) with index 0 = false', () => {
     const data = new Uint8Array(32); // 32 bytes = 256 bits
     const flags = getPokedexFlagsGen2(data, 0);
-    expect(flags.length).toBe(256);
+    expect(flags.length).toBe(257);
+    expect(flags[0]).toBe(false); // dummy
   });
 
-  it('should correctly parse set bits', () => {
+  it('should correctly parse set bits (1-indexed: flags[1] = species #1)', () => {
     const data = new Uint8Array(32);
-    // Set bit 0 of byte 0 → flags[0] = true (species #1 = Bulbasaur in Gen 2 Pokédex)
+    // Set bit 0 of byte 0 → flags[1] = true (species #1 = Bulbasaur)
     data[0] = 0x01;
-    // Set bit 7 of byte 1 → flags[15] = true (species #16 = Pidgey)
+    // Set bit 7 of byte 1 → flags[16] = true (species #16 = Pidgey)
     data[1] = 0x80;
 
     const flags = getPokedexFlagsGen2(data, 0);
-    expect(flags[0]).toBe(true);    // Bit 0 of byte 0 = species #1
-    expect(flags[15]).toBe(true);   // Bit 7 of byte 1 = species #16
-    expect(flags[1]).toBe(false);   // Bit 1 of byte 0 = unset
-    expect(flags[16]).toBe(false);  // Bit 0 of byte 2 = unset
+    expect(flags[1]).toBe(true);     // Bit 0 of byte 0 = species #1 = Bulbasaur
+    expect(flags[16]).toBe(true);    // Bit 7 of byte 1 = species #16 = Pidgey
+    expect(flags[2]).toBe(false);    // Bit 1 of byte 0 = unset
+    expect(flags[17]).toBe(false);   // Bit 0 of byte 2 = unset
   });
 
-  it('should handle species #251 (Celebi) at bit 250', () => {
+  it('should handle species #251 (Celebi) at flags[251]', () => {
     const data = new Uint8Array(32);
     // Species #251 uses bit index 250 (0-based: species 1=bit0, species 251=bit250)
     // Bit 250 is in byte 31 (250/8 = 31.25 → byte 31), bit position 2 (250 % 8 = 2)
     data[31] = 0x04; // bit 2 set
 
     const flags = getPokedexFlagsGen2(data, 0);
-    expect(flags[250]).toBe(true); // Bit 250 = species #251 = Celebi
+    expect(flags[251]).toBe(true); // Bit 250 = species #251 = Celebi
   });
 
-  it('should parse all-ones as every species owned', () => {
+  it('should parse all-ones as every species owned (256 set bits + 1 dummy false)', () => {
     const data = new Uint8Array(32).fill(0xFF);
     const flags = getPokedexFlagsGen2(data, 0);
     const ownedCount = flags.filter(Boolean).length;
-    expect(ownedCount).toBe(256); // All bits set including unused
+    expect(ownedCount).toBe(256); // All 256 bits set (index 0 is dummy false)
   });
 
   it('should parse all-zeros as nothing owned', () => {
@@ -309,14 +313,18 @@ describe('getPokedexFlagsGen2', () => {
 // ============================================================================
 
 describe('calculateGen2Stat', () => {
-  it('should use the same formula as Gen 1 (shared formula)', () => {
-    // Gen 2 shares the same stat formula with Gen 1
+  it('should use the same formula as Gen 1 (shared formula, BUG-G01 fix)', () => {
+    // Gen 2 shares the same stat formula with Gen 1.
+    // BUG-G01 fix: the formula now uses floor(sqrt(EV)/4), not floor(ceil(sqrt(EV))/4).
     // Test: Mewtwo level 100 with max DVs/EVs
+    // EV factor = floor(sqrt(65535)/4) = floor(255.998/4) = 63
+    // HP core = ((106+15)*2 + 63)*100 = 30500 → HP = 305 + 100 + 10 = 415
+    // Spc core = ((154+15)*2 + 63)*100 = 40100 → Spc = 401 + 5 = 406
     const hp = calculateGen2Stat(106, 15, 65535, 100, true);
-    expect(hp).toBe(416);
+    expect(hp).toBe(415);
 
     const spc = calculateGen2Stat(154, 15, 65535, 100, false);
-    expect(spc).toBe(407);
+    expect(spc).toBe(406);
   });
 });
 
