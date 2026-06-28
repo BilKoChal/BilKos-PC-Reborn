@@ -6,6 +6,24 @@
     <link rel="icon" type="image/svg+xml" href="/BilKos-PC-Reborn/favicon.svg" />
     <title>BilKo's PC Reborn</title>
 
+    <!-- UX-T03 fix: pre-hydration dark-mode script. Reads localStorage BEFORE
+         React mounts and adds the `dark` class to <html> so the first paint
+         is already dark-themed. Without this, users with saved mode='dark'
+         would see a flash of light content (FOUC) before the ThemeContext
+         effect runs after first paint. The script is tiny and synchronous so
+         it doesn't block hydration. -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('themeMode');
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {
+          // localStorage may be unavailable (private mode, SSR) — fall back to light.
+        }
+      })();
+    </script>
     <script type="importmap">
 {
   "imports": {
@@ -18,10 +36,10 @@
   }
 }
 </script>
-    <script type="module" crossorigin src="/BilKos-PC-Reborn/assets/index-CBssh0Oj.js"></script>
+    <script type="module" crossorigin src="/BilKos-PC-Reborn/assets/index-CdpCADid.js"></script>
     <link rel="modulepreload" crossorigin href="/BilKos-PC-Reborn/assets/vendor-react-DZ4wyQ9y.js">
     <link rel="modulepreload" crossorigin href="/BilKos-PC-Reborn/assets/vendor-BTAOqUyX.js">
-    <link rel="stylesheet" crossorigin href="/BilKos-PC-Reborn/assets/index-D7QJUztk.css">
+    <link rel="stylesheet" crossorigin href="/BilKos-PC-Reborn/assets/index-C4oybEx-.css">
   </head>
   <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300 overflow-x-hidden">
     <div id="root"></div>
