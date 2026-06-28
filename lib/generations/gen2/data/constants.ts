@@ -29,11 +29,9 @@ export const GEN2_POKEMON_NAMES = [
   "Blissey", "Raikou", "Entei", "Suicune", "Larvitar", "Pupitar", "Tyranitar", "Lugia", "Ho-Oh", "Celebi"
 ];
 
-// Generation II Type List (introducing Steel and Dark)
-export const GEN2_TYPE_LIST = [
-  'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 'Ground', 
-  'Flying', 'Psychic', 'Bug', 'Rock', 'Ghost', 'Dragon', 'Steel', 'Dark'
-];
+// Phase 0.1c: Removed dead `GEN2_TYPE_LIST` and `GEN2_TYPE_CHART` exports —
+// neither was imported. The Gen2Adapter inlines its own copies (to be unified
+// in Phase 1.1).
 
 // GSC Moves List (1-251)
 export const GEN2_MOVES_LIST = [
@@ -98,45 +96,6 @@ export const getGen2ItemName = (id: number): string => {
   }
   return GEN2_ITEMS[id] || (id === 0 ? 'None' : `Item ${id}`);
 };
-
-// 17x17 type effectiveness chart for Gen 2
-// Row indexes: 0:Normal, 1:Fire, 2:Water, 3:Electric, 4:Grass, 5:Ice, 6:Fighting, 7:Poison, 8:Ground, 9:Flying, 10:Psychic, 11:Bug, 12:Rock, 13:Ghost, 14:Dragon, 15:Steel, 16:Dark
-export const GEN2_TYPE_CHART = [
-  // Normal
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.5, 0, 1, 0.5, 1],
-  // Fire
-  [1, 0.5, 0.5, 1, 2, 2, 1, 1, 1, 1, 1, 2, 0.5, 1, 0.5, 2, 1],
-  // Water
-  [1, 2, 0.5, 1, 0.5, 1, 1, 1, 2, 1, 1, 1, 2, 1, 0.5, 1, 1],
-  // Electric
-  [1, 1, 2, 0.5, 0.5, 1, 1, 1, 0, 2, 1, 1, 1, 1, 0.5, 1, 1],
-  // Grass
-  [1, 0.5, 2, 1, 0.5, 1, 1, 0.5, 2, 0.5, 1, 0.5, 2, 1, 0.5, 0.5, 1],
-  // Ice
-  [1, 0.5, 0.5, 1, 2, 0.5, 1, 1, 2, 2, 1, 1, 1, 1, 2, 0.5, 1],
-  // Fighting
-  [2, 1, 1, 1, 1, 2, 1, 0.5, 1, 0.5, 0.5, 0.5, 2, 0, 1, 2, 2],
-  // Poison
-  [1, 1, 1, 1, 2, 1, 1, 0.5, 0.5, 1, 1, 1, 0.5, 0.5, 1, 0, 1],
-  // Ground
-  [1, 2, 1, 2, 0.5, 1, 1, 2, 1, 0, 1, 0.5, 2, 1, 1, 2, 1],
-  // Flying
-  [1, 1, 1, 0.5, 2, 1, 2, 1, 1, 1, 1, 2, 0.5, 1, 1, 0.5, 1],
-  // Psychic
-  [1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 0.5, 1, 1, 1, 1, 0.5, 0],
-  // Bug
-  [1, 0.5, 1, 1, 2, 1, 0.5, 0.5, 1, 0.5, 2, 1, 1, 0.5, 1, 0.5, 2],
-  // Rock
-  [1, 2, 1, 1, 1, 2, 0.5, 1, 0.5, 2, 1, 2, 1, 1, 1, 0.5, 1],
-  // Ghost
-  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 2, 1, 0.5, 0.5],
-  // Dragon
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0.5, 1],
-  // Steel
-  [1, 0.5, 0.5, 0.5, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 0.5, 1],
-  // Dark
-  [1, 1, 1, 1, 1, 1, 0.5, 1, 1, 1, 2, 1, 1, 2, 1, 0.5, 0.5]
-];
 
 // Base stats have been moved to a dedicated file for maintainability.
 // Import from './baseStats' instead.

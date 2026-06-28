@@ -2,9 +2,8 @@
  * GameBoyTextCodec — ITextCodec implementation for Gen 1 & Gen 2.
  *
  * Both Gen 1 and Gen 2 share the same Game Boy character encoding (single-byte
- * custom charmap with 0x50 terminator). This class consolidates the three
- * previously duplicated charmap copies (textCodec.ts, textDecoder.ts,
- * BinaryWriter.string()) into one authoritative source.
+ * custom charmap with 0x50 terminator). This class is the authoritative source
+ * for the Game Boy charmap.
  *
  * Future generations will have completely different codec classes:
  * - Gen 3: single-byte custom table, 0xFF terminator

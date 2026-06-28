@@ -2,8 +2,7 @@
  * Shared Game Boy Japanese character set constants.
  *
  * These arrays define the Katakana, Hiragana, and Latin characters used in
- * the Gen 1/2 Japanese text encoding. They were previously duplicated across
- * textDecoder.ts, textValidator.ts, io.ts, and GameBoyTextCodec.ts.
+ * the Gen 1/2 Japanese text encoding.
  *
  * Following PKHeX's pattern: character data is defined once per generation
  * (in StringConverter1/StringConverter2) and shared by all consumers.

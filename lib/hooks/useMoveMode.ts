@@ -330,8 +330,8 @@ export function useMoveMode(
         handleDragDrop,
         beginDragSession,
         endDragSession,
-        // Keep legacy handleGlobalDrop as an alias for backward compatibility during migration
-        handleGlobalDrop: handleDragDrop,
+        // Phase 0.1h: Removed dead `handleGlobalDrop` legacy alias — it was
+        // never called from anywhere in the codebase.
         getCurrentTabSelections,
         clearTabSelections,
         resetMoveMode

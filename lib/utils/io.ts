@@ -138,9 +138,7 @@ export class BinaryWriter {
      * Encode and write a Game Boy text string (Gen 1/2).
      *
      * Delegates to GameBoyTextCodec.encode() — the single source of truth
-     * for character mapping data. The inline charmap that was previously
-     * defined here (a 3rd copy duplicated from textCodec.ts/textDecoder.ts)
-     * has been removed to prevent drift between encoding implementations.
+     * for character mapping data.
      *
      * @param str Text to encode
      * @param maxLength Buffer length in bytes

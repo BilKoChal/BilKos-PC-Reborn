@@ -92,10 +92,15 @@ export class AdapterRegistry {
 
   /**
    * Aggregate the version cartridges + UI themes contributed by every *loaded*
-   * adapter (TODO 1.6). This is the registry-driven counterpart to the static
-   * `pokemonGames` aggregate: a Gen 3 adapter's themes appear here automatically
-   * once it is registered and loaded — no central literal to edit. Sorted by
-   * generation for stable ordering.
+   * adapter.
+   *
+   * Phase 0.1f: This method is currently dead in production — `data/games.ts`
+   * uses static imports (`...GEN1_GAMES, ...GEN2_GAMES`) instead of calling
+   * this. It's retained because Phase 1.3 will make `data/games.ts` auto-
+   * aggregate via this method (making it the real source of truth). The
+   * scalabilityInvariant test exercises it to prove the seam works.
+   *
+   * Sorted by generation for stable ordering.
    */
   getAllVersionThemes(): GameCartridge[] {
     return this.getAdapters()

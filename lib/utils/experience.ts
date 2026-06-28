@@ -150,6 +150,8 @@ export const SPECIES_GROWTH_RATE: Record<number, GrowthRate> = {
     249: 'Slow', 250: 'Slow', 251: 'MediumSlow', // Lugia, Ho-oh, Celebi
 
     // Gen 3
+    // Phase 0.2c: These entries are correct (verified against PKHeX PersonalTable.RS)
+    // but inert until the Gen 3 adapter ships (Phase 2). Activated in Phase 2.
     252: 'MediumSlow', 253: 'MediumSlow', 254: 'MediumSlow', // Treecko
     255: 'MediumSlow', 256: 'MediumSlow', 257: 'MediumSlow', // Torchic
     258: 'MediumSlow', 259: 'MediumSlow', 260: 'MediumSlow', // Mudkip

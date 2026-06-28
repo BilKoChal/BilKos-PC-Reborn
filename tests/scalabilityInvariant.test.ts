@@ -120,10 +120,11 @@ describe('Scalability invariant: a new generation registers with zero core edits
     expect(Array.from(written.slice(0, 50))).toEqual(Array.from(buf.slice(0, 50)));
   });
 
-  it('inherits sprite + theme + codec surface (no per-gen core wiring needed)', () => {
+  it('inherits theme + codec surface (no per-gen core wiring needed)', () => {
     // These come from the inherited adapter surface — the point is they EXIST
     // and are callable for an arbitrary generation without editing lib/core.
-    expect(typeof dummy.getTrainerSpriteUrl('Male')).toBe('string');
+    // Phase 0.1e: removed `getTrainerSpriteUrl` assertion (method deleted —
+    // trainer sprites are resolved centrally via lib/sprites.ts).
     expect(typeof dummy.nationalDexMax).toBe('number');
     expect(dummy.codec).toBeDefined();
     expect(typeof dummy.detectRegion({ rawData: new Uint8Array(DUMMY_SIZE) })).toBe('string');

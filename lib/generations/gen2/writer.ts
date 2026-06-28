@@ -7,7 +7,7 @@ import {
 } from '../../utils/byteHelpers';
 import { calculateGen2Checksum } from './parser';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
-// Codec instances for Gen 2 text encoding — replaces encodeGameBoyText/sanitizePokemonText
+// Codec instances for Gen 2 text encoding.
 const _codecInt = new GameBoyTextCodec('international');
 const _codecJpn = new GameBoyTextCodec('japanese');
 const _codecKor = new GameBoyTextCodec('korean');
@@ -19,14 +19,13 @@ function getCodec(isJapanese?: boolean, isKorean?: boolean): GameBoyTextCodec {
 /**
  * Resolve the region-correct codec from the active offset config.
  *
- * BUG FIX (TODO 2.4): the text-writing helpers below used to call
- * encodeGameBoyText()/sanitizePokemonText() WITHOUT a region flag, so every
- * JPN/KOR save had its nicknames, OT names, rival name, box names, daycare and
- * phone-contact text written with the International charmap → corrupted text on
- * export. The region is fully determined by the offset config the writer already
- * has in scope: JPN uses 6-byte strings, KOR uses a 17-byte box-name entry.
- * Routing all region-aware encodes through this resolver also fixes the latent
- * Korean gap (encodeGameBoyText only forwarded `isJapanese`, never `isKorean`).
+ * BUG FIX (TODO 2.4): the text-writing helpers below used to call the codec
+ * WITHOUT a region flag, so every JPN/KOR save had its nicknames, OT names,
+ * rival name, box names, daycare and phone-contact text written with the
+ * International charmap → corrupted text on export. The region is fully
+ * determined by the offset config the writer already has in scope: JPN uses
+ * 6-byte strings, KOR uses a 17-byte box-name entry. Routing all region-aware
+ * encodes through this resolver also fixes the latent Korean gap.
  */
 function codecForOffsets(offsets: Gen2OffsetsConfig): GameBoyTextCodec {
   const isJapanese = offsets.stringLength === 6;

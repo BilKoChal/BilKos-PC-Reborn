@@ -10,10 +10,10 @@ import {
   decodeStatus
 } from '../../utils/byteHelpers';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
-// Codec instances for Gen 2 text decoding — replaces the old decodeText() from textDecoder.ts
+// Codec instances for Gen 2 text decoding.
 const _codecInt = new GameBoyTextCodec('international');
 const _codecJpn = new GameBoyTextCodec('japanese');
-/** Decode Game Boy text using the authoritative codec. Replaces decodeText() from textDecoder.ts. */
+/** Decode Game Boy text using the authoritative codec. */
 function decodeText(buffer: Uint8Array, offset: number, maxLength: number, isJapanese?: boolean): string {
   return (isJapanese ? _codecJpn : _codecInt).decode(buffer, offset, maxLength);
 }

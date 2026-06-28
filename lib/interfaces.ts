@@ -291,12 +291,10 @@ export interface IGenerationMetadata {
    *  Gen1/2 are 'consumable'. */
   tmHmPocketLayout: 'consumable' | 'permanent';
 
-  /** Returns the URL of the trainer sprite image for this generation/version/gender.
-   *  Used by TrainerCard to display the correct trainer portrait.
-   *  @param gender - Player gender string ('Male' | 'Female')
-   *  @param gameVersion - Specific game version (e.g. 'Red', 'Yellow', 'Crystal')
-   */
-  getTrainerSpriteUrl(gender: string, gameVersion?: string): string;
+  // Phase 0.1e: Removed dead `getTrainerSpriteUrl()` from the interface —
+  // it was never called by production code. TrainerCard uses the centralized
+  // `getTrainerSpriteUrl` from `lib/sprites.ts` instead. The adapter method
+  // existed only for the scalabilityInvariant test.
 }
 
 /**
@@ -485,11 +483,8 @@ export interface IGenerationDataAccess {
  * Each generation adapter constructs and owns an ITextCodec instance that
  * encapsulates all character encoding logic for that generation.
  *
- * This replaces the old pattern of shared global functions (textCodec.ts,
- * textDecoder.ts, textValidator.ts) and the inline charmap in
- * BinaryWriter.string(). Gen 1/2 share a GameBoyTextCodec; Gen 3+ will
- * each have their own codec class with completely different charmaps,
- * terminators, and byte widths.
+ * Gen 1/2 share a GameBoyTextCodec; Gen 3+ will each have their own codec
+ * class with completely different charmaps, terminators, and byte widths.
  *
  * The codec is accessed via `adapter.codec` — UI components never import
  * generation-specific encoding functions directly.
@@ -510,14 +505,10 @@ export interface ITextCodec {
    */
   encode(text: string, maxLength: number, terminator?: number): Uint8Array;
 
-  /** Whether a single Unicode character can be represented in this encoding.
-   *  Replaces the standalone `isValidPokemonChar()` from textValidator.ts.
-   */
+  /** Whether a single Unicode character can be represented in this encoding. */
   isValidChar(char: string): boolean;
 
-  /** Sanitize a string by removing/normalizing characters that can't be encoded.
-   *  Replaces the standalone `sanitizePokemonText()` from textValidator.ts.
-   */
+  /** Sanitize a string by removing/normalizing characters that can't be encoded. */
   sanitize(text: string): string;
 
   /** Maximum nickname length in characters for this generation/region.

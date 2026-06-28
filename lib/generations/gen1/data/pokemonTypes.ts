@@ -3,7 +3,6 @@
  *
  * This module owns ALL Gen1-specific type information:
  * - Species → type mapping for Gen1's 151 Pokémon
- * - Gen1 internal type ID map (used in save file byte layout)
  * - Type name lookup from Gen1 internal IDs
  *
  * IMPORTANT: The canonical TYPE_MAP (name → modern ID) has been moved
@@ -17,12 +16,8 @@
 // Re-export canonical TYPE_MAP from shared location for backward compatibility
 export { TYPE_MAP } from '../../../data/types';
 
-// Internal Gen 1 Type IDs (Offset 0x05/0x06 in Save)
-export const GEN1_TYPE_ID_MAP: Record<string, number> = {
-    'Normal': 0, 'Fighting': 1, 'Flying': 2, 'Poison': 3, 'Ground': 4, 'Rock': 5,
-    'Bug': 7, 'Ghost': 8,
-    'Fire': 20, 'Water': 21, 'Grass': 22, 'Electric': 23, 'Psychic': 24, 'Ice': 25, 'Dragon': 26
-};
+// Phase 0.1c: Removed dead `GEN1_TYPE_ID_MAP` export — it was never imported.
+// The Gen1Adapter inlines its own copy (to be unified in Phase 1.1).
 
 export const getTypeName = (typeId: number): string => {
     // Gen 1 Type Table

@@ -98,13 +98,7 @@ export class Gen2Adapter implements IGenerationAdapter {
   maxLevel = 100;
   tmHmPocketLayout: 'consumable' | 'permanent' = 'consumable';
 
-  getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
-    // Gen 2: Ethan (male) or Kris (female)
-    if (gender === 'Female') {
-      return 'https://play.pokemonshowdown.com/sprites/trainers/kris-gen2.png';
-    }
-    return 'https://play.pokemonshowdown.com/sprites/trainers/ethan-gen2.png';
-  }
+  // Phase 0.1e: Removed dead `getTrainerSpriteUrl()` — see interface comment.
 
   typeList = [
     'Normal', 'Fire', 'Water', 'Electric', 'Grass', 'Ice', 'Fighting', 'Poison', 'Ground', 
@@ -320,8 +314,8 @@ export class Gen2Adapter implements IGenerationAdapter {
 
   supportsStandalone = true;
 
-  /** The PKHeX-compatible file extension for this generation */
-  readonly standaloneExtension = '.pk2';
+  // Phase 0.1d: Removed dead `standaloneExtension` phantom field — it was
+  // never read. The real extension lives on `standaloneFormat.fileExtension`.
 
   /** Standalone Pokemon format handler for Gen 2 (.pk2) */
   readonly standaloneFormat: IStandalonePokemonFormat = new Gen2StandaloneFormat();

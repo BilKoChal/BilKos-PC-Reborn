@@ -82,13 +82,7 @@ export class Gen1Adapter implements IGenerationAdapter {
   maxLevel = 100;
   tmHmPocketLayout: 'consumable' | 'permanent' = 'consumable';
 
-  getTrainerSpriteUrl(gender: string, gameVersion?: string): string {
-    // Yellow uses the anime-style Red sprite; Red/Blue use the classic sprite
-    if (gameVersion === 'Yellow') {
-      return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1.png';
-    }
-    return 'https://play.pokemonshowdown.com/sprites/trainers/red-gen1rb.png';
-  }
+  // Phase 0.1e: Removed dead `getTrainerSpriteUrl()` — see interface comment.
 
   // Gen 1 Types only: 15 types
   typeList = [
@@ -213,8 +207,8 @@ export class Gen1Adapter implements IGenerationAdapter {
 
   supportsStandalone = true;
 
-  /** The PKHeX-compatible file extension for this generation */
-  readonly standaloneExtension = '.pk1';
+  // Phase 0.1d: Removed dead `standaloneExtension` phantom field — it was
+  // never read. The real extension lives on `standaloneFormat.fileExtension`.
 
   /** Standalone Pokemon format handler for Gen 1 (.pk1) */
   readonly standaloneFormat: IStandalonePokemonFormat = new Gen1StandaloneFormat();
@@ -375,8 +369,7 @@ export class Gen1Adapter implements IGenerationAdapter {
 
   detectRegion(save: { rawData?: Uint8Array; generation?: number; genExtension?: unknown }): 'international' | 'japanese' | 'korean' {
     // B4: Removed redundant `if (save.generation === 1)` guard — this method
-    // is on Gen1Adapter, so it's always called for Gen 1 saves. The generation
-    // check was a leftover from when this logic lived in the shared textValidator.ts.
+    // is on Gen1Adapter, so it's always called for Gen 1 saves.
     if (!save || !save.rawData) return 'international';
     if (save.rawData.byteLength < 0x3524) return 'international';
     const view = save.rawData;
