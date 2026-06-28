@@ -118,16 +118,31 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
 
   const imgSrc = paddedSrc || originalSrc;
 
+  // UX-A03 fix: build a descriptive alt string that conveys the shiny/egg
+  // state to screen reader users. Previously `alt={speciesName}` was just the
+  // bare species name (e.g., "Pikachu"), so a shiny Pikachu or a Pikachu egg
+  // was indistinguishable from a normal Pikachu in the alt text.
+  const altText = [
+    isShiny ? 'Shiny' : '',
+    speciesName,
+    isEgg ? 'egg' : 'sprite',
+  ].filter(Boolean).join(' ');
+
+  // UX-U09 fix: default to lazy loading so pages with many sprites (PC boxes,
+  // Pokedex, encounters) don't fire 100+ simultaneous image requests. Callers
+  // can still override with `loading="eager"` for above-the-fold sprites.
+  const loadingMode = loading ?? 'lazy';
+
   return (
     <div className={`relative ${className}`}>
       <img
         src={imgSrc}
-        alt={speciesName}
+        alt={altText}
         className={getSpriteImgClasses(spriteMode, imgClassName)}
         draggable={draggable}
         style={style}
         onError={onError || ((e) => { (e.target as HTMLImageElement).src = POKEMON_SPRITE_FALLBACK })}
-        loading={loading}
+        loading={loadingMode}
       />
       {/* Egg badge — small egg icon in the BOTTOM-LEFT, over the sprite. Keeps the
           species visible while clearly marking the slot as an egg. Uses a compact
@@ -144,10 +159,17 @@ export const PokemonSprite: React.FC<PokemonSpriteProps> = ({
           </svg>
         </div>
       )}
-      {/* Shiny overlay — lucide Sparkles icon badge */}
+      {/* Shiny overlay — lucide Sparkles icon badge.
+          UX-A03 fix: added role="img" + aria-label so screen readers announce
+          the shiny status (the alt text already says "Shiny", but this badge
+          provides a redundant, explicit marker for AT users who scan badges). */}
       {isShiny && showOverlays && (
-        <div className="absolute -top-1 -right-1 flex items-center justify-center bg-yellow-400 dark:bg-yellow-500 rounded-full border-2 border-white dark:border-gray-800 shadow-lg z-10">
-          <Sparkles size={12} className="text-yellow-900" />
+        <div
+          className="absolute -top-1 -right-1 flex items-center justify-center bg-yellow-400 dark:bg-yellow-500 rounded-full border-2 border-white dark:border-gray-800 shadow-lg z-10"
+          role="img"
+          aria-label="Shiny"
+        >
+          <Sparkles size={12} className="text-yellow-900" aria-hidden="true" />
         </div>
       )}
     </div>

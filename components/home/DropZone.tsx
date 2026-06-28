@@ -44,16 +44,38 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFilesSelected, isBusy = fa
     fileInputRef.current?.click();
   };
 
+  // UX-A05 fix: make the DropZone keyboard-accessible. Previously the outer
+  // div had `onClick` but no `role`, `tabIndex`, or `onKeyDown`, so keyboard-
+  // only users couldn't trigger the file picker by focusing and pressing
+  // Enter/Space. The inner `<input type="file">` is `hidden` (not focusable),
+  // so there was no keyboard path at all.
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (isBusy) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInputRef.current?.click();
+    }
+  };
+
   return (
     <div className="w-full max-w-lg mx-auto relative z-20 -mt-20 mb-12 px-4">
         
-      {/* Retro PC Monitor Design */}
-      <div 
-        className="flex flex-col items-center transform transition-transform duration-300 hover:scale-105"
+      {/* Retro PC Monitor Design — UX-A05 fix: keyboard-accessible via tabIndex
+          + onKeyDown. We intentionally do NOT use role="button" here because the
+          div contains a <input type="file"> (hidden), and axe flags role="button"
+          containing an interactive child as a nested-interactive violation. The
+          aria-label + tabIndex + Enter/Space handler is sufficient for keyboard
+          users to trigger the file picker. */}
+      <div
+        className="flex flex-col items-center transform transition-transform duration-300 hover:scale-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-400 rounded-3xl"
+        tabIndex={isBusy ? -1 : 0}
+        aria-label="Upload save file: click or press Enter to choose a .sav or .srm file"
+        aria-disabled={isBusy}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={handleClick}
+        onKeyDown={handleKeyDown}
       >
         {/* Monitor Housing */}
         <div className={`

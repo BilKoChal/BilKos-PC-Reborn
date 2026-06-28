@@ -106,21 +106,24 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
               <span className="hidden md:inline">{spriteMode === 'game-specific' ? 'Game' : spriteMode === 'artwork' ? 'Art' : 'Master'}</span>
             </div>
 
-            {/* Dark Mode Toggle */}
+            {/* Dark Mode Toggle — UX-A04 fix: added `title` for sighted users
+                who see only an icon and need a hover tooltip to know what it does. */}
             <button 
               onClick={toggleMode}
               className="p-2 rounded-full hover:bg-current/10 active:scale-95 transition-all"
               aria-label="Toggle Theme"
+              title={mode === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
               {mode === 'light' ? <Moon size={24} /> : <Sun size={24} />}
             </button>
 
-            {/* Settings Icon */}
+            {/* Settings Icon — UX-A04 fix: added `title` tooltip. */}
             <div className="relative" ref={settingsRef}>
               <button 
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
                 className={`p-2 rounded-full hover:bg-current/10 active:scale-95 transition-all ${isSettingsOpen ? 'bg-current/15' : ''}`}
                 aria-label="Settings"
+                title="Sprite Settings"
               >
                 <Settings size={22} className={`transition-transform duration-300 ${isSettingsOpen ? 'rotate-90' : ''}`} />
               </button>
@@ -190,10 +193,12 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
               )}
             </div>
 
+            {/* Menu — UX-A04 fix: added `title` tooltip. */}
             <button 
               onClick={() => setIsMenuOpen(true)}
               className="p-2 rounded-full hover:bg-current/10 active:scale-95 transition-all"
               aria-label="Open Menu"
+              title="Open Menu"
             >
               <Menu size={24} />
             </button>
@@ -269,8 +274,10 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
               <div>
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 px-2">Links</h4>
                 <div className="space-y-1">
+                  {/* UX-U01 fix: corrected the repository URL from BilKos-PC to
+                      BilKos-PC-Reborn (the actual repo name). Both links were 404. */}
                   <a 
-                    href="https://github.com/BilKoChal/BilKos-PC" 
+                    href="https://github.com/BilKoChal/BilKos-PC-Reborn" 
                     target="_blank" 
                     rel="noreferrer"
                     className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors text-gray-600 dark:text-gray-300 font-medium text-sm"
@@ -279,7 +286,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, hasActiveSave }) => 
                     GitHub Repository
                   </a>
                   <a 
-                    href="https://github.com/BilKoChal/BilKos-PC/issues" 
+                    href="https://github.com/BilKoChal/BilKos-PC-Reborn/issues" 
                     target="_blank" 
                     rel="noreferrer"
                     className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors text-gray-600 dark:text-gray-300 font-medium text-sm"

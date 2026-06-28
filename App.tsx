@@ -24,6 +24,7 @@ import { MoveModeFAB } from './components/ui/MoveModeFAB';
 import { CloseConfirmationModal } from './components/editor/modals/CloseConfirmationModal';
 import { ErrorModal } from './components/editor/modals/ErrorModal';
 import { CloseAllModal } from './components/editor/modals/CloseAllModal';
+import { ErrorBoundary } from './components/editor/ErrorBoundary';
 import { hasUnsavedWork, createBeforeUnloadHandler } from './lib/utils/sessionGuard';
 
 interface SaveTab {
@@ -208,7 +209,18 @@ const App: React.FC = () => {
 
   const initiateCloseTab = (e: React.MouseEvent, tabId: string) => {
       e.stopPropagation();
-      setTabToClose(tabId);
+      // UX-U05 fix: only show the unsaved-changes warning modal when the tab
+      // actually has unsaved work (`isDirty === true`). Previously the modal
+      // popped up for EVERY tab close, even clean tabs that had never been
+      // edited — annoying friction that trained users to dismiss the warning
+      // without reading it. Now clean tabs close immediately; dirty tabs still
+      // get the Save/Discard/Cancel confirmation.
+      const tab = tabs.find(t => t.id === tabId);
+      if (tab?.isDirty) {
+          setTabToClose(tabId);
+      } else {
+          finalizeCloseTab(tabId);
+      }
   };
 
   const requestCloseAll = () => {
@@ -415,6 +427,11 @@ const App: React.FC = () => {
       <main className="flex-grow flex flex-col relative">
         {activeTab ? (
             <div key={activeTab.id} className="animate-in fade-in duration-300">
+                {/* UX-U06 fix: wrap the editor in an ErrorBoundary so a render-
+                    time crash in any child component shows a recovery UI
+                    instead of a white screen. The boundary is keyed by
+                    activeTab.id so switching tabs resets its error state. */}
+                <ErrorBoundary key={activeTab.id} resetLabel="Reload Save">
                 <EditorDashboard
                     data={activeTab.data}
                     activeTab={activeTab.currentView}
@@ -439,6 +456,7 @@ const App: React.FC = () => {
                     onBeginDragSession={moveMode.beginDragSession}
                     onEndDragSession={moveMode.endDragSession}
                 />
+                </ErrorBoundary>
             </div>
         ) : (
             <div className="flex-grow w-full flex flex-col items-center justify-start pb-24">

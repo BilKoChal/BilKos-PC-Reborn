@@ -42,7 +42,11 @@ export const Hero: React.FC = () => {
         </h1>
 
         <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 font-medium max-w-2xl mx-auto leading-relaxed backdrop-blur-sm bg-white/30 dark:bg-black/30 p-4 rounded-2xl border border-white/20 dark:border-white/5 shadow-sm">
-          The ultimate Gen 1 Save Editor. <br/>
+          {/* UX-U02 fix: the app supports Gen 1 (R/B/Y) AND Gen 2 (G/S/C), not
+              just Gen 1. The old copy "The ultimate Gen 1 Save Editor" was
+              misleading — it undersold the Gen 2 support that the README and
+              adapter registry both document. */}
+          The ultimate Gen 1 &amp; 2 Save Editor. <br/>
           <span className="text-sm opacity-80 font-normal">
             Drag & Drop your <code className="bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded text-red-500 font-bold">.sav</code> or <code className="bg-gray-200 dark:bg-gray-800 px-1 py-0.5 rounded text-blue-500 font-bold">.srm</code> file into BilKo's PC to begin.
           </span>

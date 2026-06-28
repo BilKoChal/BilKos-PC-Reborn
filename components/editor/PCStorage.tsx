@@ -690,16 +690,24 @@ export const PCStorage: React.FC<PCStorageProps> = ({
                         )}
 
                         {onToggleMoveMode && (
-                            <button 
+                            <button
                                 onClick={onToggleMoveMode}
                                 className={`
                                     p-1 rounded-lg transition-all border
-                                    ${isMoveMode 
-                                        ? (isLightTheme ? 'bg-gray-900 text-white border-transparent shadow-sm' : 'bg-white text-blue-600 border-white shadow-sm') 
+                                    ${isMoveMode
+                                        ? (isLightTheme ? 'bg-gray-900 text-white border-transparent shadow-sm' : 'bg-white text-blue-600 border-white shadow-sm')
                                         : `bg-current/10 border-transparent ${isLightTheme ? 'text-gray-900' : 'text-white'} hover:bg-current/20`
                                     }
                                 `}
-                                title={isMoveMode ? "Disable Move Mode" : "Enable Move Mode"}
+                                // UX-A06 fix: document Move Mode as the keyboard-accessible
+                                // alternative to drag-and-drop. Click-to-select then
+                                // click-to-target works with keyboard, mouse, and touch,
+                                // unlike HTML5 DnD which is mouse/touch only.
+                                title={isMoveMode
+                                    ? "Disable Move Mode (keyboard-friendly: click to select, click target to move)"
+                                    : "Enable Move Mode (keyboard-friendly alternative to drag-and-drop: click to select, click target to move)"}
+                                aria-label={isMoveMode ? "Disable Move Mode" : "Enable Move Mode"}
+                                aria-pressed={isMoveMode}
                             >
                                 <Move size={16} />
                             </button>
