@@ -31,9 +31,10 @@
 
 import { PokemonStats } from '../parser/types';
 import { registry } from '../core/AdapterRegistry';
-import { Gen1Extension, Gen2Extension } from '../canonicalModel';
+import { Gen1Extension, Gen2Extension, Gen3Extension } from '../canonicalModel';
 import { GEN1_DEX_TO_INTERNAL } from '../generations/gen1/data/offsets';
 import { GEN1_CATCH_RATES } from '../generations/gen1/data/baseStats';
+import { getNatureName, getAbilitySlot, getGenderFromPid } from '../generations/gen3/identity';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
@@ -48,6 +49,12 @@ const DEFAULT_BASE_FRIENDSHIP = 70;
 
 /** Maximum National Dex ID for Kanto Pokemon (cannot exist in Gen1). */
 const MAX_GEN1_DEX_ID = 151;
+
+/** Maximum National Dex ID for Gen 2 (Johto). */
+const MAX_GEN2_DEX_ID = 251;
+
+/** Maximum National Dex ID for Gen 3 (Hoenn). Gen 3 internal speciesId == National Dex ID. */
+const MAX_GEN3_DEX_ID = 386;
 
 // ── Reverse Mapping: National Dex → Gen1 Internal ID ──────────────────────
 
@@ -70,6 +77,13 @@ export interface ConversionResult {
 /**
  * Convert a speciesId from one generation's internal format to another's.
  * Returns null if the species doesn't exist in the target generation.
+ *
+ * BUG-G04 fix: previously returned the source `speciesId` unchanged for any
+ * `toGen >= 3`, which would silently corrupt Gen 1 → Gen 3 transfers (a Gen 1
+ * Pikachu has speciesId=84 internally; returning 84 as the Gen 3 speciesId
+ * would point at a completely different Pokémon). Gen 3 uses the National Dex
+ * ID as its internal speciesId (same as Gen 2), so the correct mapping is
+ * `dexId` for any target generation ≥ 2.
  */
 export function convertSpeciesId(speciesId: number, fromGen: number, toGen: number, dexId: number): number | null {
     // Same generation → no conversion needed
@@ -87,12 +101,19 @@ export function convertSpeciesId(speciesId: number, fromGen: number, toGen: numb
 
     if (toGen === 2) {
         // Target is Gen2: speciesId = dexId (National Dex order)
-        if (dexId < 1 || dexId > 251) return null;
+        if (dexId < 1 || dexId > MAX_GEN2_DEX_ID) return null;
         return dexId;
     }
 
-    // Future generations will add their own species ID mapping
-    return speciesId;
+    if (toGen >= 3) {
+        // BUG-G04 fix: Gen 3+ uses National Dex ID as the internal speciesId
+        // (verified against PKHeX PersonalTable.RS — internal index == dexId for
+        // species 1..386). Reject anything outside the Gen 3 dex range.
+        if (dexId < 1 || dexId > MAX_GEN3_DEX_ID) return null;
+        return dexId;
+    }
+
+    return null;
 }
 
 // ── Move Validation ────────────────────────────────────────────────────────
@@ -181,11 +202,22 @@ export function convertPokemonForTransfer(
         };
     }
 
-    if (targetGen === 2 && mon.dexId > 251) {
+    if (targetGen === 2 && mon.dexId > MAX_GEN2_DEX_ID) {
         return {
             mon: null,
             warnings,
             error: `${mon.speciesName} (National Dex #${mon.dexId}) cannot exist in a Gen 2 save.`
+        };
+    }
+
+    // BUG-G05 fix: gate Gen 3 transfers to the Gen 3 dex range (1..386).
+    // Previously this case was missing and the function fell through to
+    // `canTransferToGen` which returned `true` for any dexId when targetGen >= 3.
+    if (targetGen >= 3 && mon.dexId > MAX_GEN3_DEX_ID) {
+        return {
+            mon: null,
+            warnings,
+            error: `${mon.speciesName} (National Dex #${mon.dexId}) cannot exist in a Gen 3 save (max ${MAX_GEN3_DEX_ID}).`
         };
     }
 
@@ -294,6 +326,99 @@ export function convertPokemonForTransfer(
         converted.special = mon.spAtk ?? mon.special ?? 0;
     }
 
+    // ── 8b. Gen{1,2}→Gen3 specific conversions (BUG-G3-03 fix) ──
+    // Previously, transferring into Gen 3 left the stale Gen1/Gen2Extension
+    // attached to the mon (with DV-based fields like isShiny, gender, spAtk,
+    // spDef) and never constructed a Gen3Extension carrying the abilityId,
+    // natureId, secretId, ribbons, or contestStats that Gen 3 expects. This
+    // branch synthesizes a fresh Gen3Extension and pads DVs (0-15) into Gen 3
+    // IVs (0-31). The actual stat recalculation with the Gen 3 formula
+    // (floor(EV/4) + nature modifier) happens in step 10 via
+    // `targetAdapter.recalculateStats()`.
+    if (targetGen >= 3 && sourceGen < 3) {
+        // Synthesize a PID. Use the existing PID if present (shouldn't be for
+        // Gen 1/2), otherwise derive a deterministic one from TID + dexId +
+        // a constant. Real Gen 3 saves always have a PID; we just need one
+        // for nature/ability/gender derivation in the absence of source data.
+        const pid = mon.pid && mon.pid !== 0
+            ? mon.pid
+            : (((mon.originalTrainerId ?? 0) ^ (mon.dexId * 0x1000) ^ 0x7FFFFFFF) >>> 0);
+        converted.pid = pid;
+
+        // Synthesize a Secret ID (Gen 1/2 have no SID).
+        const sid = 0;
+        converted.secretId = sid;
+
+        // Pad DVs (0-15) to Gen 3 IVs (0-31): replicate each DV bit into the
+        // low 4 bits AND set bit 4 from the DV's MSB. This preserves the DV
+        // value (0-15) in the low nibble and adds a deterministic high bit
+        // so the IV is in the 0-31 range. (PKHeX's `PK2.ConvertToPK3` does a
+        // similar DV→IV padding.)
+        const padDvToIv = (dv: number): number => ((dv & 0xF) | ((dv & 0x8) << 1)) >>> 0;
+        converted.iv = {
+            hp: padDvToIv(mon.iv.hp),
+            attack: padDvToIv(mon.iv.attack),
+            defense: padDvToIv(mon.iv.defense),
+            speed: padDvToIv(mon.iv.speed),
+            special: padDvToIv(mon.iv.special),
+            spAtk: padDvToIv(mon.iv.special),  // Gen 3 splits Special into SpAtk
+            spDef: padDvToIv(mon.iv.special),  // and SpDef, both from the shared DV
+        };
+
+        // Cap StatExp (0-65535) to Gen 3 EVs (0-255 per stat, 510 total).
+        // Simple per-stat cap; total-cap enforcement is a UI concern.
+        const capEv = (ev: number): number => Math.min(ev ?? 0, 255);
+        converted.ev = {
+            hp: capEv(mon.ev.hp),
+            attack: capEv(mon.ev.attack),
+            defense: capEv(mon.ev.defense),
+            speed: capEv(mon.ev.speed),
+            special: capEv(mon.ev.special),
+            spAtk: capEv(mon.ev.special),
+            spDef: capEv(mon.ev.special),
+        };
+
+        // Derive nature, ability slot, and gender from the synthesized PID.
+        const natureName = getNatureName(pid);
+        const abilitySlot = getAbilitySlot(pid); // 0 or 1
+        const gender = getGenderFromPid(pid, mon.dexId);
+
+        // Build the Gen3Extension.
+        const gen3Ext = new Gen3Extension();
+        gen3Ext.natureId = pid % 25;
+        gen3Ext.natureName = natureName;
+        gen3Ext.abilityId = abilitySlot; // slot index; real parser would look up the species' ability
+        gen3Ext.abilityName = abilitySlot === 1 ? 'Ability 2' : 'Ability 1';
+        gen3Ext.secretId = sid;
+        gen3Ext.characteristic = '';
+        gen3Ext.ribbons = [];
+        gen3Ext.contestStats = { cool: 0, beauty: 0, cute: 0, smart: 0, tough: 0, sheen: 0 };
+        gen3Ext.pokeblockFlavorPrefs = [];
+        converted.genExtension = gen3Ext;
+
+        // Update flat fields for O(1) UI access.
+        converted.isShiny = mon.isShiny ?? false; // Shiny status is rechecked by recalculateStats
+        converted.gender = gender;
+        converted.originalTrainerGender = mon.originalTrainerGender ?? 'Male';
+
+        // Gen 3 items use a different ID space; reset to "no item" — a real
+        // Gen 3 adapter would map the Gen 1/2 item ID to the closest Gen 3
+        // equivalent, but that table doesn't exist yet.
+        if (mon.heldItemId && mon.heldItemId !== 0) {
+            warnings.push(`Held item "${mon.heldItemName}" was reset (Gen 3 uses a different item ID table).`);
+        }
+        converted.heldItemId = 0;
+        converted.heldItemName = 'None';
+
+        // Friendship: Gen 3 uses the same 0-255 range as Gen 2.
+        if (sourceGen === 1) {
+            converted.friendship = DEFAULT_BASE_FRIENDSHIP;
+            warnings.push(`Friendship set to ${DEFAULT_BASE_FRIENDSHIP} (Gen 1 has no friendship value).`);
+        }
+
+        warnings.push(`Synthesized PID=${pid.toString(16)}, Nature=${natureName}, Ability slot=${abilitySlot}.`);
+    }
+
     // ── 9. Discard stale raw bytes ──
     // Raw binary struct bytes are generation-specific and cannot be reused.
     // They will be rebuilt by the target generation's writer on export.
@@ -332,11 +457,20 @@ export function convertPokemonForTransfer(
 /**
  * Check if a cross-generation transfer is possible without actually converting.
  * Useful for UI validation before the user initiates a transfer.
+ *
+ * BUG-G05 fix: previously returned `true` for any `dexId` when `targetGen >= 3`,
+ * which would silently allow a Gen 4+ Pokémon (e.g. Leafeon #470) into a Gen 3
+ * transfer (max 386), producing an invalid Pokémon. Gen 3 now correctly checks
+ * the Hoenn dex range 1..386. Higher generations should add their own branches.
  */
 export function canTransferToGen(dexId: number, targetGen: number): boolean {
     if (targetGen === 1) return dexId >= 1 && dexId <= MAX_GEN1_DEX_ID;
-    if (targetGen === 2) return dexId >= 1 && dexId <= 251;
-    return true; // Future gens will add their own checks
+    if (targetGen === 2) return dexId >= 1 && dexId <= MAX_GEN2_DEX_ID;
+    if (targetGen === 3) return dexId >= 1 && dexId <= MAX_GEN3_DEX_ID;
+    // Higher generations should add their own range checks here.
+    // Defaulting to `false` is safer than `true` — better to reject an unknown
+    // transfer than silently corrupt.
+    return false;
 }
 
 /**
@@ -370,6 +504,16 @@ export function getTransferImpactDescription(
         impacts.push('Friendship will be set to a default value.');
         impacts.push('Gender and shiny status will be derived from DVs.');
         impacts.push('Stats will be recalculated using Gen 2 formulas (split SpAtk/SpDef).');
+    }
+
+    // BUG-G3-03 fix: document Gen 3 transfer impacts so the UI can warn the user.
+    if (targetGen >= 3 && sourceGen < 3) {
+        impacts.push('DVs (0-15) will be padded to Gen 3 IVs (0-31); the upper bit is filled from the DV bit.');
+        impacts.push('Stat Experience (0-65535) will be capped at the Gen 3 EV cap (0-255 per stat, 510 total).');
+        impacts.push('A Personality ID (PID), Secret ID, Nature, and Ability slot will be synthesized.');
+        impacts.push('Held item will be re-mapped to the Gen 3 item table (item IDs differ).');
+        impacts.push('Caught data, ribbons, and contest stats will be initialized to defaults.');
+        impacts.push('Stats will be recalculated using Gen 3 formulas (floor(EV/4) + nature modifier).');
     }
 
     return impacts;

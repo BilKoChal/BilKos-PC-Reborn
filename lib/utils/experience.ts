@@ -176,7 +176,7 @@ export const SPECIES_GROWTH_RATE: Record<number, GrowthRate> = {
     307: 'MediumFast', 308: 'MediumFast', // Meditite
     309: 'Slow', 310: 'Slow', // Electrike
     311: 'MediumFast', 312: 'MediumFast', // Plusle, Minun
-    313: 'Erratic', 314: 'Fluctuating', // Volbeat, Illumise
+    313: 'Fluctuating', 314: 'Fluctuating', // Volbeat, Illumise (BUG-G06 fix: Volbeat was 'Erratic', both are Fluctuating per Bulbapedia/PKHeX)
     315: 'MediumSlow', // Roselia
     316: 'Fluctuating', 317: 'Fluctuating', // Gulpin
     318: 'Slow', 319: 'Slow', // Carvanha

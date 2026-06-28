@@ -254,6 +254,23 @@ describe('convertSpeciesId', () => {
   it('is a no-op within the same generation', () => {
     expect(convertSpeciesId(84, 1, 1, 25)).toBe(84);
   });
+
+  // BUG-G04 fix: Gen 3 uses the National Dex ID as its internal speciesId
+  // (same as Gen 2). Previously the function returned the source `speciesId`
+  // unchanged for any toGen >= 3, which would corrupt Gen 1 → Gen 3 transfers
+  // (a Gen 1 Pikachu has speciesId=84; returning 84 as the Gen 3 speciesId
+  // would point at a completely different Pokémon).
+  it('BUG-G04 fix: uses National Dex id for Gen 3 targets', () => {
+    expect(convertSpeciesId(84, 1, 3, 25)).toBe(25);  // Gen1 Pikachu → Gen3
+    expect(convertSpeciesId(25, 2, 3, 25)).toBe(25);  // Gen2 Pikachu → Gen3
+    expect(convertSpeciesId(0, 1, 3, 386)).toBe(386); // Deoxys
+  });
+
+  it('BUG-G04 fix: rejects dex out of Gen 3 range (1..386)', () => {
+    expect(convertSpeciesId(0, 1, 3, 0)).toBeNull();
+    expect(convertSpeciesId(0, 1, 3, 387)).toBeNull(); // Turtwig (Gen 4)
+    expect(convertSpeciesId(0, 1, 3, 470)).toBeNull(); // Leafeon (Gen 4)
+  });
 });
 
 describe('validateMovesForTargetGen', () => {
@@ -289,6 +306,22 @@ describe('canTransferToGen', () => {
   it('gates Gen 2 to dex 1..251', () => {
     expect(canTransferToGen(251, 2)).toBe(true);
     expect(canTransferToGen(252, 2)).toBe(false);
+  });
+
+  // BUG-G05 fix: Gen 3 now correctly gates to 1..386. Previously returned
+  // `true` for any dexId when targetGen >= 3, which would silently allow a
+  // Gen 4 Leafeon (#470) into a Gen 3 transfer.
+  it('BUG-G05 fix: gates Gen 3 to dex 1..386', () => {
+    expect(canTransferToGen(386, 3)).toBe(true);   // Deoxys
+    expect(canTransferToGen(387, 3)).toBe(false);  // Turtwig (Gen 4)
+    expect(canTransferToGen(470, 3)).toBe(false);  // Leafeon (Gen 4)
+    expect(canTransferToGen(0, 3)).toBe(false);
+  });
+
+  it('BUG-G05 fix: returns false for unknown generations (safe default)', () => {
+    // Previously returned `true` for any unknown targetGen. Now returns `false`
+    // so an unsupported generation can't silently accept an invalid transfer.
+    expect(canTransferToGen(25, 99)).toBe(false);
   });
 });
 
@@ -332,5 +365,53 @@ describe('Hub-and-spoke transfer: National Dex id survives a round-trip (TODO 8.
     const res = convertPokemonForTransfer(makeGen1Pikachu(), 1, 2);
     expect(res.mon!.dexId).toBe(25);
     expect(res.mon!.speciesId).toBe(25); // target-gen internal id derived FROM the hub dexId
+  });
+});
+
+// ============================================================================
+// BUG-G3-03 fix: Gen 3 transfer handling
+// ============================================================================
+// Gen 3 is not yet registered as an adapter (it's "Planned" per the README),
+// so `convertPokemonForTransfer` into Gen 3 will refuse with "No adapter
+// registered for generation 3". These tests verify:
+//   1. The refusal is graceful (returns an error, doesn't throw).
+//   2. The species-range gate (BUG-G05) rejects Gen 4+ species BEFORE the
+//      adapter lookup, so the error message is specific.
+//   3. The impact-description helper (BUG-G3-03) documents what a Gen 3
+//      transfer would do, so the UI can warn the user even before the
+//      adapter exists.
+describe('BUG-G3-03: Gen 3 transfer handling', () => {
+  it('rejects a Gen 3 transfer with a clear error when no adapter is registered', () => {
+    const res = convertPokemonForTransfer(makeGen1Pikachu(), 1, 3);
+    expect(res.mon).toBeNull();
+    expect(res.error).toBeTruthy();
+    expect(res.error!).toMatch(/generation 3/i);
+  });
+
+  it('BUG-G05 fix: rejects Gen 4+ species before the adapter lookup (specific error)', () => {
+    // Build a mon with dexId > 386 (Leafeon #470) — should be rejected by the
+    // species gate, not by the adapter-missing gate.
+    const leafeon = { ...makeGen1Pikachu(), dexId: 470, speciesName: 'Leafeon' };
+    const res = convertPokemonForTransfer(leafeon, 1, 3);
+    expect(res.mon).toBeNull();
+    expect(res.error).toBeTruthy();
+    expect(res.error!).toMatch(/Gen 3 save/i);   // species-gate message, not adapter message
+    expect(res.error!).not.toMatch(/adapter/i);
+  });
+
+  it('BUG-G3-03 fix: getTransferImpactDescription documents Gen 3 transfer impacts', () => {
+    const impacts = getTransferImpactDescription(makeGen1Pikachu(), 1, 3);
+    expect(impacts.length).toBeGreaterThan(0);
+    // Should mention DV→IV padding, EV capping, PID/Nature synthesis, and the
+    // Gen 3 stat formula.
+    expect(impacts.some(i => /DVs/i.test(i))).toBe(true);
+    expect(impacts.some(i => /PID|Nature/i.test(i))).toBe(true);
+    expect(impacts.some(i => /Gen 3 formulas/i.test(i))).toBe(true);
+  });
+
+  it('BUG-G3-03 fix: Gen 2 → Gen 3 impact description also documents the changes', () => {
+    const impacts = getTransferImpactDescription(makeGen2Charizard(), 2, 3);
+    expect(impacts.some(i => /DVs/i.test(i))).toBe(true);
+    expect(impacts.some(i => /PID|Nature/i.test(i))).toBe(true);
   });
 });

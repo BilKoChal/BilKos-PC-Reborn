@@ -555,6 +555,17 @@ describe('Level ⇄ EXP coupling (TODO 3.3)', () => {
     expect(getExpAtLevel(100, 'Slow')).toBe(1250000);
   });
 
+  // BUG-G06 fix: Volbeat (#313) was incorrectly listed as 'Erratic'; it should
+  // be 'Fluctuating' (matching Illumise #314 and verified against Bulbapedia/PKHeX).
+  it('BUG-G06 fix: Volbeat (#313) is Fluctuating, not Erratic', () => {
+    expect(getGrowthRate(313)).toBe('Fluctuating');
+    expect(getGrowthRate(314)).toBe('Fluctuating'); // Illumise (unchanged, sanity check)
+  });
+
+  it('BUG-G06 fix: Volbeat and Illumise share the same growth rate', () => {
+    expect(getGrowthRate(313)).toBe(getGrowthRate(314));
+  });
+
   it('level is clamped within 1..100 by the curve lookup', () => {
     const rate = getGrowthRate(25);
     // Huge EXP can never exceed level 100.
