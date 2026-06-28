@@ -104,11 +104,18 @@ const TRAINER_SPRITE_MAP: Record<string, {
  * Computes the Unown form letter from Gen 2 IVs (DVs).
  *
  * In Gen 2, Unown's letter form is derived from the Pokemon's IVs.
- * The formula combines the middle bits of each DV to produce a value 0-25,
- * mapping to letters A-Z:
+ * The formula extracts bits 1-2 of each DV nibble (the `& 0x6` mask),
+ * combines them into an 8-bit value (0-255), then divides by 10 (integer
+ * division) to get a letter index 0-25 mapping to A-Z.
+ *
+ * BUG-G2-02 fix: the old code used `combined % 26` instead of
+ * `floor(combined / 10)`. These produce different letters for most DV
+ * combinations. The Bulbapedia-documented formula (verified against the
+ * pokegold disassembly and PKHeX) is `letter = floor(combined / 10)`.
+ *
  *   combined = ((atkIv & 0x6) << 5) | ((defIv & 0x6) << 3) |
  *              ((spdIv & 0x6) << 1) | ((spcIv & 0x6) >> 1)
- *   letter_index = combined % 26
+ *   letter_index = floor(combined / 10)   // 0..25
  *
  * @returns Lowercase letter ('a'-'z') for Unown, or undefined for other species
  */
@@ -116,7 +123,7 @@ export function getUnownFormLetter(dexId: number, iv: { attack: number; defense:
   if (dexId !== 201) return undefined;
   const combined = ((iv.attack & 0x6) << 5) | ((iv.defense & 0x6) << 3) |
                    ((iv.speed & 0x6) << 1) | ((iv.special & 0x6) >> 1);
-  const letterIndex = combined % 26;
+  const letterIndex = Math.floor(combined / 10);
   return String.fromCharCode(97 + letterIndex); // 'a' to 'z'
 }
 
@@ -142,8 +149,9 @@ export function setUnownFormDVs(
   if (target < 0 || target > 25) return iv;
 
   const opts = [0, 2, 4, 6]; // possible values of (dv & 6)
+  // BUG-G2-02 fix: use floor(combined / 10) instead of combined % 26.
   const letterOf = (a: number, d: number, s: number, c: number) =>
-    (((a & 6) << 5) | ((d & 6) << 3) | ((s & 6) << 1) | ((c & 6) >> 1)) % 26;
+    Math.floor((((a & 6) << 5) | ((d & 6) << 3) | ((s & 6) << 1) | ((c & 6) >> 1)) / 10);
 
   let best: { a: number; d: number; s: number; c: number } | null = null;
   let bestCost = Infinity;

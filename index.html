@@ -17,6 +17,24 @@
   }
 }
 </script>
+    <!-- UX-T03 fix: pre-hydration dark-mode script. Reads localStorage BEFORE
+         React mounts and adds the `dark` class to <html> so the first paint
+         is already dark-themed. Without this, users with saved mode='dark'
+         would see a flash of light content (FOUC) before the ThemeContext
+         effect runs after first paint. The script is tiny and synchronous so
+         it doesn't block hydration. -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('themeMode');
+          if (saved === 'dark') {
+            document.documentElement.classList.add('dark');
+          }
+        } catch (e) {
+          // localStorage may be unavailable (private mode, SSR) — fall back to light.
+        }
+      })();
+    </script>
   </head>
   <body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300 overflow-x-hidden">
     <div id="root"></div>

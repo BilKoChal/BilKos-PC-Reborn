@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
-import { ThemeContextType, ThemeMode, ThemeColor, GameCartridge } from '../uiTypes';
+import { ThemeContextType, ThemeMode, GameCartridge } from '../uiTypes';
 import { pokemonGames } from '../data/games';
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,7 +15,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return 'light';
   });
 
-  const [theme, setTheme] = useState<ThemeColor>('default');
+  // BUG-G10 fix: removed the dead `theme`/`setTheme` state. It was initialized
+  // to 'default' and never read or written — the actual theming is driven
+  // entirely by `activeGameId` + CSS variables in the effect below.
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,6 +43,17 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       root.style.setProperty('--theme-accent', accent);
       root.style.setProperty('--theme-text-on-primary', textOnPrimary);
     } else {
+      // UX-T04 fix: warn when activeGameId is set but no matching game is found
+      // in pokemonGames. This means the active save's game version doesn't have
+      // a theme entry — theming silently fell back to the default (Crimson Red)
+      // with no indication. The console warning helps developers notice a
+      // missing theme registration before users see inconsistent colors.
+      if (activeGameId !== null) {
+        console.warn(
+          `[ThemeContext] Unknown activeGameId "${activeGameId}" — no matching theme found in pokemonGames. ` +
+          `Falling back to default (Crimson Red). Add this game version to data/games.ts to fix.`
+        );
+      }
       // Default style (Pokemon Crimson Red)
       const isDark = mode === 'dark';
       root.style.setProperty('--theme-primary', isDark ? '#b91c1c' : '#dc2626');
@@ -65,13 +78,13 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, [activeGameId]);
 
   // BUG-G08 fix: memoize the context value so consumers only re-render when
-  // the actual values change (mode, theme, activeGameId). Previously the value
+  // the actual values change (mode, activeGameId). Previously the value
   // object was recreated on every render, causing cascading re-renders of all
   // deeply-nested components that call useTheme() (Header, PCStorage,
   // PartyList, PokemonSprite, etc.) on every provider state change.
   const value = useMemo<ThemeContextType>(() => ({
-    mode, toggleMode, theme, setTheme, activeGameId, setActiveGameId, getGameTheme
-  }), [mode, toggleMode, theme, activeGameId, getGameTheme]);
+    mode, toggleMode, activeGameId, setActiveGameId, getGameTheme
+  }), [mode, toggleMode, activeGameId, getGameTheme]);
 
   return (
     <ThemeContext.Provider value={value}>

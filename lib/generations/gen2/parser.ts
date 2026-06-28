@@ -160,19 +160,28 @@ export function isGen2Shiny(atkIv: number, defIv: number, spdIv: number, spcIv: 
  * Determine the Unown form letter from Gen 2 IVs (DVs).
  *
  * In Generation II, Unown's letter form is derived from the Pokemon's
- * Determinant Values (DVs, equivalent to IVs). The formula combines
- * the middle bits of each DV to produce a value 0-25, mapping to
- * letters A-Z:
+ * Determinant Values (DVs, equivalent to IVs). The formula extracts bits 1-2
+ * of each DV nibble (the `& 0x6` mask), combines them into an 8-bit value
+ * (0-255), then divides by 10 (integer division) to get a letter index 0-25
+ * mapping to A-Z.
+ *
+ * BUG-G2-02 fix: the old code used `combined % 26` instead of
+ * `floor(combined / 10)`. These produce different letters for most DV
+ * combinations. The Bulbapedia-documented formula (verified against the
+ * pokegold disassembly and PKHeX) is `letter = floor(combined / 10)`, which
+ * maps 0-9→A, 10-19→B, ..., 250-255→Z. The modulo formula happened to produce
+ * 26 distinct values but they didn't match the on-cartridge letter for any
+ * given DV set.
  *
  *   combined = ((atkIv & 0x6) << 5) | ((defIv & 0x6) << 3) |
  *              ((spdIv & 0x6) << 1) | ((spcIv & 0x6) >> 1)
- *   letter_index = combined % 26
+ *   letter_index = floor(combined / 10)   // 0..25
  *
- * Returns the lowercase letter ('a'-'z') or undefined if not applicable.
+ * Returns the lowercase letter ('a'-'z').
  */
 export function getGen2UnownFormLetter(atkIv: number, defIv: number, spdIv: number, spcIv: number): string | undefined {
   const combined = ((atkIv & 0x6) << 5) | ((defIv & 0x6) << 3) | ((spdIv & 0x6) << 1) | ((spcIv & 0x6) >> 1);
-  const letterIndex = combined % 26;
+  const letterIndex = Math.floor(combined / 10);
   return String.fromCharCode(97 + letterIndex); // 'a' to 'z'
 }
 

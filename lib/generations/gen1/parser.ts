@@ -323,15 +323,14 @@ function parseOptions(view: Uint8Array, offsets: Gen1OffsetsConfig): GameOptions
     else if (speedBits === 5) textSpeed = 'Slow';
     else if (speedBits === 3) textSpeed = 'Normal';
     else textSpeed = speedBits.toString();
-    
-    const soundBits = (byte >> 4) & 0x3;
-    let sound: 'Mono' | 'Stereo' | 'Earphone1' | 'Earphone2' | 'Earphone3' = 'Mono';
-    if (soundBits === 0) sound = 'Mono';
-    else if (soundBits === 1) sound = 'Earphone1'; 
-    else if (soundBits === 2) sound = 'Earphone2';
-    else if (soundBits === 3) sound = 'Earphone3';
-    
-    if (speedBits !== 0 && soundBits === 1) sound = 'Stereo';
+
+    // BUG-G16 fix: Gen 1 uses a SINGLE bit (bit 3) for sound: 0=Mono, 1=Stereo.
+    // The Earphone1/2/3 options (bits 4-5) are Gen 2-only — they don't exist in
+    // R/B/Y. The old code read bits 4-5 and mapped them to Earphone1/2/3, then
+    // used a fragile heuristic (`speedBits !== 0 && soundBits === 1 → Stereo`)
+    // to recover Stereo. This produced wrong sound values for most saves.
+    // Now we correctly read only bit 3.
+    const sound: 'Mono' | 'Stereo' = (byte & 0x08) ? 'Stereo' : 'Mono';
 
     return { textSpeed, battleAnimation, battleStyle, sound };
 }

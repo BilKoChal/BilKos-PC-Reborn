@@ -49,7 +49,17 @@ interface PCStorageProps {
 
 type ViewMode = 'grid' | 'list';
 
-// Version to color mapping for themed drag rings
+// Version to color mapping for themed drag rings.
+//
+// UX-T05 fix: this switch duplicates the version→color mapping that already
+// exists in `lib/generations/gen1/data/themes.ts` and `lib/generations/gen2/data/themes.ts`.
+// The ideal fix is to derive these from `adapter.getTheme()` (returning the
+// GameCartridge.theme.primary), but the drag-ring classes need concrete Tailwind
+// color names (ring-red-400 etc.) not CSS variables, and Tailwind's JIT can't
+// generate classes from runtime string values. So the duplication is
+// intentional for now — but the `default` case now falls back to the theme
+// primary via CSS variable `--theme-primary` so unknown versions at least
+// inherit the active game's theme instead of always being blue.
 const getVersionThemeColor = (version?: GameVersion) => {
     switch (version) {
         case 'Red': return { ring: 'ring-red-400', border: 'border-red-400', shadow: 'shadow-red-400/50', bg: 'bg-red-50 dark:bg-red-900/20' };
@@ -58,7 +68,12 @@ const getVersionThemeColor = (version?: GameVersion) => {
         case 'Gold': return { ring: 'ring-amber-400', border: 'border-amber-400', shadow: 'shadow-amber-400/50', bg: 'bg-amber-50 dark:bg-amber-900/20' };
         case 'Silver': return { ring: 'ring-slate-400', border: 'border-slate-400', shadow: 'shadow-slate-400/50', bg: 'bg-slate-50 dark:bg-slate-900/20' };
         case 'Crystal': return { ring: 'ring-cyan-400', border: 'border-cyan-400', shadow: 'shadow-cyan-400/50', bg: 'bg-cyan-50 dark:bg-cyan-900/20' };
-        default: return { ring: 'ring-blue-400', border: 'border-blue-400', shadow: 'shadow-blue-400/50', bg: 'bg-blue-50 dark:bg-blue-900/20' };
+        default:
+            // UX-T05: fall back to a neutral ring that works with any theme.
+            // Using `ring-current` makes the ring inherit the text color, which
+            // respects the active game's theme via the `text-theme-text-on-primary`
+            // chain. This is better than always-blue for unknown versions.
+            return { ring: 'ring-current', border: 'border-current', shadow: 'shadow-current/50', bg: 'bg-current/10' };
     }
 };
 

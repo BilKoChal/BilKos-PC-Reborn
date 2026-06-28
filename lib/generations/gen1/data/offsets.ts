@@ -215,6 +215,16 @@ export function getGen1Offsets(region: Gen1Region = 'international'): Gen1Offset
  * structure is valid, NOT by file size. (TODO 2.8: a previous version keyed off
  * a non-existent 64 KB size; that branch was dead because detection only ever
  * accepts 32 KB files.) Defaults to International when ambiguous.
+ *
+ * BUG-G14 fix: previously, a Japanese save with an empty party (count=0) would
+ * be misdetected as International because both `intPartyValid` and
+ * `jpnPartyValid` require `count >= 1`, so both were false and the function
+ * fell through to the `international` default. Now, when the party is empty
+ * (count=0 at both offsets), we fall back to checking the trainer-name region
+ * offset: a non-zero, non-0xFF byte at the Japanese OT-name offset (0x2ED5+2)
+ * vs the International offset (0x2F2C+2) is a weak but sufficient signal. If
+ * both are ambiguous, International remains the safe default (it's the more
+ * common region for English-community saves).
  */
 export function detectGen1Region(buffer: Uint8Array): Gen1Region {
   // Check whether the International or Japanese party offset holds a valid party.
@@ -225,6 +235,36 @@ export function detectGen1Region(buffer: Uint8Array): Gen1Region {
   const intPartyValid = intPartyCount >= 1 && intPartyCount <= 6 && intFirstSpecies !== 0xFF && intFirstSpecies !== 0x00;
   const jpnPartyValid = jpnPartyCount >= 1 && jpnPartyCount <= 6 && jpnFirstSpecies !== 0xFF && jpnFirstSpecies !== 0x00;
   if (jpnPartyValid && !intPartyValid) return 'japanese';
+  if (intPartyValid && !jpnPartyValid) return 'international';
+
+  // BUG-G14 fix: empty-party fallback. When both party checks fail (count=0 at
+  // both offsets), try the trainer name region. A real save always has a
+  // non-empty trainer name, so the name bytes are a reliable region signal.
+  // Japanese trainer names start at 0x2ED5+2 = 0x2ED7 (6 bytes); International
+  // at 0x2F2C+2 = 0x2F2E (11 bytes). We check if one region's name bytes look
+  // like valid Game Boy text (non-zero, non-0xFF, with a 0x50 terminator within
+  // the expected length) and the other doesn't.
+  if (!intPartyValid && !jpnPartyValid) {
+    const jpnNameStart = 0x2ED7;
+    const intNameStart = 0x2F2E;
+    // A valid trainer name has at least one non-zero, non-0xFF byte and a
+    // terminator (0x50) within the first 6 (JPN) or 11 (INT) bytes.
+    const looksLikeValidName = (start: number, maxLen: number): boolean => {
+      let hasContent = false;
+      for (let i = 0; i < maxLen; i++) {
+        const b = buffer[start + i];
+        if (b === undefined) return false;
+        if (b === 0x50) return hasContent; // terminator found
+        if (b !== 0x00 && b !== 0xFF) hasContent = true;
+      }
+      return hasContent;
+    };
+    const jpnNameValid = looksLikeValidName(jpnNameStart, 6);
+    const intNameValid = looksLikeValidName(intNameStart, 11);
+    if (jpnNameValid && !intNameValid) return 'japanese';
+    if (intNameValid && !jpnNameValid) return 'international';
+  }
+
   return 'international';
 }
 

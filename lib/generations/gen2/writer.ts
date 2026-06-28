@@ -66,8 +66,8 @@ export function writeGen2PokemonStruct(
   // 4. OT ID (2 bytes Big Endian)
   setUInt16BigEndian(view, offset + 6, mon.originalTrainerId);
 
-  // 5. Experience (3 bytes Big Endian)
-  setUInt24BigEndian(view, offset + 8, mon.exp);
+  // 5. Experience (3 bytes Big Endian) — BUG-G12 fix: clamp to 24-bit.
+  setUInt24BigEndian(view, offset + 8, Math.max(0, Math.min(mon.exp, 0xFFFFFF)));
 
   // 6. Stat EVs (5 fields of 2 bytes = 10 bytes)
   setUInt16BigEndian(view, offset + 11, mon.ev.hp);
@@ -115,8 +115,8 @@ export function writeGen2PokemonStruct(
     data[offset + 0x1E] = gen2Ext.caughtData & 0xFF;
   }
 
-  // 10. Level
-  data[offset + 31] = mon.level;
+  // 10. Level — BUG-G12 fix: clamp to 1..100 (Gen 2 max).
+  data[offset + 31] = Math.max(1, Math.min(mon.level, 100));
 
   if (isParty) {
     // 11. Status condition
@@ -138,13 +138,15 @@ export function writeGen2PokemonStruct(
 }
 
 export function writeInventoryPocketGen2(
-  data: Uint8Array, 
-  countIdx: number, 
-  start: number, 
-  size: number, 
-  maxCap: number, 
+  data: Uint8Array,
+  countIdx: number,
+  start: number,
+  size: number,
+  maxCap: number,
   items: Item[]
 ) {
+  // BUG-G11 fix: clamp count to maxCap (already done via Math.min below, but
+  // made explicit with a comment for parity with the Gen 1 writer fix).
   const count = Math.min(items.length, maxCap);
   data[countIdx] = count;
 

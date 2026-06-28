@@ -37,10 +37,15 @@ function writeEventFlags(writer: BinaryWriter, flags: boolean[]) {
 }
 
 // Helper: Write Items
+// BUG-G11 fix: clamp the count byte to maxCapacity so a corrupted or
+// hand-edited model with too many items can't write a count larger than the
+// number of item structs that follow — which would make the parser read past
+// the terminator into garbage on re-load.
 function writeItems(writer: BinaryWriter, items: Item[], maxCapacity: number) {
-    writer.u8(items.length); // Item Count
-    
-    for (let i = 0; i < items.length && i < maxCapacity; i++) {
+    const count = Math.min(items.length, maxCapacity);
+    writer.u8(count); // Item Count (clamped)
+
+    for (let i = 0; i < count; i++) {
         writer.u8(items[i]!.id);
         writer.u8(items[i]!.count);
     }
@@ -49,12 +54,16 @@ function writeItems(writer: BinaryWriter, items: Item[], maxCapacity: number) {
 
 // Helper: Write Pokemon Structure
 function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: boolean) {
-    const internalId = DEX_TO_INTERNAL[mon.dexId] || 1; 
+    const internalId = DEX_TO_INTERNAL[mon.dexId] || 1;
     writer.u8(internalId);
-    
+
     const currentHp = Math.min(mon.hp, mon.maxHp);
     writer.u16be(currentHp);
-    writer.u8(mon.level);
+    // BUG-G12 fix: clamp level to 1..100 (Gen 1 max). A corrupted or hand-edited
+    // model with level > 100 would write a byte > 100, which the game interprets
+    // as a garbage level (potentially crashing the summary screen).
+    const clampedLevel = Math.max(1, Math.min(mon.level, 100));
+    writer.u8(clampedLevel);
     
     // Status (04)
     // BUG FIX (TODO 2.1): previously hardcoded to 0, which healed every
@@ -77,8 +86,11 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
     // OT ID (0C-0D)
     writer.u16be(mon.originalTrainerId);
 
-    // Exp (0E-10)
-    writer.u24be(mon.exp);
+    // Exp (0E-10) — BUG-G12 fix: clamp to 24-bit (max 0xFFFFFF = 16,777,215).
+    // Gen 1 stores EXP as a 3-byte big-endian value; a model with exp > 0xFFFFFF
+    // would have its upper bits silently truncated by u24be, producing a wrong
+    // (much smaller) EXP value on re-load.
+    writer.u24be(Math.max(0, Math.min(mon.exp, 0xFFFFFF)));
 
     // EV/Stat Exp (11-1A)
     writer.u16be(mon.ev.hp);
@@ -101,7 +113,9 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
 
     if (isParty) {
         // Party Specifics (Level, Stats) - Offset 33
-        writer.u8(mon.level);
+        // BUG-G12 fix: use the clamped level here too (consistency with the
+        // box-level byte above).
+        writer.u8(clampedLevel);
         writer.u16be(mon.maxHp);
         writer.u16be(mon.attack);
         writer.u16be(mon.defense);
@@ -259,15 +273,17 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
         }
         byte |= speedVal;
 
-        if (save.options.sound === 'Earphone1') {
-            byte |= 0x10;
-        } else if (save.options.sound === 'Earphone2') {
-            byte |= 0x20;
-        } else if (save.options.sound === 'Earphone3') {
-            byte |= 0x30;
-        } else if (save.options.sound === 'Stereo') {
-            byte |= 0x10;
+        // BUG-G16 fix: Gen 1 uses a single bit (bit 3) for sound: 0=Mono, 1=Stereo.
+        // The Earphone1/2/3 options (bits 4-5) are Gen 2-only. The old writer
+        // mapped 'Stereo' to 0x10 (same as 'Earphone1'), which was wrong — it
+        // set bit 4 instead of bit 3. Now we correctly set bit 3 for Stereo.
+        // Earphone1/2/3 values are silently mapped to Mono (they don't exist
+        // in Gen 1, so a cross-gen transfer that carried them over should
+        // downgrade to Mono rather than corrupt the byte).
+        if (save.options.sound === 'Stereo') {
+            byte |= 0x08;
         }
+        // Earphone1/2/3 → Mono (bit 3 stays 0) — no bits set.
         writer.seek(offsets.OPTIONS);
         writer.u8(byte);
     }
@@ -347,18 +363,26 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     }
     
     if (save.trainer.pikachuSurfScore !== undefined && offsets.PIKACHU_SURF_RECORD !== undefined) {
-        const val = save.trainer.pikachuSurfScore;
-        const d4 = Math.floor(val / 1000) % 10;
-        const d3 = Math.floor(val / 100) % 10;
-        const d2 = Math.floor(val / 10) % 10;
-        const d1 = val % 10;
-        
-        const lowByte = (d2 << 4) | d1;
-        const highByte = (d4 << 4) | d3;
-        
-        writer.seek(offsets.PIKACHU_SURF_RECORD);
-        writer.u8(lowByte);
-        writer.u8(highByte);
+        // BUG-G13 fix: only write the Surfing Pikachu score for Yellow saves.
+        // The parser only reads it when gameVersion === 'Yellow', but the old
+        // writer wrote it whenever `pikachuSurfScore` was set — so a Red/Blue
+        // save loaded after a Yellow save in the same session would have the
+        // stale score written to offset 0x2741 (unused in R/B but a latent
+        // corruption risk for ROM hacks that use that byte).
+        if (save.gameVersion === 'Yellow') {
+            const val = save.trainer.pikachuSurfScore;
+            const d4 = Math.floor(val / 1000) % 10;
+            const d3 = Math.floor(val / 100) % 10;
+            const d2 = Math.floor(val / 10) % 10;
+            const d1 = val % 10;
+
+            const lowByte = (d2 << 4) | d1;
+            const highByte = (d4 << 4) | d3;
+
+            writer.seek(offsets.PIKACHU_SURF_RECORD);
+            writer.u8(lowByte);
+            writer.u8(highByte);
+        }
     }
 
     // 7. PC Items
@@ -366,22 +390,31 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     writeItems(writer, save.pcItems, 50);
 
     // 8. Current Box ID
+    // BUG-G15 fix: don't set bit 7. PKHeX writes `(byte)(value & 0x7F)` —
+    // bit 7 is the "box contents modified, flush to SRAM" flag, and setting it
+    // on every write forces the game to re-flush the active box on next load.
+    // The old code used `(save.currentBoxId & 0x7F) | 0x80`, which diverged
+    // from PKHeX. Now we write just `value & 0x7F`.
     writer.seek(offsets.CURRENT_BOX_ID);
-    writer.u8((save.currentBoxId & 0x7F) | 0x80);
+    writer.u8(save.currentBoxId & 0x7F);
 
     // 9. Party Pokemon
+    // BUG-G11 fix: clamp the party count to 6 so a model with > 6 party mons
+    // can't write a count byte > 6 (which would make the parser read past the
+    // 8-byte species-list section into the party structs).
     writer.seek(offsets.PARTY_DATA);
-    writer.u8(save.party.length);
-    for (const p of save.party) {
-        const internal = DEX_TO_INTERNAL[p.dexId] || 1;
+    const partyCount = Math.min(save.party.length, 6);
+    writer.u8(partyCount);
+    for (let i = 0; i < partyCount; i++) {
+        const internal = DEX_TO_INTERNAL[save.party[i]!.dexId] || 1;
         writer.u8(internal);
     }
-    writer.u8(0xFF); 
+    writer.u8(0xFF);
 
     // Jump to structs (Party Data + 8)
     writer.seek(offsets.PARTY_DATA + 8);
     for (let i = 0; i < 6; i++) {
-        if (i < save.party.length) {
+        if (i < partyCount) {
             writePokemonStruct(writer, save.party[i]!, true);
         } else {
             // Fill empty slots with 0
@@ -392,7 +425,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     // Party OT Names
     writer.seek(offsets.PARTY_OT_NAMES);
     for (let i = 0; i < 6; i++) {
-        if (i < save.party.length) {
+        if (i < partyCount) {
             writer.string(save.party[i]!.originalTrainerName, offsets.STR_LEN, 0x50, isJapanese);
         } else {
             for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);
@@ -402,7 +435,7 @@ export function writeGen1Save(save: ParsedSave): Uint8Array {
     // Party Nicknames
     writer.seek(offsets.PARTY_NICKNAMES);
     for (let i = 0; i < 6; i++) {
-        if (i < save.party.length) {
+        if (i < partyCount) {
             writer.string(save.party[i]!.nickname, offsets.STR_LEN, 0x50, isJapanese);
         } else {
             for (let j = 0; j < offsets.STR_LEN; j++) writer.u8(0x50);

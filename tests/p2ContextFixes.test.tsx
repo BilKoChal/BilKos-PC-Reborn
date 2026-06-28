@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-/* eslint-disable react-hooks/rules-of-hooks, react-hooks/globals, react-hooks/exhaustive-deps */
 /**
  * P2 React state management fix tests.
  *
