@@ -31,16 +31,45 @@ export const Pokedex: React.FC<PokedexProps> = ({ data, onUpdate }) => {
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
     const [selectedId, setSelectedId] = useState<number | null>(null);
     
-    // Data State
+    // Data State — initialized from props. UX-R02 fix: re-sync when the save's
+    // flag arrays change identity (e.g., user loads a different save tab or the
+    // parent re-parses). Without this, the Pokedex would keep showing the OLD
+    // save's caught/seen state after the user switched saves.
     const [ownedFlags, setOwnedFlags] = useState([...data.pokedexOwnedFlags]);
     const [seenFlags, setSeenFlags] = useState([...data.pokedexSeenFlags]);
 
-    // Update parent when flags change
+    // UX-R02 fix: sync local flag state when the prop arrays change identity.
+    // `data.pokedexOwnedFlags` is a new array reference every parse, so a
+    // reference check is sufficient (no deep compare needed). We skip the first
+    // render (state was already initialized from the same props above).
+    const lastSyncedOwned = React.useRef(data.pokedexOwnedFlags);
+    const lastSyncedSeen = React.useRef(data.pokedexSeenFlags);
     useEffect(() => {
+        if (data.pokedexOwnedFlags !== lastSyncedOwned.current) {
+            lastSyncedOwned.current = data.pokedexOwnedFlags;
+            setOwnedFlags([...data.pokedexOwnedFlags]);
+        }
+        if (data.pokedexSeenFlags !== lastSyncedSeen.current) {
+            lastSyncedSeen.current = data.pokedexSeenFlags;
+            setSeenFlags([...data.pokedexSeenFlags]);
+        }
+    }, [data.pokedexOwnedFlags, data.pokedexSeenFlags]);
+
+    // Update parent when flags change.
+    // UX-R02 fix: include `onUpdate` in the dependency array so we don't capture
+    // a stale closure, and skip the initial mount via a ref so we don't trigger
+    // an unnecessary save update on first render (the parent already has these
+    // values — it passed them to us).
+    const didMountRef = React.useRef(false);
+    useEffect(() => {
+        if (!didMountRef.current) {
+            didMountRef.current = true;
+            return; // skip initial mount
+        }
         if (onUpdate) {
             onUpdate(ownedFlags, seenFlags);
         }
-    }, [ownedFlags, seenFlags]);
+    }, [ownedFlags, seenFlags, onUpdate]);
 
     const toggleEntry = (id: number) => {
         const isSeen = seenFlags[id];

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useMemo, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect, useRef, ReactNode } from 'react';
 import { ParsedSave, Generation, GameVersion } from '../lib/parser/types';
 import { MoveLocation } from '../lib/utils/manipulation';
 import { IGenerationAdapter } from '../lib/interfaces';
@@ -57,6 +57,23 @@ export const SaveProvider: React.FC<SaveProviderProps> = ({
     () => registry.getAdapter(data.generation)
   );
   const [adapterLoading, setAdapterLoading] = useState(!registry.isLoaded(data.generation));
+
+  // BUG-G07 fix: track the previous generation so that when `data.generation`
+  // changes (e.g., user opens a Gen 2 save after a Gen 1 save in the same
+  // session), we reset `adapter` to `undefined` and re-trigger the loading
+  // effect. Without this, the `if (adapter) return;` guard in the effect would
+  // short-circuit because the OLD adapter is still set, so the new generation's
+  // adapter would never load — every Gen 2-specific operation would run
+  // through the wrong adapter.
+  const prevGenerationRef = useRef<Generation>(data.generation);
+  useEffect(() => {
+    if (prevGenerationRef.current !== data.generation) {
+      // Generation changed: reset adapter state so the loading effect re-runs.
+      prevGenerationRef.current = data.generation;
+      setAdapter(registry.getAdapter(data.generation));
+      setAdapterLoading(!registry.isLoaded(data.generation));
+    }
+  }, [data.generation]);
 
   useEffect(() => {
     if (adapter) return; // Already loaded

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 
 /**
  * Sprite display mode — controls which sprite set is used throughout the app.
@@ -37,12 +37,22 @@ export const SpriteProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     localStorage.setItem(SPRITE_MODE_KEY, mode);
   }, [mode]);
 
-  const setMode = (newMode: SpriteMode) => {
+  // BUG-G09 fix: wrap `setMode` in useCallback so its identity is stable across
+  // renders. The previous inline arrow `(newMode) => setModeState(newMode)`
+  // created a new function reference on every render, which defeated memoization
+  // of the context value below and caused all consumers of useSpriteMode() to
+  // re-render on every provider state change.
+  const setMode = useCallback((newMode: SpriteMode) => {
     setModeState(newMode);
-  };
+  }, []);
+
+  // BUG-G09 fix: memoize the context value so consumers only re-render when
+  // `mode` actually changes. With `setMode` now stable via useCallback, the
+  // value object identity is stable across renders unless `mode` changes.
+  const value = useMemo<SpriteContextType>(() => ({ mode, setMode }), [mode, setMode]);
 
   return (
-    <SpriteContext.Provider value={{ mode, setMode }}>
+    <SpriteContext.Provider value={value}>
       {children}
     </SpriteContext.Provider>
   );

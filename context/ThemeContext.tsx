@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, ReactNode } from 'react';
 import { ThemeContextType, ThemeMode, ThemeColor, GameCartridge } from '../uiTypes';
 import { pokemonGames } from '../data/games';
 
@@ -50,17 +50,31 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [mode, activeGameId]);
 
-  const toggleMode = () => {
+  // BUG-G08 fix: wrap `toggleMode` in useCallback so its identity is stable
+  // across renders. Without this, every provider render creates a new function,
+  // which — combined with the unmemoized context value below — caused ALL
+  // consumers of useTheme() to re-render on every provider state change, even
+  // when nothing they cared about had actually changed.
+  const toggleMode = useCallback(() => {
     setMode((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
+  }, []);
 
-  const getGameTheme = (): GameCartridge | undefined => {
+  const getGameTheme = useCallback((): GameCartridge | undefined => {
       if (!activeGameId) return undefined;
       return pokemonGames.find(g => g.id === activeGameId);
-  };
+  }, [activeGameId]);
+
+  // BUG-G08 fix: memoize the context value so consumers only re-render when
+  // the actual values change (mode, theme, activeGameId). Previously the value
+  // object was recreated on every render, causing cascading re-renders of all
+  // deeply-nested components that call useTheme() (Header, PCStorage,
+  // PartyList, PokemonSprite, etc.) on every provider state change.
+  const value = useMemo<ThemeContextType>(() => ({
+    mode, toggleMode, theme, setTheme, activeGameId, setActiveGameId, getGameTheme
+  }), [mode, toggleMode, theme, activeGameId, getGameTheme]);
 
   return (
-    <ThemeContext.Provider value={{ mode, toggleMode, theme, setTheme, activeGameId, setActiveGameId, getGameTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
