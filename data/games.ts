@@ -2,6 +2,8 @@ import { GameCartridge } from '../uiTypes';
 import { GEN1_GAMES } from '../lib/generations/gen1/data/themes';
 import { GEN2_GAMES } from '../lib/generations/gen2/data/themes';
 import { GEN3_GAMES } from '../lib/generations/gen3/data/themes';
+import { GEN4_GAMES } from '../lib/generations/gen4/data/themes';
+import { GEN5_GAMES } from '../lib/generations/gen5/data/themes';
 
 /**
  * Aggregate of all known version cartridges + themes.
@@ -23,4 +25,6 @@ export const pokemonGames: GameCartridge[] = [
   ...GEN1_GAMES,
   ...GEN2_GAMES,
   ...GEN3_GAMES,
+  ...GEN4_GAMES,
+  ...GEN5_GAMES,
 ];

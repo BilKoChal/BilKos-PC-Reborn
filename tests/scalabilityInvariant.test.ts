@@ -151,12 +151,14 @@ describe('Scalability invariant: a new generation registers with zero core edits
 import { GEN1_GAMES } from '../lib/generations/gen1/data/themes';
 import { GEN2_GAMES } from '../lib/generations/gen2/data/themes';
 import { GEN3_GAMES } from '../lib/generations/gen3/data/themes';
+import { GEN4_GAMES } from '../lib/generations/gen4/data/themes';
+import { GEN5_GAMES } from '../lib/generations/gen5/data/themes';
 import { pokemonGames } from '../data/games';
 
 describe('Version themes are data-driven per adapter (TODO 1.6)', () => {
   it('data/games.ts aggregates the per-generation theme files (no hardcoded literal)', () => {
-    // Phase 2: now includes GEN3_GAMES too
-    expect(pokemonGames).toEqual([...GEN1_GAMES, ...GEN2_GAMES, ...GEN3_GAMES]);
+    // Phase 3: now includes GEN3+GEN4+GEN5 too
+    expect(pokemonGames).toEqual([...GEN1_GAMES, ...GEN2_GAMES, ...GEN3_GAMES, ...GEN4_GAMES, ...GEN5_GAMES]);
     // sanity: known versions present
     expect(pokemonGames.map(g => g.id)).toEqual(
       expect.arrayContaining(['red', 'blue', 'yellow', 'gold', 'silver', 'crystal', 'ruby', 'sapphire', 'emerald'])

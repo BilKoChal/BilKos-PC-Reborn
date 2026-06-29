@@ -237,3 +237,11 @@ registry.registerLazy(2, new LazyFactory(() =>
 registry.registerLazy(3, new LazyFactory(() =>
   import('../generations/gen3/Gen3Adapter').then(m => new m.Gen3Adapter())
 ));
+// Phase 3: Gen 4 (Diamond/Pearl/Platinum/HeartGold/SoulSilver) registered.
+registry.registerLazy(4, new LazyFactory(() =>
+  import('../generations/gen4/Gen4Adapter').then(m => new m.Gen4Adapter())
+));
+// Phase 3: Gen 5 (Black/White/Black2/White2) registered.
+registry.registerLazy(5, new LazyFactory(() =>
+  import('../generations/gen5/Gen5Adapter').then(m => new m.Gen5Adapter())
+));

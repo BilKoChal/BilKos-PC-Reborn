@@ -56,6 +56,12 @@ const MAX_GEN2_DEX_ID = 251;
 /** Maximum National Dex ID for Gen 3 (Hoenn). Gen 3 internal speciesId == National Dex ID. */
 const MAX_GEN3_DEX_ID = 386;
 
+/** Maximum National Dex ID for Gen 4 (Sinnoh). */
+const MAX_GEN4_DEX_ID = 493;
+
+/** Maximum National Dex ID for Gen 5 (Unova). */
+const MAX_GEN5_DEX_ID = 649;
+
 // ── Reverse Mapping: National Dex → Gen1 Internal ID ──────────────────────
 
 /** National Dex ID → Gen1 internal species ID — shared from data/offsets.ts (TODO 4.4). */
@@ -542,9 +548,8 @@ export function canTransferToGen(dexId: number, targetGen: number): boolean {
     if (targetGen === 1) return dexId >= 1 && dexId <= MAX_GEN1_DEX_ID;
     if (targetGen === 2) return dexId >= 1 && dexId <= MAX_GEN2_DEX_ID;
     if (targetGen === 3) return dexId >= 1 && dexId <= MAX_GEN3_DEX_ID;
-    // Higher generations should add their own range checks here.
-    // Defaulting to `false` is safer than `true` — better to reject an unknown
-    // transfer than silently corrupt.
+    if (targetGen === 4) return dexId >= 1 && dexId <= MAX_GEN4_DEX_ID;
+    if (targetGen === 5) return dexId >= 1 && dexId <= MAX_GEN5_DEX_ID;
     return false;
 }
 
