@@ -19,7 +19,7 @@ import {
 } from '../../utils/byteHelpers';
 import { GEN1_INTERNAL_TO_DEX, getGen1Offsets, detectGen1Region, Gen1Region, Gen1OffsetsConfig } from './data/offsets';
 import { getPokemonName } from './data/pokemonNames';
-import { getTypeName } from './data/pokemonTypes';
+import { getTypeName, gen1InternalToCanonical } from './data/pokemonTypes';
 import { getMoveName } from './data/moves';
 import { getItemName } from './data/items';
 import { getPokemonTypes } from './data/pokemonTypes';
@@ -194,10 +194,10 @@ function parsePokemonStruct(
       const base = GEN1_BASE_STATS[dexId];
       if (base) {
           maxHp = calculateGen1Stat(base.hp, hpIv, hpEv, level, true);
-          attack = calculateGen1Stat(base.atk!, atkIv, atkEv, level, false);
-          defense = calculateGen1Stat(base.def!, defIv, defEv, level, false);
-          speed = calculateGen1Stat(base.spe!, spdIv, spdEv, level, false);
-          special = calculateGen1Stat(base.spc!, spcIv, spcEv, level, false);
+          attack = calculateGen1Stat(base.attack, atkIv, atkEv, level, false);
+          defense = calculateGen1Stat(base.defense, defIv, defEv, level, false);
+          speed = calculateGen1Stat(base.speed, spdIv, spdEv, level, false);
+          special = calculateGen1Stat(base.spAtk, spcIv, spcEv, level, false);
       } else {
           maxHp = currentHp; 
       }
@@ -236,8 +236,11 @@ function parsePokemonStruct(
     special,
     spAtk: special,
     spDef: special,
-    type1: view[offset + 5]!,
-    type2: view[offset + 6]!,
+    // Phase 1.1: type1/type2 are now ALWAYS canonical IDs (0-18).
+    // The parser converts from Gen1-internal IDs (read from the save bytes)
+    // to canonical at parse time.
+    type1: gen1InternalToCanonical(view[offset + 5]!),
+    type2: gen1InternalToCanonical(view[offset + 6]!),
     type1Name: getTypeName(view[offset + 5]!),
     type2Name: getTypeName(view[offset + 6]!),
     status: decodeStatus(view[offset + 4]!),

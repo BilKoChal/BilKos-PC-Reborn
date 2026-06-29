@@ -19,7 +19,8 @@ import {
 } from './data/offsets';
 import { Gen2StandaloneFormat } from './StandaloneFormat';
 import { GameBoyTextCodec } from '../../utils/GameBoyTextCodec';
-import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
+import { getGen2PokemonTypes } from './data/types';
+import { getTypeId as getCanonicalTypeId } from '../../data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
 import { GEN2_EVENT_DISTRIBUTIONS } from './data/eventDistributions';
 import { GEN2_EVENTS } from './data/events';
@@ -55,6 +56,10 @@ export class Gen2Adapter implements IGenerationAdapter {
   hasGender = true;
   hasMultiRegionBadges = true;
   playTimeFormat: 'text' | 'clock' = 'clock';
+  supportedEntitySizes = [
+    { size: 32, context: 'stored' as const },
+    { size: 48, context: 'party' as const },
+  ];
 
   // IV/EV metadata
   ivMax = 15;           // Gen1/2: 4-bit DVs (0-15)
@@ -392,16 +397,10 @@ export class Gen2Adapter implements IGenerationAdapter {
   }
 
   getBaseStats(dexId: number): BaseStats | undefined {
+    // Phase 1.2: GEN2_BASE_STATS now exports BaseStats directly (no remapping).
     const raw = getGen2BaseStats(dexId);
     if (!raw || raw.hp === 0) return undefined;
-    return {
-      hp: raw.hp,
-      attack: raw.atk,
-      defense: raw.def,
-      speed: raw.spe,
-      spAtk: raw.spa,
-      spDef: raw.spd
-    };
+    return raw;
   }
 
   getPokemonName(dexId: number): string {
@@ -422,9 +421,10 @@ export class Gen2Adapter implements IGenerationAdapter {
     const type1Name = types[0] || 'Normal';
     const type2Name = types[1] || type1Name;
 
+    // Phase 1.1: return canonical type IDs (0-18), not Gen2-internal IDs.
     return {
-      type1: GEN2_TYPE_ID_MAP[type1Name] ?? 0,
-      type2: GEN2_TYPE_ID_MAP[type2Name] ?? 0,
+      type1: getCanonicalTypeId(type1Name),
+      type2: getCanonicalTypeId(type2Name),
       type1Name,
       type2Name
     };

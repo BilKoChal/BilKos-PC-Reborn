@@ -7,7 +7,8 @@ import { calculateGen1Stat, recalculateStats } from '../../utils/statCalculator'
 import { getPokemonName, POKEMON_NAMES } from './data/pokemonNames';
 import { getMoveName, MOVES_LIST, MOVES_PP, MOVES_TYPE } from './data/moves';
 import { getItemName } from './data/items';
-import { getPokemonTypes } from './data/pokemonTypes';
+import { getPokemonTypes, gen1InternalToCanonical } from './data/pokemonTypes';
+import { getTypeId as getCanonicalTypeId } from '../../data/types';
 import { GEN1_BASE_STATS } from './data/baseStats';
 import { getGen1InternalSpeciesId } from './data/offsets';
 import { Gen1StandaloneFormat } from './StandaloneFormat';
@@ -43,6 +44,10 @@ export class Gen1Adapter implements IGenerationAdapter {
   hasGender = false;
   hasMultiRegionBadges = false;
   playTimeFormat: 'text' | 'clock' = 'text';
+  supportedEntitySizes = [
+    { size: 33, context: 'stored' as const },
+    { size: 44, context: 'party' as const },
+  ];
 
   // IV/EV metadata
   ivMax = 15;           // Gen1/2: 4-bit DVs (0-15)
@@ -231,17 +236,8 @@ export class Gen1Adapter implements IGenerationAdapter {
   }
 
   getBaseStats(dexId: number): BaseStats | undefined {
-    const raw = GEN1_BASE_STATS[dexId];
-    if (!raw) return undefined;
-    // Map Gen 1 naming convention (atk/def/spe/spc) to unified BaseStats (attack/defense/speed/spAtk/spDef)
-    return {
-      hp: raw.hp,
-      attack: raw.atk,
-      defense: raw.def,
-      speed: raw.spe,
-      spAtk: raw.spc,
-      spDef: raw.spc // Gen 1: SpDef mirrors SpAtk (unified Special)
-    };
+    // Phase 1.2: GEN1_BASE_STATS now exports BaseStats directly (no remapping).
+    return GEN1_BASE_STATS[dexId];
   }
 
   getPokemonName(dexId: number): string {
@@ -261,15 +257,10 @@ export class Gen1Adapter implements IGenerationAdapter {
     const type1Name = types[0] || 'Normal';
     const type2Name = types[1] || type1Name;
 
-    const internalMap: Record<string, number> = {
-      'Normal': 0, 'Fighting': 1, 'Flying': 2, 'Poison': 3, 'Ground': 4, 'Rock': 5, 
-      'Bug': 7, 'Ghost': 8, 
-      'Fire': 20, 'Water': 21, 'Grass': 22, 'Electric': 23, 'Psychic': 24, 'Ice': 25, 'Dragon': 26
-    };
-
+    // Phase 1.1: return canonical type IDs (0-18), not Gen1-internal IDs.
     return {
-      type1: internalMap[type1Name] !== undefined ? internalMap[type1Name] : 0,
-      type2: internalMap[type2Name] !== undefined ? internalMap[type2Name] : 0,
+      type1: getCanonicalTypeId(type1Name),
+      type2: getCanonicalTypeId(type2Name),
       type1Name,
       type2Name
     };

@@ -34,7 +34,13 @@ const REPO_ROOT = join(__dirname, '..');
 //    genuinely differs by generation number (Gen 3 `pid % 24` vs Gen 4/5
 //    `((pid>>13)&31) % 24`) — an intrinsic algorithm difference keyed on a numeric
 //    parameter, not on adapter/save state, so no capability flag can express it.
-const GENERATION_COMPARISON_ALLOWLIST = ['lib/canonicalModel.ts', 'lib/core/entityFormat.ts'];
+const GENERATION_COMPARISON_ALLOWLIST = [
+  'lib/canonicalModel.ts',
+  'lib/core/entityFormat.ts',
+  // Phase 1.8: gen2/saveData.ts is a Gen 2-specific module where generation
+  // checks are expected (same pattern as canonicalModel.ts type guards).
+  'lib/generations/gen2/saveData.ts',
+];
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -74,14 +80,16 @@ describe('Scalability lint guard (TODO 7.4)', () => {
     expect(offenders, `\`as any\` found in:\n${offenders.join('\n')}`).toEqual([]);
   });
 
-  it('has no ad-hoc `generation <op> <number>` branches outside the type-guard file', () => {
+  it('has no ad-hoc generation comparisons outside the type-guard file (Phase 1.9: name-insensitive)', () => {
     const offenders: string[] = [];
     for (const file of allFiles) {
       const rel = relative(REPO_ROOT, file).replace(/\\/g, '/');
       if (GENERATION_COMPARISON_ALLOWLIST.includes(rel)) continue;
       const code = stripCommentsAndStrings(readFileSync(file, 'utf8'));
-      // Match `.generation === 2`, `generation !== 1`, `generation >= 3`, etc.
-      const re = /\bgeneration\s*(===|!==|==|!=|>=|<=|>|<)\s*\d/g;
+      // Phase 1.9: expanded to match common aliases (`generation`, `gen`, `genNum`,
+      // `currentGen`) — the old regex only matched `generation`, so `gen === 2`
+      // in sprites.ts bypassed the lint. Also match `.generation` (property access).
+      const re = /\b(?:generation|gen|genNum|currentGen)\s*(?:\.)?\s*(?:generation)?\s*(===|!==|==|!=|>=|<=|>|<)\s*\d/g;
       const hits = code.match(re);
       if (hits) offenders.push(`${rel}: ${hits.join(', ')}`);
     }

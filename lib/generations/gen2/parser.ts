@@ -1,6 +1,7 @@
 import { logger } from '../../utils/logger';
 import { ParsedSave, TrainerInfo, PokemonStats, Item, GameOptions, MapData, Gen2Extension, Gen2SaveExtension, isGen2Extension, HallOfFameTeam, HallOfFamePokemon, Gen2TmHmEntry, createEmptyCanonicalPokemon } from '../../parser/types';
-import { getGen2PokemonTypes, GEN2_TYPE_ID_MAP } from './data/types';
+import { getGen2PokemonTypes, gen2InternalToCanonical } from './data/types';
+import { getTypeId as getCanonicalTypeId } from '../../data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../gen1/data/pokemonTypes';
 import {
   getUInt16BigEndian,
@@ -398,11 +399,11 @@ export function parseGen2PokemonStruct(
     // Dynamically calculate for PC box slots
     maxHp = calculateGen2Stat(baseStats.hp, hpIv, hpEv, level, true);
     currentHp = maxHp;
-    attack = calculateGen2Stat(baseStats.atk, atkIv, atkEv, level, false);
-    defense = calculateGen2Stat(baseStats.def, defIv, defEv, level, false);
-    speed = calculateGen2Stat(baseStats.spe, spdIv, spdEv, level, false);
-    spAtk = calculateGen2Stat(baseStats.spa, spcIv, spcEv, level, false);
-    spDef = calculateGen2Stat(baseStats.spd, spcIv, spcEv, level, false);
+    attack = calculateGen2Stat(baseStats.attack, atkIv, atkEv, level, false);
+    defense = calculateGen2Stat(baseStats.defense, defIv, defEv, level, false);
+    speed = calculateGen2Stat(baseStats.speed, spdIv, spdEv, level, false);
+    spAtk = calculateGen2Stat(baseStats.spAtk, spcIv, spcEv, level, false);
+    spDef = calculateGen2Stat(baseStats.spDef, spcIv, spcEv, level, false);
   }
 
   const isShiny = isGen2Shiny(atkIv, defIv, spdIv, spcIv);
@@ -411,10 +412,13 @@ export function parseGen2PokemonStruct(
 
   // Use Gen2-specific type lookup with Gen1 fallback
   const parsedTypes = getGen2PokemonTypes(dexId, getGen1PokemonTypes);
+  // Phase 1.1: type1/type2 are now ALWAYS canonical IDs (0-18).
+  // Gen2 types are looked up from the species table (by name), then converted
+  // to canonical IDs via the shared TYPE_MAP in lib/data/types.ts.
   const t1Name = parsedTypes[0] || 'Normal';
   const t2Name = parsedTypes[1] || t1Name;
-  const type1Id = GEN2_TYPE_ID_MAP[t1Name] !== undefined ? GEN2_TYPE_ID_MAP[t1Name] : 0;
-  const type2Id = GEN2_TYPE_ID_MAP[t2Name] !== undefined ? GEN2_TYPE_ID_MAP[t2Name] : 0;
+  const type1Id = getCanonicalTypeId(t1Name);
+  const type2Id = getCanonicalTypeId(t2Name);
 
   const raw = view.slice(offset, offset + (isParty ? 48 : 32));
 

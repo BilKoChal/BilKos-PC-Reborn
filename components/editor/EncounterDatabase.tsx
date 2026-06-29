@@ -51,9 +51,9 @@ export const EncounterDatabase: React.FC<EncounterDatabaseProps> = ({ data, onAd
         try {
             if (adapter?.standaloneFormat) {
                 mon = adapter.standaloneFormat.parseFile(new Uint8Array(event.bytes));
-            } else if (adapter?.supportsStandalone) {
-                mon = adapter.parseStandalonePokemon(new Uint8Array(event.bytes));
             }
+            // Phase 1.7: removed legacy `adapter.parseStandalonePokemon()` fallback —
+            // use standaloneFormat.parseFile() directly.
         } catch {
             // Parsing failed — show error below
         }

@@ -4,29 +4,48 @@
  * This module owns ALL Gen1-specific type information:
  * - Species → type mapping for Gen1's 151 Pokémon
  * - Type name lookup from Gen1 internal IDs
+ * - Gen1-internal ↔ canonical type ID conversion (Phase 1.1)
  *
- * IMPORTANT: The canonical TYPE_MAP (name → modern ID) has been moved
- * to the shared `lib/data/types.ts`. Each generation's internal ID map
- * lives in its own genN/data/types.ts.
- *
- * Gen2 type data now lives in `lib/generations/gen2/data/types.ts`.
- * The `generation === 2` branch has been removed from getPokemonTypes().
+ * IMPORTANT: `CanonicalPokemon.type1/type2` are ALWAYS canonical IDs (from
+ * `lib/data/types.ts`). Each generation converts at the parse/write boundary.
  */
 
 // Re-export canonical TYPE_MAP from shared location for backward compatibility
 export { TYPE_MAP } from '../../../data/types';
+import { getTypeId as getCanonicalTypeId, getTypeName as getCanonicalTypeName } from '../../../data/types';
 
-// Phase 0.1c: Removed dead `GEN1_TYPE_ID_MAP` export — it was never imported.
-// The Gen1Adapter inlines its own copy (to be unified in Phase 1.1).
+// ─── Gen1 Internal ↔ Canonical Type ID Conversion (Phase 1.1) ───
+
+// Gen1 internal type IDs (used in save file byte layout at offset 0x05/0x06):
+//   0=Normal, 1=Fighting, 2=Flying, 3=Poison, 4=Ground, 5=Rock,
+//   7=Bug, 8=Ghost, 20=Fire, 21=Water, 22=Grass, 23=Electric,
+//   24=Psychic, 25=Ice, 26=Dragon
+// Canonical IDs (from lib/data/types.ts, Gen3+ / PKHeX order):
+//   0=Normal, 1=Fighting, 2=Flying, 3=Poison, 4=Ground, 5=Rock, 6=Bug,
+//   7=Ghost, 8=Steel, 9=Fire, 10=Water, 11=Grass, 12=Electric,
+//   13=Psychic, 14=Ice, 15=Dragon, 16=Dark, 17=Fairy
+
+const GEN1_INTERNAL_TO_NAME: Record<number, string> = {
+    0: 'Normal', 1: 'Fighting', 2: 'Flying', 3: 'Poison', 4: 'Ground', 5: 'Rock',
+    7: 'Bug', 8: 'Ghost', 20: 'Fire', 21: 'Water', 22: 'Grass', 23: 'Electric',
+    24: 'Psychic', 25: 'Ice', 26: 'Dragon'
+};
+
+/** Convert a Gen1 internal type ID to a canonical type ID (0-18). Returns 0 for unknown. */
+export function gen1InternalToCanonical(internalId: number): number {
+    const name = GEN1_INTERNAL_TO_NAME[internalId];
+    return name !== undefined ? getCanonicalTypeId(name) : 0;
+}
+
+/** Convert a canonical type ID (0-18) to a Gen1 internal type ID. Returns 0 for unknown. */
+export function canonicalToGen1Internal(canonicalId: number): number {
+    const name = getCanonicalTypeName(canonicalId);
+    const entry = Object.entries(GEN1_INTERNAL_TO_NAME).find(([, n]) => n === name);
+    return entry ? parseInt(entry[0], 10) : 0;
+}
 
 export const getTypeName = (typeId: number): string => {
-    // Gen 1 Type Table
-    const types: Record<number, string> = {
-        0: 'Normal', 1: 'Fighting', 2: 'Flying', 3: 'Poison', 4: 'Ground', 5: 'Rock',
-        7: 'Bug', 8: 'Ghost', 20: 'Fire', 21: 'Water', 22: 'Grass', 23: 'Electric',
-        24: 'Psychic', 25: 'Ice', 26: 'Dragon'
-    };
-    return types[typeId] || 'Unknown';
+    return GEN1_INTERNAL_TO_NAME[typeId] || 'Unknown';
 };
 
 // Mapping of National Dex ID to Type Names

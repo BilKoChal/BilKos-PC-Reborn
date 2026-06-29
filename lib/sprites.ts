@@ -373,9 +373,12 @@ export const TRAINER_SPRITE_FALLBACK = `${TRAINERS_BASE}/red-gen1rb.png`;
 
 // ─── Badge & Item Sprites (mode-independent) ─────────────────────────────────
 
-/** Badge sprite URL — not affected by sprite mode */
-export function getBadgeSpriteUrl(gen: number, index: number): string {
-  if (gen === 2) {
+/** Badge sprite URL — not affected by sprite mode.
+ *  Phase 1.9: changed `gen: number` → `hasMultiRegionBadges: boolean` to avoid
+ *  ad-hoc generation comparison (caught by the name-insensitive scalability lint).
+ *  Gen 2+ has Johto badges before Kanto; Gen 1 has only Kanto. */
+export function getBadgeSpriteUrl(hasMultiRegionBadges: boolean, index: number): string {
+  if (hasMultiRegionBadges) {
     if (index < 8) {
       // Johto Badges: IDs 9 to 16 in PokeAPI
       return `${POKEAPI_SPRITES_BASE}/badges/${index + 9}.png`;

@@ -61,7 +61,8 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
     const { mode: spriteMode } = useSpriteMode();
 
     const isJP = useMemo(() => (adapter?.detectRegion(data) === 'japanese'), [adapter, data]);
-    const currentGen = data.generation || 1;
+    // Phase 1.9: removed `const currentGen = data.generation || 1` — replaced by
+    // adapter-driven values with Gen 1 fallbacks (see line 111).
     const parsedTime = useMemo(() => parsePlayTime(t.playTime), [t.playTime]);
 
     const defaultOptions: GameOptions = {
@@ -108,20 +109,23 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
         setEditOptions({ ...(data.options || defaultOptions) });
     }, [t, parsedTime, data.options]);
 
-    // Adapter-driven values replace all hardcoded generation checks
-    const maxDex = adapter?.nationalDexMax ?? (currentGen === 2 ? 251 : 151);
-    const displayBadges = REGION_BADGES[currentGen] ?? REGION_BADGES[1]!;
-    const showGender = adapter?.hasGender ?? currentGen >= 2;
-    const showMultiRegionBadges = adapter?.hasMultiRegionBadges ?? currentGen >= 2;
-    const timeFormat = adapter?.playTimeFormat ?? (currentGen >= 2 ? 'clock' : 'text');
+    // Phase 1.9: adapter-driven values with Gen 1 fallbacks (no `currentGen >= 2`).
+    const maxDex = adapter?.nationalDexMax ?? 151;
+    const displayBadges = REGION_BADGES[data.generation] ?? REGION_BADGES[1]!;
+    const showGender = adapter?.hasGender ?? false;
+    const showMultiRegionBadges = adapter?.hasMultiRegionBadges ?? false;
+    const timeFormat = adapter?.playTimeFormat ?? 'text';
 
     const trainerSpriteUrl = useMemo(() => {
         const gender = isEditing ? editForm.gender : (t.gender || 'Male');
         return getTrainerSpriteUrl(gender, spriteMode, data.gameVersion);
     }, [spriteMode, isEditing, editForm.gender, t.gender, data.gameVersion]);
 
-    const getBadgeSpriteUrlLocal = (gen: number, index: number): string => {
-        return getBadgeSpriteUrl(gen, index);
+    // Phase 1.9: pass hasMultiRegionBadges (from adapter metadata) instead of
+    // raw generation number. Gen 2 has Johto+Kanto badges; Gen 1 has Kanto only.
+    const hasMultiRegionBadges = ctx?.adapter?.hasMultiRegionBadges ?? false;
+    const getBadgeSpriteUrlLocal = (index: number): string => {
+        return getBadgeSpriteUrl(hasMultiRegionBadges, index);
     };
 
     const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val || 0, min), max);
@@ -562,7 +566,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                                                     title={badge.name}
                                                 >
                                                     <img 
-                                                        src={getBadgeSpriteUrlLocal(2, i)}
+                                                        src={getBadgeSpriteUrlLocal(i)}
                                                         alt={badge.name}
                                                         className="w-full h-full object-contain pixelated"
                                                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}
@@ -602,7 +606,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                                                     title={badge.name}
                                                 >
                                                     <img 
-                                                        src={getBadgeSpriteUrlLocal(2, actualIndex)}
+                                                        src={getBadgeSpriteUrlLocal(actualIndex)}
                                                         alt={badge.name}
                                                         className="w-full h-full object-contain pixelated"
                                                         onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}
@@ -646,7 +650,7 @@ export const TrainerCard: React.FC<TrainerCardProps> = ({ data, onUpdate, onOpti
                                             title={badge.name}
                                         >
                                             <img 
-                                                src={getBadgeSpriteUrlLocal(currentGen, i)}
+                                                src={getBadgeSpriteUrlLocal(i)}
                                                 alt={badge.name}
                                                 className="w-full h-full object-contain pixelated"
                                                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png' }}

@@ -13,31 +13,36 @@
  * `generation === 2` branch, which violated generation namespace isolation.
  */
 
-// ─── Gen2 Internal Type IDs (offset 0x05/0x06 in save structure) ───
-// Gen2 extends Gen1's internal IDs with Steel and Dark.
-export const GEN2_TYPE_ID_MAP: Record<string, number> = {
-  'Normal': 0, 'Fighting': 1, 'Flying': 2, 'Poison': 3,
-  'Ground': 4, 'Rock': 5, 'Bug': 7, 'Ghost': 8,
-  'Steel': 9,  // New in Gen2
-  'Fire': 20, 'Water': 21, 'Grass': 22, 'Electric': 23,
-  'Psychic': 24, 'Ice': 25, 'Dragon': 26,
-  'Dark': 27,  // New in Gen2
+// ─── Gen2 Internal ↔ Canonical Type ID Conversion (Phase 1.1) ───
+
+// Gen2 internal type IDs (extends Gen1 with Steel=9, Dark=27):
+//   0=Normal, 1=Fighting, 2=Flying, 3=Poison, 4=Ground, 5=Rock,
+//   7=Bug, 8=Ghost, 9=Steel, 20=Fire, 21=Water, 22=Grass, 23=Electric,
+//   24=Psychic, 25=Ice, 26=Dragon, 27=Dark
+// Canonical IDs (from lib/data/types.ts, Gen3+ / PKHeX order):
+//   0=Normal, 1=Fighting, 2=Flying, 3=Poison, 4=Ground, 5=Rock, 6=Bug,
+//   7=Ghost, 8=Steel, 9=Fire, 10=Water, 11=Grass, 12=Electric,
+//   13=Psychic, 14=Ice, 15=Dragon, 16=Dark, 17=Fairy
+
+const GEN2_INTERNAL_TO_NAME: Record<number, string> = {
+    0: 'Normal', 1: 'Fighting', 2: 'Flying', 3: 'Poison', 4: 'Ground', 5: 'Rock',
+    7: 'Bug', 8: 'Ghost', 9: 'Steel', 20: 'Fire', 21: 'Water', 22: 'Grass',
+    23: 'Electric', 24: 'Psychic', 25: 'Ice', 26: 'Dragon', 27: 'Dark'
 };
 
-/** Get Gen2 internal type ID from type name. Returns 0 for unknown. */
-export function getGen2InternalTypeId(typeName: string): number {
-  return GEN2_TYPE_ID_MAP[typeName] ?? 0;
+import { getTypeId as getCanonicalTypeId, getTypeName as getCanonicalTypeName } from '../../../data/types';
+
+/** Convert a Gen2 internal type ID to a canonical type ID (0-18). Returns 0 for unknown. */
+export function gen2InternalToCanonical(internalId: number): number {
+    const name = GEN2_INTERNAL_TO_NAME[internalId];
+    return name !== undefined ? getCanonicalTypeId(name) : 0;
 }
 
-/** Get type name from Gen2 internal type ID. Returns 'Unknown' for unknown. */
-export function getGen2TypeName(typeId: number): string {
-  const GSC_TYPES: Record<number, string> = {
-    0: "Normal", 1: "Fighting", 2: "Flying", 3: "Poison", 4: "Ground",
-    5: "Rock", 7: "Bug", 8: "Ghost", 9: "Steel",
-    20: "Fire", 21: "Water", 22: "Grass", 23: "Electric",
-    24: "Psychic", 25: "Ice", 26: "Dragon", 27: "Dark"
-  };
-  return GSC_TYPES[typeId] || "Unknown";
+/** Convert a canonical type ID (0-18) to a Gen2 internal type ID. Returns 0 for unknown. */
+export function canonicalToGen2Internal(canonicalId: number): number {
+    const name = getCanonicalTypeName(canonicalId);
+    const entry = Object.entries(GEN2_INTERNAL_TO_NAME).find(([, n]) => n === name);
+    return entry ? parseInt(entry[0], 10) : 0;
 }
 
 // ─── Species → Type Mapping ───
@@ -150,6 +155,7 @@ export function getGen2PokemonTypes(
 /**
  * Build the full type info object for a Gen2 Pokémon.
  * Used by the Gen2 adapter's getTypes() method.
+ * Phase 1.1: returns canonical type IDs (0-18), not Gen2-internal IDs.
  */
 export function getGen2TypeInfo(
   dexId: number,
@@ -160,8 +166,8 @@ export function getGen2TypeInfo(
   const type2Name = types[1] || type1Name;
 
   return {
-    type1: GEN2_TYPE_ID_MAP[type1Name] ?? 0,
-    type2: GEN2_TYPE_ID_MAP[type2Name] ?? 0,
+    type1: getCanonicalTypeId(type1Name),
+    type2: getCanonicalTypeId(type2Name),
     type1Name,
     type2Name,
   };

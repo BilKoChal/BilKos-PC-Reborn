@@ -2,158 +2,158 @@
 // Gen 1 Base Stats (HP, Atk, Def, Spe, Spc)
 // Used to calculate stats for Box Pokemon which don't store them in the save file.
 
-export const GEN1_BASE_STATS: Record<number, { hp: number; atk: number; def: number; spe: number; spc: number }> = {
-    1: { hp: 45, atk: 49, def: 49, spe: 45, spc: 65 }, // Bulbasaur
-    2: { hp: 60, atk: 62, def: 63, spe: 60, spc: 80 }, // Ivysaur
-    3: { hp: 80, atk: 82, def: 83, spe: 80, spc: 100 }, // Venusaur
-    4: { hp: 39, atk: 52, def: 43, spe: 65, spc: 50 }, // Charmander
-    5: { hp: 58, atk: 64, def: 58, spe: 80, spc: 65 }, // Charmeleon
-    6: { hp: 78, atk: 84, def: 78, spe: 100, spc: 85 }, // Charizard
-    7: { hp: 44, atk: 48, def: 65, spe: 43, spc: 50 }, // Squirtle
-    8: { hp: 59, atk: 63, def: 80, spe: 58, spc: 65 }, // Wartortle
-    9: { hp: 79, atk: 83, def: 100, spe: 78, spc: 85 }, // Blastoise
-    10: { hp: 45, atk: 30, def: 35, spe: 45, spc: 20 }, // Caterpie
-    11: { hp: 50, atk: 20, def: 55, spe: 30, spc: 25 }, // Metapod
-    12: { hp: 60, atk: 45, def: 50, spe: 70, spc: 80 }, // Butterfree
-    13: { hp: 40, atk: 35, def: 30, spe: 50, spc: 20 }, // Weedle
-    14: { hp: 45, atk: 25, def: 50, spe: 35, spc: 25 }, // Kakuna
-    15: { hp: 65, atk: 80, def: 40, spe: 75, spc: 45 }, // Beedrill
-    16: { hp: 40, atk: 45, def: 40, spe: 56, spc: 35 }, // Pidgey
-    17: { hp: 63, atk: 60, def: 55, spe: 71, spc: 50 }, // Pidgeotto
-    18: { hp: 83, atk: 80, def: 75, spe: 91, spc: 70 }, // Pidgeot
-    19: { hp: 30, atk: 56, def: 35, spe: 72, spc: 25 }, // Rattata
-    20: { hp: 55, atk: 81, def: 60, spe: 97, spc: 50 }, // Raticate
-    21: { hp: 40, atk: 60, def: 30, spe: 70, spc: 31 }, // Spearow
-    22: { hp: 65, atk: 90, def: 65, spe: 100, spc: 61 }, // Fearow
-    23: { hp: 35, atk: 60, def: 44, spe: 55, spc: 40 }, // Ekans
-    24: { hp: 60, atk: 85, def: 69, spe: 80, spc: 65 }, // Arbok
-    25: { hp: 35, atk: 55, def: 30, spe: 90, spc: 50 }, // Pikachu
-    26: { hp: 60, atk: 90, def: 55, spe: 100, spc: 90 }, // Raichu
-    27: { hp: 50, atk: 75, def: 85, spe: 40, spc: 30 }, // Sandshrew
-    28: { hp: 75, atk: 100, def: 110, spe: 65, spc: 55 }, // Sandslash
-    29: { hp: 55, atk: 47, def: 52, spe: 41, spc: 40 }, // NidoranF
-    30: { hp: 70, atk: 62, def: 67, spe: 56, spc: 55 }, // Nidorina
-    31: { hp: 90, atk: 82, def: 87, spe: 76, spc: 75 }, // Nidoqueen
-    32: { hp: 46, atk: 57, def: 40, spe: 50, spc: 40 }, // NidoranM
-    33: { hp: 61, atk: 72, def: 57, spe: 65, spc: 55 }, // Nidorino
-    34: { hp: 81, atk: 92, def: 77, spe: 85, spc: 75 }, // Nidoking
-    35: { hp: 70, atk: 45, def: 48, spe: 35, spc: 60 }, // Clefairy
-    36: { hp: 95, atk: 70, def: 73, spe: 60, spc: 85 }, // Clefable
-    37: { hp: 38, atk: 41, def: 40, spe: 65, spc: 65 }, // Vulpix
-    38: { hp: 73, atk: 76, def: 75, spe: 100, spc: 100 }, // Ninetales
-    39: { hp: 115, atk: 45, def: 20, spe: 20, spc: 25 }, // Jigglypuff
-    40: { hp: 140, atk: 70, def: 45, spe: 45, spc: 50 }, // Wigglytuff
-    41: { hp: 40, atk: 45, def: 35, spe: 55, spc: 40 }, // Zubat
-    42: { hp: 75, atk: 80, def: 70, spe: 90, spc: 75 }, // Golbat
-    43: { hp: 45, atk: 50, def: 55, spe: 30, spc: 75 }, // Oddish
-    44: { hp: 60, atk: 65, def: 70, spe: 40, spc: 85 }, // Gloom
-    45: { hp: 75, atk: 80, def: 85, spe: 50, spc: 100 }, // Vileplume
-    46: { hp: 35, atk: 70, def: 55, spe: 25, spc: 55 }, // Paras
-    47: { hp: 60, atk: 95, def: 80, spe: 30, spc: 80 }, // Parasect
-    48: { hp: 60, atk: 55, def: 50, spe: 45, spc: 40 }, // Venonat
-    49: { hp: 70, atk: 65, def: 60, spe: 90, spc: 90 }, // Venomoth
-    50: { hp: 10, atk: 55, def: 25, spe: 95, spc: 45 }, // Diglett
-    51: { hp: 35, atk: 80, def: 50, spe: 120, spc: 70 }, // Dugtrio
-    52: { hp: 40, atk: 45, def: 35, spe: 90, spc: 40 }, // Meowth
-    53: { hp: 65, atk: 70, def: 60, spe: 115, spc: 65 }, // Persian
-    54: { hp: 50, atk: 52, def: 48, spe: 55, spc: 50 }, // Psyduck
-    55: { hp: 80, atk: 82, def: 78, spe: 85, spc: 80 }, // Golduck
-    56: { hp: 40, atk: 80, def: 35, spe: 70, spc: 35 }, // Mankey
-    57: { hp: 65, atk: 105, def: 60, spe: 95, spc: 60 }, // Primeape
-    58: { hp: 55, atk: 70, def: 45, spe: 60, spc: 50 }, // Growlithe
-    59: { hp: 90, atk: 110, def: 80, spe: 95, spc: 80 }, // Arcanine
-    60: { hp: 40, atk: 50, def: 40, spe: 90, spc: 40 }, // Poliwag
-    61: { hp: 65, atk: 65, def: 65, spe: 90, spc: 50 }, // Poliwhirl
-    62: { hp: 90, atk: 85, def: 95, spe: 70, spc: 70 }, // Poliwrath
-    63: { hp: 25, atk: 20, def: 15, spe: 90, spc: 105 }, // Abra
-    64: { hp: 40, atk: 35, def: 30, spe: 105, spc: 120 }, // Kadabra
-    65: { hp: 55, atk: 50, def: 45, spe: 120, spc: 135 }, // Alakazam
-    66: { hp: 70, atk: 80, def: 50, spe: 35, spc: 35 }, // Machop
-    67: { hp: 80, atk: 100, def: 70, spe: 45, spc: 50 }, // Machoke
-    68: { hp: 90, atk: 130, def: 80, spe: 55, spc: 65 }, // Machamp
-    69: { hp: 50, atk: 75, def: 35, spe: 40, spc: 70 }, // Bellsprout
-    70: { hp: 65, atk: 90, def: 50, spe: 55, spc: 85 }, // Weepinbell
-    71: { hp: 80, atk: 105, def: 65, spe: 70, spc: 100 }, // Victreebel
-    72: { hp: 40, atk: 40, def: 35, spe: 70, spc: 100 }, // Tentacool
-    73: { hp: 80, atk: 70, def: 65, spe: 100, spc: 120 }, // Tentacruel
-    74: { hp: 40, atk: 80, def: 100, spe: 20, spc: 30 }, // Geodude
-    75: { hp: 55, atk: 95, def: 115, spe: 35, spc: 45 }, // Graveler
-    76: { hp: 80, atk: 110, def: 130, spe: 45, spc: 55 }, // Golem
-    77: { hp: 50, atk: 85, def: 55, spe: 90, spc: 65 }, // Ponyta
-    78: { hp: 65, atk: 100, def: 70, spe: 105, spc: 80 }, // Rapidash
-    79: { hp: 90, atk: 65, def: 65, spe: 15, spc: 40 }, // Slowpoke
-    80: { hp: 95, atk: 75, def: 110, spe: 30, spc: 80 }, // Slowbro
-    81: { hp: 25, atk: 35, def: 70, spe: 45, spc: 95 }, // Magnemite
-    82: { hp: 50, atk: 60, def: 95, spe: 70, spc: 120 }, // Magneton
-    83: { hp: 52, atk: 65, def: 55, spe: 60, spc: 58 }, // Farfetch'd
-    84: { hp: 35, atk: 85, def: 45, spe: 75, spc: 35 }, // Doduo
-    85: { hp: 60, atk: 110, def: 70, spe: 100, spc: 60 }, // Dodrio
-    86: { hp: 65, atk: 45, def: 55, spe: 45, spc: 70 }, // Seel
-    87: { hp: 90, atk: 70, def: 80, spe: 70, spc: 95 }, // Dewgong
-    88: { hp: 80, atk: 80, def: 50, spe: 25, spc: 40 }, // Grimer
-    89: { hp: 105, atk: 105, def: 75, spe: 50, spc: 65 }, // Muk
-    90: { hp: 30, atk: 65, def: 100, spe: 40, spc: 45 }, // Shellder
-    91: { hp: 50, atk: 95, def: 180, spe: 70, spc: 85 }, // Cloyster
-    92: { hp: 30, atk: 35, def: 30, spe: 80, spc: 100 }, // Gastly
-    93: { hp: 45, atk: 50, def: 45, spe: 95, spc: 115 }, // Haunter
-    94: { hp: 60, atk: 65, def: 60, spe: 110, spc: 130 }, // Gengar
-    95: { hp: 35, atk: 45, def: 160, spe: 70, spc: 30 }, // Onix
-    96: { hp: 60, atk: 48, def: 45, spe: 42, spc: 90 }, // Drowzee
-    97: { hp: 85, atk: 73, def: 70, spe: 67, spc: 115 }, // Hypno
-    98: { hp: 30, atk: 105, def: 90, spe: 50, spc: 25 }, // Krabby
-    99: { hp: 55, atk: 130, def: 115, spe: 75, spc: 50 }, // Kingler
-    100: { hp: 40, atk: 30, def: 50, spe: 100, spc: 55 }, // Voltorb
-    101: { hp: 60, atk: 50, def: 70, spe: 140, spc: 80 }, // Electrode
-    102: { hp: 60, atk: 40, def: 80, spe: 40, spc: 60 }, // Exeggcute
-    103: { hp: 95, atk: 95, def: 85, spe: 55, spc: 125 }, // Exeggutor
-    104: { hp: 50, atk: 50, def: 95, spe: 35, spc: 40 }, // Cubone
-    105: { hp: 60, atk: 80, def: 110, spe: 45, spc: 50 }, // Marowak
-    106: { hp: 50, atk: 120, def: 53, spe: 87, spc: 35 }, // Hitmonlee
-    107: { hp: 50, atk: 105, def: 79, spe: 76, spc: 35 }, // Hitmonchan
-    108: { hp: 90, atk: 55, def: 75, spe: 30, spc: 60 }, // Lickitung
-    109: { hp: 40, atk: 65, def: 95, spe: 35, spc: 60 }, // Koffing
-    110: { hp: 65, atk: 90, def: 120, spe: 60, spc: 85 }, // Weezing
-    111: { hp: 80, atk: 85, def: 95, spe: 25, spc: 30 }, // Rhyhorn
-    112: { hp: 105, atk: 130, def: 120, spe: 40, spc: 45 }, // Rhydon
-    113: { hp: 250, atk: 5, def: 5, spe: 50, spc: 105 }, // Chansey
-    114: { hp: 65, atk: 55, def: 115, spe: 60, spc: 100 }, // Tangela
-    115: { hp: 105, atk: 95, def: 80, spe: 90, spc: 40 }, // Kangaskhan
-    116: { hp: 30, atk: 40, def: 70, spe: 60, spc: 70 }, // Horsea
-    117: { hp: 55, atk: 65, def: 95, spe: 85, spc: 95 }, // Seadra
-    118: { hp: 45, atk: 67, def: 60, spe: 63, spc: 50 }, // Goldeen
-    119: { hp: 80, atk: 92, def: 65, spe: 68, spc: 80 }, // Seaking
-    120: { hp: 30, atk: 45, def: 55, spe: 85, spc: 70 }, // Staryu
-    121: { hp: 60, atk: 75, def: 85, spe: 115, spc: 100 }, // Starmie
-    122: { hp: 40, atk: 45, def: 65, spe: 90, spc: 100 }, // Mr. Mime
-    123: { hp: 70, atk: 110, def: 80, spe: 105, spc: 55 }, // Scyther
-    124: { hp: 65, atk: 50, def: 35, spe: 95, spc: 95 }, // Jynx
-    125: { hp: 65, atk: 83, def: 57, spe: 105, spc: 85 }, // Electabuzz
-    126: { hp: 65, atk: 95, def: 57, spe: 93, spc: 85 }, // Magmar
-    127: { hp: 65, atk: 125, def: 100, spe: 85, spc: 55 }, // Pinsir
-    128: { hp: 75, atk: 100, def: 95, spe: 110, spc: 70 }, // Tauros
-    129: { hp: 20, atk: 10, def: 55, spe: 80, spc: 20 }, // Magikarp
-    130: { hp: 95, atk: 125, def: 79, spe: 81, spc: 100 }, // Gyarados
-    131: { hp: 130, atk: 85, def: 80, spe: 60, spc: 95 }, // Lapras
-    132: { hp: 48, atk: 48, def: 48, spe: 48, spc: 48 }, // Ditto
-    133: { hp: 55, atk: 55, def: 50, spe: 55, spc: 65 }, // Eevee
-    134: { hp: 130, atk: 65, def: 60, spe: 65, spc: 110 }, // Vaporeon
-    135: { hp: 65, atk: 65, def: 60, spe: 130, spc: 110 }, // Jolteon
-    136: { hp: 65, atk: 130, def: 60, spe: 65, spc: 110 }, // Flareon
-    137: { hp: 65, atk: 60, def: 70, spe: 40, spc: 75 }, // Porygon
-    138: { hp: 35, atk: 40, def: 100, spe: 35, spc: 90 }, // Omanyte
-    139: { hp: 70, atk: 60, def: 125, spe: 55, spc: 115 }, // Omastar
-    140: { hp: 30, atk: 80, def: 90, spe: 55, spc: 45 }, // Kabuto
-    141: { hp: 60, atk: 115, def: 105, spe: 80, spc: 70 }, // Kabutops
-    142: { hp: 80, atk: 105, def: 65, spe: 130, spc: 60 }, // Aerodactyl
-    143: { hp: 160, atk: 110, def: 65, spe: 30, spc: 65 }, // Snorlax
-    144: { hp: 90, atk: 85, def: 100, spe: 85, spc: 125 }, // Articuno
-    145: { hp: 90, atk: 90, def: 85, spe: 100, spc: 125 }, // Zapdos
-    146: { hp: 90, atk: 100, def: 90, spe: 90, spc: 125 }, // Moltres
-    147: { hp: 41, atk: 64, def: 45, spe: 50, spc: 50 }, // Dratini
-    148: { hp: 61, atk: 84, def: 65, spe: 70, spc: 70 }, // Dragonair
-    149: { hp: 91, atk: 134, def: 95, spe: 80, spc: 100 }, // Dragonite
-    150: { hp: 106, atk: 110, def: 90, spe: 130, spc: 154 }, // Mewtwo
-    151: { hp: 100, atk: 100, def: 100, spe: 100, spc: 100 }, // Mew
+export const GEN1_BASE_STATS: Record<number, { hp: number; attack: number; defense: number; speed: number; spAtk: number; spDef: number }> = {
+    1: { hp: 45, attack: 49, defense: 49, speed: 45, spAtk: 65, spDef: 65 }, // Bulbasaur
+    2: { hp: 60, attack: 62, defense: 63, speed: 60, spAtk: 80, spDef: 80 }, // Ivysaur
+    3: { hp: 80, attack: 82, defense: 83, speed: 80, spAtk: 100, spDef: 100 }, // Venusaur
+    4: { hp: 39, attack: 52, defense: 43, speed: 65, spAtk: 50, spDef: 50 }, // Charmander
+    5: { hp: 58, attack: 64, defense: 58, speed: 80, spAtk: 65, spDef: 65 }, // Charmeleon
+    6: { hp: 78, attack: 84, defense: 78, speed: 100, spAtk: 85, spDef: 85 }, // Charizard
+    7: { hp: 44, attack: 48, defense: 65, speed: 43, spAtk: 50, spDef: 50 }, // Squirtle
+    8: { hp: 59, attack: 63, defense: 80, speed: 58, spAtk: 65, spDef: 65 }, // Wartortle
+    9: { hp: 79, attack: 83, defense: 100, speed: 78, spAtk: 85, spDef: 85 }, // Blastoise
+    10: { hp: 45, attack: 30, defense: 35, speed: 45, spAtk: 20, spDef: 20 }, // Caterpie
+    11: { hp: 50, attack: 20, defense: 55, speed: 30, spAtk: 25, spDef: 25 }, // Metapod
+    12: { hp: 60, attack: 45, defense: 50, speed: 70, spAtk: 80, spDef: 80 }, // Butterfree
+    13: { hp: 40, attack: 35, defense: 30, speed: 50, spAtk: 20, spDef: 20 }, // Weedle
+    14: { hp: 45, attack: 25, defense: 50, speed: 35, spAtk: 25, spDef: 25 }, // Kakuna
+    15: { hp: 65, attack: 80, defense: 40, speed: 75, spAtk: 45, spDef: 45 }, // Beedrill
+    16: { hp: 40, attack: 45, defense: 40, speed: 56, spAtk: 35, spDef: 35 }, // Pidgey
+    17: { hp: 63, attack: 60, defense: 55, speed: 71, spAtk: 50, spDef: 50 }, // Pidgeotto
+    18: { hp: 83, attack: 80, defense: 75, speed: 91, spAtk: 70, spDef: 70 }, // Pidgeot
+    19: { hp: 30, attack: 56, defense: 35, speed: 72, spAtk: 25, spDef: 25 }, // Rattata
+    20: { hp: 55, attack: 81, defense: 60, speed: 97, spAtk: 50, spDef: 50 }, // Raticate
+    21: { hp: 40, attack: 60, defense: 30, speed: 70, spAtk: 31, spDef: 31 }, // Spearow
+    22: { hp: 65, attack: 90, defense: 65, speed: 100, spAtk: 61, spDef: 61 }, // Fearow
+    23: { hp: 35, attack: 60, defense: 44, speed: 55, spAtk: 40, spDef: 40 }, // Ekans
+    24: { hp: 60, attack: 85, defense: 69, speed: 80, spAtk: 65, spDef: 65 }, // Arbok
+    25: { hp: 35, attack: 55, defense: 30, speed: 90, spAtk: 50, spDef: 50 }, // Pikachu
+    26: { hp: 60, attack: 90, defense: 55, speed: 100, spAtk: 90, spDef: 90 }, // Raichu
+    27: { hp: 50, attack: 75, defense: 85, speed: 40, spAtk: 30, spDef: 30 }, // Sandshrew
+    28: { hp: 75, attack: 100, defense: 110, speed: 65, spAtk: 55, spDef: 55 }, // Sandslash
+    29: { hp: 55, attack: 47, defense: 52, speed: 41, spAtk: 40, spDef: 40 }, // NidoranF
+    30: { hp: 70, attack: 62, defense: 67, speed: 56, spAtk: 55, spDef: 55 }, // Nidorina
+    31: { hp: 90, attack: 82, defense: 87, speed: 76, spAtk: 75, spDef: 75 }, // Nidoqueen
+    32: { hp: 46, attack: 57, defense: 40, speed: 50, spAtk: 40, spDef: 40 }, // NidoranM
+    33: { hp: 61, attack: 72, defense: 57, speed: 65, spAtk: 55, spDef: 55 }, // Nidorino
+    34: { hp: 81, attack: 92, defense: 77, speed: 85, spAtk: 75, spDef: 75 }, // Nidoking
+    35: { hp: 70, attack: 45, defense: 48, speed: 35, spAtk: 60, spDef: 60 }, // Clefairy
+    36: { hp: 95, attack: 70, defense: 73, speed: 60, spAtk: 85, spDef: 85 }, // Clefable
+    37: { hp: 38, attack: 41, defense: 40, speed: 65, spAtk: 65, spDef: 65 }, // Vulpix
+    38: { hp: 73, attack: 76, defense: 75, speed: 100, spAtk: 100, spDef: 100 }, // Ninetales
+    39: { hp: 115, attack: 45, defense: 20, speed: 20, spAtk: 25, spDef: 25 }, // Jigglypuff
+    40: { hp: 140, attack: 70, defense: 45, speed: 45, spAtk: 50, spDef: 50 }, // Wigglytuff
+    41: { hp: 40, attack: 45, defense: 35, speed: 55, spAtk: 40, spDef: 40 }, // Zubat
+    42: { hp: 75, attack: 80, defense: 70, speed: 90, spAtk: 75, spDef: 75 }, // Golbat
+    43: { hp: 45, attack: 50, defense: 55, speed: 30, spAtk: 75, spDef: 75 }, // Oddish
+    44: { hp: 60, attack: 65, defense: 70, speed: 40, spAtk: 85, spDef: 85 }, // Gloom
+    45: { hp: 75, attack: 80, defense: 85, speed: 50, spAtk: 100, spDef: 100 }, // Vileplume
+    46: { hp: 35, attack: 70, defense: 55, speed: 25, spAtk: 55, spDef: 55 }, // Paras
+    47: { hp: 60, attack: 95, defense: 80, speed: 30, spAtk: 80, spDef: 80 }, // Parasect
+    48: { hp: 60, attack: 55, defense: 50, speed: 45, spAtk: 40, spDef: 40 }, // Venonat
+    49: { hp: 70, attack: 65, defense: 60, speed: 90, spAtk: 90, spDef: 90 }, // Venomoth
+    50: { hp: 10, attack: 55, defense: 25, speed: 95, spAtk: 45, spDef: 45 }, // Diglett
+    51: { hp: 35, attack: 80, defense: 50, speed: 120, spAtk: 70, spDef: 70 }, // Dugtrio
+    52: { hp: 40, attack: 45, defense: 35, speed: 90, spAtk: 40, spDef: 40 }, // Meowth
+    53: { hp: 65, attack: 70, defense: 60, speed: 115, spAtk: 65, spDef: 65 }, // Persian
+    54: { hp: 50, attack: 52, defense: 48, speed: 55, spAtk: 50, spDef: 50 }, // Psyduck
+    55: { hp: 80, attack: 82, defense: 78, speed: 85, spAtk: 80, spDef: 80 }, // Golduck
+    56: { hp: 40, attack: 80, defense: 35, speed: 70, spAtk: 35, spDef: 35 }, // Mankey
+    57: { hp: 65, attack: 105, defense: 60, speed: 95, spAtk: 60, spDef: 60 }, // Primeape
+    58: { hp: 55, attack: 70, defense: 45, speed: 60, spAtk: 50, spDef: 50 }, // Growlithe
+    59: { hp: 90, attack: 110, defense: 80, speed: 95, spAtk: 80, spDef: 80 }, // Arcanine
+    60: { hp: 40, attack: 50, defense: 40, speed: 90, spAtk: 40, spDef: 40 }, // Poliwag
+    61: { hp: 65, attack: 65, defense: 65, speed: 90, spAtk: 50, spDef: 50 }, // Poliwhirl
+    62: { hp: 90, attack: 85, defense: 95, speed: 70, spAtk: 70, spDef: 70 }, // Poliwrath
+    63: { hp: 25, attack: 20, defense: 15, speed: 90, spAtk: 105, spDef: 105 }, // Abra
+    64: { hp: 40, attack: 35, defense: 30, speed: 105, spAtk: 120, spDef: 120 }, // Kadabra
+    65: { hp: 55, attack: 50, defense: 45, speed: 120, spAtk: 135, spDef: 135 }, // Alakazam
+    66: { hp: 70, attack: 80, defense: 50, speed: 35, spAtk: 35, spDef: 35 }, // Machop
+    67: { hp: 80, attack: 100, defense: 70, speed: 45, spAtk: 50, spDef: 50 }, // Machoke
+    68: { hp: 90, attack: 130, defense: 80, speed: 55, spAtk: 65, spDef: 65 }, // Machamp
+    69: { hp: 50, attack: 75, defense: 35, speed: 40, spAtk: 70, spDef: 70 }, // Bellsprout
+    70: { hp: 65, attack: 90, defense: 50, speed: 55, spAtk: 85, spDef: 85 }, // Weepinbell
+    71: { hp: 80, attack: 105, defense: 65, speed: 70, spAtk: 100, spDef: 100 }, // Victreebel
+    72: { hp: 40, attack: 40, defense: 35, speed: 70, spAtk: 100, spDef: 100 }, // Tentacool
+    73: { hp: 80, attack: 70, defense: 65, speed: 100, spAtk: 120, spDef: 120 }, // Tentacruel
+    74: { hp: 40, attack: 80, defense: 100, speed: 20, spAtk: 30, spDef: 30 }, // Geodude
+    75: { hp: 55, attack: 95, defense: 115, speed: 35, spAtk: 45, spDef: 45 }, // Graveler
+    76: { hp: 80, attack: 110, defense: 130, speed: 45, spAtk: 55, spDef: 55 }, // Golem
+    77: { hp: 50, attack: 85, defense: 55, speed: 90, spAtk: 65, spDef: 65 }, // Ponyta
+    78: { hp: 65, attack: 100, defense: 70, speed: 105, spAtk: 80, spDef: 80 }, // Rapidash
+    79: { hp: 90, attack: 65, defense: 65, speed: 15, spAtk: 40, spDef: 40 }, // Slowpoke
+    80: { hp: 95, attack: 75, defense: 110, speed: 30, spAtk: 80, spDef: 80 }, // Slowbro
+    81: { hp: 25, attack: 35, defense: 70, speed: 45, spAtk: 95, spDef: 95 }, // Magnemite
+    82: { hp: 50, attack: 60, defense: 95, speed: 70, spAtk: 120, spDef: 120 }, // Magneton
+    83: { hp: 52, attack: 65, defense: 55, speed: 60, spAtk: 58, spDef: 58 }, // Farfetch'd
+    84: { hp: 35, attack: 85, defense: 45, speed: 75, spAtk: 35, spDef: 35 }, // Doduo
+    85: { hp: 60, attack: 110, defense: 70, speed: 100, spAtk: 60, spDef: 60 }, // Dodrio
+    86: { hp: 65, attack: 45, defense: 55, speed: 45, spAtk: 70, spDef: 70 }, // Seel
+    87: { hp: 90, attack: 70, defense: 80, speed: 70, spAtk: 95, spDef: 95 }, // Dewgong
+    88: { hp: 80, attack: 80, defense: 50, speed: 25, spAtk: 40, spDef: 40 }, // Grimer
+    89: { hp: 105, attack: 105, defense: 75, speed: 50, spAtk: 65, spDef: 65 }, // Muk
+    90: { hp: 30, attack: 65, defense: 100, speed: 40, spAtk: 45, spDef: 45 }, // Shellder
+    91: { hp: 50, attack: 95, defense: 180, speed: 70, spAtk: 85, spDef: 85 }, // Cloyster
+    92: { hp: 30, attack: 35, defense: 30, speed: 80, spAtk: 100, spDef: 100 }, // Gastly
+    93: { hp: 45, attack: 50, defense: 45, speed: 95, spAtk: 115, spDef: 115 }, // Haunter
+    94: { hp: 60, attack: 65, defense: 60, speed: 110, spAtk: 130, spDef: 130 }, // Gengar
+    95: { hp: 35, attack: 45, defense: 160, speed: 70, spAtk: 30, spDef: 30 }, // Onix
+    96: { hp: 60, attack: 48, defense: 45, speed: 42, spAtk: 90, spDef: 90 }, // Drowzee
+    97: { hp: 85, attack: 73, defense: 70, speed: 67, spAtk: 115, spDef: 115 }, // Hypno
+    98: { hp: 30, attack: 105, defense: 90, speed: 50, spAtk: 25, spDef: 25 }, // Krabby
+    99: { hp: 55, attack: 130, defense: 115, speed: 75, spAtk: 50, spDef: 50 }, // Kingler
+    100: { hp: 40, attack: 30, defense: 50, speed: 100, spAtk: 55, spDef: 55 }, // Voltorb
+    101: { hp: 60, attack: 50, defense: 70, speed: 140, spAtk: 80, spDef: 80 }, // Electrode
+    102: { hp: 60, attack: 40, defense: 80, speed: 40, spAtk: 60, spDef: 60 }, // Exeggcute
+    103: { hp: 95, attack: 95, defense: 85, speed: 55, spAtk: 125, spDef: 125 }, // Exeggutor
+    104: { hp: 50, attack: 50, defense: 95, speed: 35, spAtk: 40, spDef: 40 }, // Cubone
+    105: { hp: 60, attack: 80, defense: 110, speed: 45, spAtk: 50, spDef: 50 }, // Marowak
+    106: { hp: 50, attack: 120, defense: 53, speed: 87, spAtk: 35, spDef: 35 }, // Hitmonlee
+    107: { hp: 50, attack: 105, defense: 79, speed: 76, spAtk: 35, spDef: 35 }, // Hitmonchan
+    108: { hp: 90, attack: 55, defense: 75, speed: 30, spAtk: 60, spDef: 60 }, // Lickitung
+    109: { hp: 40, attack: 65, defense: 95, speed: 35, spAtk: 60, spDef: 60 }, // Koffing
+    110: { hp: 65, attack: 90, defense: 120, speed: 60, spAtk: 85, spDef: 85 }, // Weezing
+    111: { hp: 80, attack: 85, defense: 95, speed: 25, spAtk: 30, spDef: 30 }, // Rhyhorn
+    112: { hp: 105, attack: 130, defense: 120, speed: 40, spAtk: 45, spDef: 45 }, // Rhydon
+    113: { hp: 250, attack: 5, defense: 5, speed: 50, spAtk: 105, spDef: 105 }, // Chansey
+    114: { hp: 65, attack: 55, defense: 115, speed: 60, spAtk: 100, spDef: 100 }, // Tangela
+    115: { hp: 105, attack: 95, defense: 80, speed: 90, spAtk: 40, spDef: 40 }, // Kangaskhan
+    116: { hp: 30, attack: 40, defense: 70, speed: 60, spAtk: 70, spDef: 70 }, // Horsea
+    117: { hp: 55, attack: 65, defense: 95, speed: 85, spAtk: 95, spDef: 95 }, // Seadra
+    118: { hp: 45, attack: 67, defense: 60, speed: 63, spAtk: 50, spDef: 50 }, // Goldeen
+    119: { hp: 80, attack: 92, defense: 65, speed: 68, spAtk: 80, spDef: 80 }, // Seaking
+    120: { hp: 30, attack: 45, defense: 55, speed: 85, spAtk: 70, spDef: 70 }, // Staryu
+    121: { hp: 60, attack: 75, defense: 85, speed: 115, spAtk: 100, spDef: 100 }, // Starmie
+    122: { hp: 40, attack: 45, defense: 65, speed: 90, spAtk: 100, spDef: 100 }, // Mr. Mime
+    123: { hp: 70, attack: 110, defense: 80, speed: 105, spAtk: 55, spDef: 55 }, // Scyther
+    124: { hp: 65, attack: 50, defense: 35, speed: 95, spAtk: 95, spDef: 95 }, // Jynx
+    125: { hp: 65, attack: 83, defense: 57, speed: 105, spAtk: 85, spDef: 85 }, // Electabuzz
+    126: { hp: 65, attack: 95, defense: 57, speed: 93, spAtk: 85, spDef: 85 }, // Magmar
+    127: { hp: 65, attack: 125, defense: 100, speed: 85, spAtk: 55, spDef: 55 }, // Pinsir
+    128: { hp: 75, attack: 100, defense: 95, speed: 110, spAtk: 70, spDef: 70 }, // Tauros
+    129: { hp: 20, attack: 10, defense: 55, speed: 80, spAtk: 20, spDef: 20 }, // Magikarp
+    130: { hp: 95, attack: 125, defense: 79, speed: 81, spAtk: 100, spDef: 100 }, // Gyarados
+    131: { hp: 130, attack: 85, defense: 80, speed: 60, spAtk: 95, spDef: 95 }, // Lapras
+    132: { hp: 48, attack: 48, defense: 48, speed: 48, spAtk: 48, spDef: 48 }, // Ditto
+    133: { hp: 55, attack: 55, defense: 50, speed: 55, spAtk: 65, spDef: 65 }, // Eevee
+    134: { hp: 130, attack: 65, defense: 60, speed: 65, spAtk: 110, spDef: 110 }, // Vaporeon
+    135: { hp: 65, attack: 65, defense: 60, speed: 130, spAtk: 110, spDef: 110 }, // Jolteon
+    136: { hp: 65, attack: 130, defense: 60, speed: 65, spAtk: 110, spDef: 110 }, // Flareon
+    137: { hp: 65, attack: 60, defense: 70, speed: 40, spAtk: 75, spDef: 75 }, // Porygon
+    138: { hp: 35, attack: 40, defense: 100, speed: 35, spAtk: 90, spDef: 90 }, // Omanyte
+    139: { hp: 70, attack: 60, defense: 125, speed: 55, spAtk: 115, spDef: 115 }, // Omastar
+    140: { hp: 30, attack: 80, defense: 90, speed: 55, spAtk: 45, spDef: 45 }, // Kabuto
+    141: { hp: 60, attack: 115, defense: 105, speed: 80, spAtk: 70, spDef: 70 }, // Kabutops
+    142: { hp: 80, attack: 105, defense: 65, speed: 130, spAtk: 60, spDef: 60 }, // Aerodactyl
+    143: { hp: 160, attack: 110, defense: 65, speed: 30, spAtk: 65, spDef: 65 }, // Snorlax
+    144: { hp: 90, attack: 85, defense: 100, speed: 85, spAtk: 125, spDef: 125 }, // Articuno
+    145: { hp: 90, attack: 90, defense: 85, speed: 100, spAtk: 125, spDef: 125 }, // Zapdos
+    146: { hp: 90, attack: 100, defense: 90, speed: 90, spAtk: 125, spDef: 125 }, // Moltres
+    147: { hp: 41, attack: 64, defense: 45, speed: 50, spAtk: 50, spDef: 50 }, // Dratini
+    148: { hp: 61, attack: 84, defense: 65, speed: 70, spAtk: 70, spDef: 70 }, // Dragonair
+    149: { hp: 91, attack: 134, defense: 95, speed: 80, spAtk: 100, spDef: 100 }, // Dragonite
+    150: { hp: 106, attack: 110, defense: 90, speed: 130, spAtk: 154, spDef: 154 }, // Mewtwo
+    151: { hp: 100, attack: 100, defense: 100, speed: 100, spAtk: 100, spDef: 100 }, // Mew
 };
 
 // Gen 1 Catch Rates (0x07 in data structure)

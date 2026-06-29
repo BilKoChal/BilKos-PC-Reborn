@@ -240,7 +240,9 @@ export const PokemonEditorModal: React.FC<PokemonEditorModalProps> = ({ pokemon:
 
             // Use the adapter's standaloneFormat for file extension (A10: no `as any` cast).
             // Each adapter's standaloneFormat.fileExtension is the PKHeX-compatible extension.
-            const binary = adapter.createStandalonePokemon(mon);
+            // Phase 1.7: use standaloneFormat.createFile() instead of the legacy
+            // createStandalonePokemon() (deleted from IGenerationBinaryOps).
+            const binary = adapter.standaloneFormat!.createFile(mon);
             const filename = `${mon.nickname || mon.speciesName}${standaloneExt}`;
 
             const blob = new Blob([binary], { type: "application/octet-stream" });

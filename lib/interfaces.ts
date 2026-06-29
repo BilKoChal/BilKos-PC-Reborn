@@ -177,6 +177,12 @@ export interface IGenerationMetadata {
    *  'text' = "12h 34m 56s" (Gen1), 'clock' = "12:34:56" (Gen2+) */
   playTimeFormat: 'text' | 'clock';
 
+  /** Phase 1.5: Entity sizes (in bytes) this generation supports for standalone
+   *  Pokémon files (.pkN). Used by `getEntityFormatByLength` to detect the
+   *  generation from a file's byte count. Each entry maps a size to its context.
+   *  Example: Gen1 = [{ size: 33, context: 'stored' }, { size: 44, context: 'party' }] */
+  supportedEntitySizes: { size: number; context: 'stored' | 'party' }[];
+
   // ── IV/EV metadata (replaces hardcoded clamp values in editor) ──
 
   /** Maximum IV value for this generation.
@@ -324,23 +330,15 @@ export interface IGenerationBinaryOps {
 
   /** Whether this generation supports standalone Pokemon file parsing/creation
    *  (e.g. .pk1 for Gen 1, .pk2 for Gen 2). Callers should check this flag
-   *  before calling parseStandalonePokemon/createStandalonePokemon to avoid
-   *  runtime throws. Gen 1 supports it; Gen 2+ may not yet. */
+   *  before accessing standaloneFormat to avoid runtime throws. */
   supportsStandalone: boolean;
 
-  /** Parse a standalone Pokemon binary file into a PokemonStats object.
-   *  Throws if supportsStandalone is false — callers must check first. */
-  parseStandalonePokemon(buffer: Uint8Array): PokemonStats;
-
-  /** Create a standalone Pokemon binary from a PokemonStats object.
-   *  Throws if supportsStandalone is false — callers must check first. */
-  createStandalonePokemon(mon: PokemonStats): Uint8Array;
+  // Phase 1.7: Removed legacy `parseStandalonePokemon()` / `createStandalonePokemon()`
+  // from the interface. Use `standaloneFormat.parseFile()` / `.createFile()` instead.
 
   /** Standalone Pokemon format handler for this generation.
    *  Provides structured access to file extensions, validation, and
-   *  serialization. Use this for PKx file operations instead of
-   *  calling parseStandalonePokemon/createStandalonePokemon directly
-   *  when the full format metadata is needed (e.g., for UI file inputs). */
+   *  serialization. This is the ONLY API for PKx file operations. */
   readonly standaloneFormat?: IStandalonePokemonFormat;
 }
 

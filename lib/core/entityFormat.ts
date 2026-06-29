@@ -25,6 +25,8 @@
  * parts that are generation-independent and testable without a fixture.
  */
 
+import { registry } from './AdapterRegistry';
+
 /** The 24 permutations of the four data-block slots, generated lexicographically
  *  so the table is deterministic and stable across runs. Index 0 = identity. */
 export const BLOCK_ORDERS: ReadonlyArray<readonly [number, number, number, number]> = (() => {
@@ -111,7 +113,29 @@ export interface EntityFormatGuess {
  * (Gen 4 *or* Gen 5 stored); resolving it needs the per-format checksum probe a
  * real implementation supplies.
  */
+/**
+ * Phase 1.5: getEntityFormatByLength first checks loaded adapters (via the
+ * registry's `supportedEntitySizes` metadata), then falls back to the static
+ * table below for sizes that belong to not-yet-loaded generations (since
+ * detection happens before an adapter is loaded — chicken-and-egg).
+ *
+ * The static table is a known OCP violation: adding Gen 7+ requires editing
+ * this central file. The long-term fix (post-Phase 1) is a static-metadata
+ * registry that doesn't require adapter loading. For now, each adapter
+ * declares its `supportedEntitySizes` so the information is at least
+ * co-located with the generation, even if the fallback table is central.
+ */
 export function getEntityFormatByLength(length: number): EntityFormatGuess | null {
+  // Phase 1.5: first check loaded adapters for a matching size.
+  const adapters = registry.getAdapters();
+  for (const adapter of adapters) {
+    const match = adapter.supportedEntitySizes?.find(s => s.size === length);
+    if (match) {
+      return { generation: adapter.generation, context: match.context, ambiguous: false };
+    }
+  }
+
+  // Fallback: static table for not-yet-loaded generations.
   switch (length) {
     // Gen 1 (PokeList single-entry sizes are handled by the Gen1 format itself)
     case 33: return { generation: 1, context: 'stored', ambiguous: false };

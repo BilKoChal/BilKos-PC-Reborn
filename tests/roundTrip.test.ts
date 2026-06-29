@@ -427,13 +427,13 @@ describe('Gen 2 Adapter Detection', () => {
 
   it('should parse 32-byte raw box .pk2 format', () => {
     // 32-byte raw box format is valid for .pk2
-    const result = adapter.parseStandalonePokemon(new Uint8Array(32));
+    const result = adapter.standaloneFormat!.parseFile(new Uint8Array(32));
     expect(result).toBeDefined();
     expect(result.speciesId).toBe(0); // Empty buffer → species 0
   });
 
   it('should throw on invalid .pk2 size', () => {
-    expect(() => adapter.parseStandalonePokemon(new Uint8Array(10))).toThrow();
+    expect(() => adapter.standaloneFormat!.parseFile(new Uint8Array(10))).toThrow();
   });
 
   it('should create 73-byte PKHeX-compatible .pk2 file', () => {
@@ -461,7 +461,7 @@ describe('Gen 2 Adapter Detection', () => {
       genExtension: null,
       raw: new Uint8Array(48),
     } as Partial<PokemonStats> as PokemonStats;
-    const result = adapter.createStandalonePokemon(mockMon);
+    const result = adapter.standaloneFormat!.createFile(mockMon);
     expect(result.length).toBe(73); // INT PokeList2 format
     expect(result[0]).toBe(0x01); // Count = 1
     expect(result[1]).toBe(25); // Species = Pikachu (National Dex)

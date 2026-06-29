@@ -2,6 +2,7 @@ import { ParsedSave, PokemonStats, Item, assertCurrentBoxInSync } from '../../pa
 import { GEN1_DEX_TO_INTERNAL, getGen1Offsets, detectGen1Region, Gen1OffsetsConfig, Gen1Region } from './data/offsets';
 import { BinaryWriter } from '../../utils/io';
 import { encodeStatusByte } from '../../utils/byteHelpers';
+import { canonicalToGen1Internal } from './data/pokemonTypes';
 
 // National Dex ID → Gen 1 internal id — shared from data/offsets.ts (TODO 4.4).
 const DEX_TO_INTERNAL = GEN1_DEX_TO_INTERNAL;
@@ -71,9 +72,9 @@ function writePokemonStruct(writer: BinaryWriter, mon: PokemonStats, isParty: bo
     // the original raw byte (incl. the sleep-turn counter) when unchanged.
     writer.u8(encodeStatusByte(mon.status, mon.raw && mon.raw[0x04] !== undefined ? mon.raw[0x04] : undefined));
 
-    // Types (05, 06)
-    writer.u8(mon.type1);
-    writer.u8(mon.type2);
+    // Types (05, 06) — Phase 1.1: convert canonical → Gen1-internal at write time.
+    writer.u8(canonicalToGen1Internal(mon.type1));
+    writer.u8(canonicalToGen1Internal(mon.type2));
 
     // Catch Rate (07)
     writer.u8(mon.catchRate);
