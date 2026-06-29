@@ -1,18 +1,18 @@
 /**
- * Gen 3 type data (Phase 2.1).
+ * Gen 3 type data (Phase 2 Sprint 1).
  * Gen 3 uses the same 17 types as Gen 2 (no new types until Fairy in Gen 6).
  * Type IDs are canonical (0-18 from lib/data/types.ts).
  */
 import { getTypeId as getCanonicalTypeId } from '../../../data/types';
-
-// Gen 3 species → type mapping. Species 1-251 reuse Gen 2 types.
-// Gen 3-specific type changes from Gen 2: none (Gen 3 uses the same typings).
 import { getGen2PokemonTypes } from '../../gen2/data/types';
 import { getPokemonTypes as getGen1PokemonTypes } from '../../gen1/data/pokemonTypes';
+import { GEN3_SPECIES_TYPES } from './speciesTypes';
 
 export function getGen3PokemonTypes(dexId: number): string[] {
-  // Gen 3 uses the same type assignments as Gen 2 for species 1-251.
-  // For species 252-386, the types are defined in the species data.
+  // Phase 2 Sprint 1 (GAP-C5 fix): check Gen 3-specific types first for Hoenn species.
+  const gen3Types = GEN3_SPECIES_TYPES[dexId];
+  if (gen3Types) return gen3Types;
+  // Species 1-251 reuse Gen 2 types (includes Steel/Dark corrections).
   return getGen2PokemonTypes(dexId, getGen1PokemonTypes);
 }
 

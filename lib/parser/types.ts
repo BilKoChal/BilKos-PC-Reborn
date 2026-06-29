@@ -124,6 +124,7 @@ export interface TrainerInfo {
     pikachuFriendship?: number;
     pikachuSurfScore?: number;
     gender?: 'Male' | 'Female'; // Always Male in Gen 1 logic, Male or Female in Gen 2
+    secretId?: number; // Gen 3+: Secret ID (SID)
 }
 
 export interface GameOptions {
