@@ -233,3 +233,7 @@ registry.registerLazy(1, new LazyFactory(() =>
 registry.registerLazy(2, new LazyFactory(() =>
   import('../generations/gen2/Gen2Adapter').then(m => new m.Gen2Adapter())
 ));
+// Phase 2.1: Gen 3 (Ruby/Sapphire/Emerald/FireRed/LeafGreen) registered.
+registry.registerLazy(3, new LazyFactory(() =>
+  import('../generations/gen3/Gen3Adapter').then(m => new m.Gen3Adapter())
+));
