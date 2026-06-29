@@ -30,6 +30,10 @@ import { Gen3TextCodec } from './Gen3TextCodec';
 import { GEN3_GAMES } from './data/themes';
 import { GEN3_POKEMON_NAMES, GEN3_BASE_STATS, getGen3BaseStats } from './data/speciesData';
 import { getGen3TypeInfo, GEN3_TYPE_CHART } from './data/types';
+import { GEN3_MOVES_LIST, GEN3_MOVES_PP, GEN3_MOVES_TYPE, getGen3MoveName, getGen3MovePp, getGen3MoveType } from './data/moveData';
+import { getGen3ItemName, GEN3_ITEMS } from './data/items';
+import { getGen3AbilityName, getGen3SpeciesAbilities } from './data/abilities';
+import { registerGen3PanelExtensions } from './extensions';
 import { getNatureName, getAbilitySlot, getGenderFromPid, isShinyGen3, extractGen3IVs } from './identity';
 import {
   SECTION_SIZE, SECTION_COUNT, SECTION_DATA_SIZE, HALF_SIZE,
@@ -44,6 +48,11 @@ import {
 const SAVE_SIZE = 0x20000;
 
 export class Gen3Adapter implements IGenerationAdapter {
+  constructor() {
+    // Sprint 6: register Gen 3 panel extensions
+    registerGen3PanelExtensions();
+  }
+
   generation = 3;
   generationName = "Generation III";
   supportedVersions: string[] = ['Ruby', 'Sapphire', 'Emerald', 'FireRed', 'LeafGreen'];
@@ -581,15 +590,15 @@ export class Gen3Adapter implements IGenerationAdapter {
   // ─── Data Access ───
   getBaseStats(dexId: number): BaseStats | undefined { return getGen3BaseStats(dexId); }
   getPokemonName(dexId: number): string { return GEN3_POKEMON_NAMES[dexId] || `Species ${dexId}`; }
-  getMoveName(moveId: number): string { return `Move ${moveId}`; }
-  getItemName(itemId: number): string { return `Item ${itemId}`; }
+  getMoveName(moveId: number): string { return getGen3MoveName(moveId); }
+  getItemName(itemId: number): string { return getGen3ItemName(itemId); }
   getTypes(dexId: number) { return getGen3TypeInfo(dexId); }
   getAllSpeciesNames(): string[] { return GEN3_POKEMON_NAMES; }
   getInternalSpeciesId(dexId: number): number { return dexId; }
-  getAllMoveNames(): string[] { return []; }
-  getMoveBasePp(_moveId: number): number { return 0; }
-  getMoveType(_moveId: number): string { return 'Normal'; }
-  getAllItemNames(): string[] { return []; }
+  getAllMoveNames(): string[] { return GEN3_MOVES_LIST; }
+  getMoveBasePp(moveId: number): number { return getGen3MovePp(moveId); }
+  getMoveType(moveId: number): string { return getGen3MoveType(moveId); }
+  getAllItemNames(): string[] { return Object.values(GEN3_ITEMS); }
   getPokedexEntry(_dexId: number, _version: string): string | undefined { return undefined; }
   getEncounterLocations(_dexId: number, _version: string): string | undefined { return undefined; }
   getEventDistributions(): any[] { return []; }

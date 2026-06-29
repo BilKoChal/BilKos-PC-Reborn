@@ -366,7 +366,6 @@ export function convertPokemonForTransfer(
         };
 
         // Cap StatExp (0-65535) to Gen 3 EVs (0-255 per stat, 510 total).
-        // Simple per-stat cap; total-cap enforcement is a UI concern.
         const capEv = (ev: number): number => Math.min(ev ?? 0, 255);
         converted.ev = {
             hp: capEv(mon.ev.hp),
@@ -377,6 +376,22 @@ export function convertPokemonForTransfer(
             spAtk: capEv(mon.ev.special),
             spDef: capEv(mon.ev.special),
         };
+
+        // Sprint 7 (GAP-M7): enforce 510 EV total cap.
+        // After per-stat capping, if total > 510, scale down proportionally.
+        const evTotal = (converted.ev.hp + converted.ev.attack + converted.ev.defense +
+                         converted.ev.speed + converted.ev.spAtk + converted.ev.spDef);
+        if (evTotal > 510) {
+            const scale = 510 / evTotal;
+            converted.ev.hp = Math.floor(converted.ev.hp * scale);
+            converted.ev.attack = Math.floor(converted.ev.attack * scale);
+            converted.ev.defense = Math.floor(converted.ev.defense * scale);
+            converted.ev.speed = Math.floor(converted.ev.speed * scale);
+            converted.ev.spAtk = Math.floor(converted.ev.spAtk * scale);
+            converted.ev.spDef = Math.floor(converted.ev.spDef * scale);
+            converted.ev.special = converted.ev.spAtk; // mirror
+            warnings.push(`EVs scaled down to 510 total cap (was ${evTotal}).`);
+        }
 
         // Derive nature, ability slot, and gender from the synthesized PID.
         const natureName = getNatureName(pid);
@@ -417,6 +432,66 @@ export function convertPokemonForTransfer(
         }
 
         warnings.push(`Synthesized PID=${pid.toString(16)}, Nature=${natureName}, Ability slot=${abilitySlot}.`);
+    }
+
+    // ── 8c. Gen3→Gen{1,2} specific conversions (Sprint 7: GAP-M5) ──
+    if (sourceGen >= 3 && targetGen < 3) {
+        // IVs (5-bit, 0-31) → DVs (4-bit, 0-15): collapse via iv >> 1
+        const ivToDv = (iv: number): number => (iv ?? 0) >> 1;
+        converted.iv = {
+            hp: ivToDv(mon.iv.hp),
+            attack: ivToDv(mon.iv.attack),
+            defense: ivToDv(mon.iv.defense),
+            speed: ivToDv(mon.iv.speed),
+            special: ivToDv(mon.iv.spAtk ?? mon.iv.special),
+            spAtk: ivToDv(mon.iv.spAtk ?? mon.iv.special),
+            spDef: ivToDv(mon.iv.spDef ?? mon.iv.special),
+        };
+
+        // EVs (0-255) → StatExp (0-65535): scale up
+        const evToStatExp = (ev: number): number => Math.min((ev ?? 0) * 257, 65535);
+        converted.ev = {
+            hp: evToStatExp(mon.ev.hp),
+            attack: evToStatExp(mon.ev.attack),
+            defense: evToStatExp(mon.ev.defense),
+            speed: evToStatExp(mon.ev.speed),
+            special: evToStatExp(mon.ev.spAtk ?? mon.ev.special),
+            spAtk: evToStatExp(mon.ev.spAtk ?? mon.ev.special),
+            spDef: evToStatExp(mon.ev.spDef ?? mon.ev.special),
+        };
+
+        // Strip Gen 3-only fields
+        converted.pid = 0;
+        converted.secretId = 0;
+        converted.gender = 'Genderless'; // Will be derived from DVs by recalculateStats
+
+        // Warnings about data loss
+        warnings.push('PID, Secret ID, ability, nature, ribbons, and contest stats were removed.');
+        if (mon.heldItemId && mon.heldItemId !== 0) {
+            warnings.push(`Held item "${mon.heldItemName}" was removed (different item ID table).`);
+        }
+        converted.heldItemId = 0;
+        converted.heldItemName = 'None';
+
+        // Build target genExtension
+        if (targetGen === 2) {
+            const gen2Ext = new Gen2Extension();
+            gen2Ext.heldItemId = 0;
+            gen2Ext.heldItemName = 'None';
+            gen2Ext.friendship = mon.friendship ?? 70;
+            gen2Ext.pokerus = 0;
+            gen2Ext.gender = 'Genderless';
+            gen2Ext.isShiny = false; // Will be re-derived from DVs
+            converted.genExtension = gen2Ext;
+        } else {
+            const gen1Ext = new Gen1Extension();
+            gen1Ext.catchRate = 45;
+            gen1Ext.special = mon.spAtk ?? mon.special ?? 0;
+            gen1Ext.isParty = mon.isParty ?? false;
+            converted.genExtension = gen1Ext;
+            converted.special = mon.spAtk ?? mon.special ?? 0;
+            converted.friendship = 0;
+        }
     }
 
     // ── 9. Discard stale raw bytes ──
